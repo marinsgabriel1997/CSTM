@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-13
+
+### Added
+
+- Banco SQLite em `%APPDATA%\com.gabriel.cstm\cstm.db`, criado e migrado automaticamente ao iniciar o aplicativo.
+- Persistência de pastas (com subpastas) e textos no backend: criação, edição, exclusão, ordenação manual, movimentação entre pastas, favoritos, contagem de uso e busca por título e conteúdo que ignora acentos e aceita prefixos. Ainda sem interface.
+- Testes automatizados do backend (`npm run test:rust`).
+
 ## [0.1.1] - 2026-10-13
 
 ### Added

@@ -21,7 +21,8 @@
 - `npm run lint:rust`: executar o clippy no backend com warnings tratados como erro.
 - `npm run format:rust`: formatar o backend com `cargo fmt`; `cargo fmt --check` em `src-tauri/` verifica sem alterar.
 - O projeto não inclui formatador de frontend; não adicionar Prettier ou equivalente sem aprovação.
-- Não há comandos oficiais de testes declarados. Não alegar que existem nem apresentar verificações não executadas como aprovadas.
+- `npm run test:rust`: executar os testes do backend com `cargo test`.
+- Não há testes de frontend. Não alegar que existem nem apresentar verificações não executadas como aprovadas.
 
 ## Modos e fluxo de trabalho
 
