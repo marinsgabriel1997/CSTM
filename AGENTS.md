@@ -6,7 +6,7 @@
 - O MVP tem como alvo Windows. Histórico de clipboard, expansão por abreviação, transformações de texto, variáveis, inicialização com Windows e suporte a Linux/macOS estão fora do escopo documentado.
 - A stack atual é React 19, TypeScript 6, Vite 8, Tauri 2 e Rust edição 2024.
 - `src/` contém o frontend; `src-tauri/` contém o backend e a configuração desktop; `docs/mvp.md` descreve o escopo e a arquitetura pretendidos.
-- A base inicial contém o exemplo `greet`. Não tratar funcionalidades, dependências ou módulos previstos no MVP como já implementados.
+- Não tratar funcionalidades, dependências ou módulos previstos no MVP como já implementados.
 
 ## Ambiente e comandos
 
@@ -17,7 +17,11 @@
 - `npm run tauri -- dev`: iniciar o aplicativo desktop em desenvolvimento; a configuração Tauri chama `npm run dev`.
 - `npm run tauri -- build`: construir o aplicativo desktop; a configuração Tauri chama `npm run build`.
 - A configuração Vite usa a porta fixa 1420. Verificar os requisitos locais de Node, Rust e ferramentas Windows antes de executar o fluxo desktop.
-- Não há comandos oficiais de testes ou lint declarados na base inicial. Não alegar que existem nem apresentar verificações não executadas como aprovadas.
+- `npm run lint`: executar o ESLint no frontend.
+- `npm run lint:rust`: executar o clippy no backend com warnings tratados como erro.
+- `npm run format:rust`: formatar o backend com `cargo fmt`; `cargo fmt --check` em `src-tauri/` verifica sem alterar.
+- O projeto não inclui formatador de frontend; não adicionar Prettier ou equivalente sem aprovação.
+- Não há comandos oficiais de testes declarados. Não alegar que existem nem apresentar verificações não executadas como aprovadas.
 
 ## Modos e fluxo de trabalho
 

@@ -128,7 +128,7 @@ CREATE VIRTUAL TABLE snippets_fts USING fts5(
 
 Cada etapa termina com um commit funcional.
 
-1. **Base do projeto:** remover o exemplo do template; configurar rustfmt, clippy, ESLint e Prettier.
+1. **Base do projeto:** remover o exemplo do template; configurar rustfmt, clippy e ESLint.
 2. **Banco de dados:** conexão, migrações e operações de pastas e textos, com testes.
 3. **Tela de cadastro:** árvore de pastas, lista, editor, busca, favoritos.
 4. **Segundo plano:** bandeja, instância única, fechar para a bandeja.
