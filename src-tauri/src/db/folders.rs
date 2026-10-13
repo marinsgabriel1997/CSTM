@@ -1,10 +1,12 @@
 //! Pastas, organizadas em árvore por `parent_id` (`None` = raiz).
 
 use rusqlite::{Connection, OptionalExtension, Row};
+use serde::Serialize;
 
 use super::{DbError, NOW, Ordered, Result, next_sort_order, reorder, required};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Folder {
     pub id: i64,
     pub parent_id: Option<i64>,

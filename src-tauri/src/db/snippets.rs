@@ -1,11 +1,13 @@
 //! Textos reutilizáveis (snippets), na raiz (`folder_id` = `None`) ou em uma pasta.
 
 use rusqlite::{Connection, OptionalExtension, Row};
+use serde::Serialize;
 
 use super::folders::ensure_folder_exists;
 use super::{DbError, NOW, Ordered, Result, next_sort_order, reorder, required};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Snippet {
     pub id: i64,
     pub folder_id: Option<i64>,
@@ -71,6 +73,17 @@ pub fn list_snippets(conn: &Connection, folder_id: Option<i64>) -> Result<Vec<Sn
         conn,
         &format!("SELECT {COLUMNS} FROM snippets WHERE folder_id IS ?1 ORDER BY sort_order, id"),
         [folder_id],
+    )
+}
+
+/// Todos os textos, agrupados por pasta (raiz primeiro) e na ordem manual de cada uma.
+pub fn list_all_snippets(conn: &Connection) -> Result<Vec<Snippet>> {
+    query_list(
+        conn,
+        &format!(
+            "SELECT {COLUMNS} FROM snippets ORDER BY folder_id IS NOT NULL, folder_id, sort_order, id"
+        ),
+        [],
     )
 }
 
@@ -176,6 +189,10 @@ pub fn move_snippet(
 }
 
 /// Registra uma colagem do texto. Não altera `updated_at`, reservado a edições.
+#[cfg_attr(
+    not(test),
+    expect(dead_code, reason = "usado pela colagem a partir do p60")
+)]
 pub fn record_use(conn: &Connection, id: i64) -> Result<()> {
     ensure_changed(conn.execute(
         &format!(
@@ -226,6 +243,21 @@ mod tests {
         assert_eq!(
             titles(list_snippets(&conn, Some(folder.id)).unwrap()),
             ["Três"]
+        );
+    }
+
+    #[test]
+    fn list_all_groups_by_folder_in_manual_order() {
+        let mut conn = open_in_memory().unwrap();
+        let folder = create_folder(&conn, None, "Trabalho").unwrap();
+        create_snippet(&conn, Some(folder.id), "Dentro", "d").unwrap();
+        let second = create_snippet(&conn, None, "Segundo", "2").unwrap();
+        create_snippet(&conn, None, "Primeiro", "1").unwrap();
+        move_snippet(&mut conn, second.id, None, 1).unwrap();
+
+        assert_eq!(
+            titles(list_all_snippets(&conn).unwrap()),
+            ["Primeiro", "Segundo", "Dentro"]
         );
     }
 

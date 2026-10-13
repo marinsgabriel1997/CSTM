@@ -1,0 +1,69 @@
+// Único ponto de acesso do frontend ao backend: cada função chama um comando Tauri.
+// Em caso de falha, a promessa é rejeitada com a mensagem de erro do backend.
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+
+export interface Folder {
+  id: number;
+  parentId: number | null;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Snippet {
+  id: number;
+  folderId: number | null;
+  title: string;
+  content: string;
+  favorite: boolean;
+  useCount: number;
+  lastUsedAt: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Posição de destino que coloca o item no fim da pasta (o backend limita ao fim). */
+export const END = Number.MAX_SAFE_INTEGER;
+
+export const api = {
+  listFolders: () => invoke<Folder[]>("list_folders"),
+  createFolder: (parentId: number | null, name: string) =>
+    invoke<Folder>("create_folder", { parentId, name }),
+  renameFolder: (id: number, name: string) => invoke<Folder>("rename_folder", { id, name }),
+  deleteFolder: (id: number) => invoke<void>("delete_folder", { id }),
+  moveFolder: (id: number, parentId: number | null, position: number) =>
+    invoke<void>("move_folder", { id, parentId, position }),
+
+  listSnippets: (folderId: number | null) => invoke<Snippet[]>("list_snippets", { folderId }),
+  listAllSnippets: () => invoke<Snippet[]>("list_all_snippets"),
+  listFavorites: () => invoke<Snippet[]>("list_favorites"),
+  searchSnippets: (query: string) => invoke<Snippet[]>("search_snippets", { query }),
+  createSnippet: (folderId: number | null, title: string, content: string) =>
+    invoke<Snippet>("create_snippet", { folderId, title, content }),
+  updateSnippet: (id: number, title: string, content: string) =>
+    invoke<Snippet>("update_snippet", { id, title, content }),
+  setFavorite: (id: number, favorite: boolean) =>
+    invoke<Snippet>("set_favorite", { id, favorite }),
+  deleteSnippet: (id: number) => invoke<void>("delete_snippet", { id }),
+  moveSnippet: (id: number, folderId: number | null, position: number) =>
+    invoke<void>("move_snippet", { id, folderId, position }),
+
+  /**
+   * Intercepta o fechamento da janela: `shouldClose` decide se fecha agora; se devolver
+   * `false`, a janela continua aberta até `closeWindow`. Devolve a função que remove o aviso.
+   */
+  onCloseRequested: async (shouldClose: () => Promise<boolean>) =>
+    getCurrentWindow().onCloseRequested(async (event) => {
+      if (!(await shouldClose())) event.preventDefault();
+    }),
+  closeWindow: () => getCurrentWindow().destroy(),
+};
+
+export type Api = typeof api;
+
+export function errorMessage(error: unknown): string {
+  return typeof error === "string" ? error : String(error);
+}

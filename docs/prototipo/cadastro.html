@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>CSTM — Protótipo da tela de cadastro (conceito C)</title>
+<!--
+  Protótipo estático da tela de cadastro, conceito C de docs/telas.md.
+  Não faz parte do aplicativo: abre direto no navegador, sem build.
+  Estados selecionáveis na barra superior ou pela URL: cadastro.html#estado=edicao&tema=escuro
+-->
+<style>
+  :root {
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+
+  .theme-light {
+    --base: #eef0f3;
+    --layer: #ffffff;
+    --layer-alt: #f9f9f9;
+    --stroke: rgba(0, 0, 0, 0.08);
+    --stroke-strong: rgba(0, 0, 0, 0.14);
+    --text: #1a1a1a;
+    --text-2: #5d5d5d;
+    --text-3: #8b8b8b;
+    --hover: rgba(0, 0, 0, 0.04);
+    --selected: rgba(0, 0, 0, 0.065);
+    --accent: #005fb8;
+    --accent-hover: #1a6fc2;
+    --on-accent: #ffffff;
+    --accent-soft: rgba(0, 95, 184, 0.14);
+    --star: #d49a00;
+    --danger: #c42b1c;
+    --danger-bg: #fde7e9;
+    --warning: #8a5300;
+    --warning-bg: #fff4ce;
+    --success: #0f7b0f;
+    --overlay: rgba(0, 0, 0, 0.3);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 0 1px rgba(0, 0, 0, 0.2);
+    --control: #ffffff;
+    --control-bottom: rgba(0, 0, 0, 0.22);
+  }
+
+  .theme-dark {
+    --base: #1c1c1c;
+    --layer: #272727;
+    --layer-alt: #2c2c2c;
+    --stroke: rgba(255, 255, 255, 0.07);
+    --stroke-strong: rgba(255, 255, 255, 0.12);
+    --text: #ffffff;
+    --text-2: #c8c8c8;
+    --text-3: #9a9a9a;
+    --hover: rgba(255, 255, 255, 0.05);
+    --selected: rgba(255, 255, 255, 0.085);
+    --accent: #60cdff;
+    --accent-hover: #74d4ff;
+    --on-accent: #000000;
+    --accent-soft: rgba(96, 205, 255, 0.18);
+    --star: #ffc83d;
+    --danger: #ff99a4;
+    --danger-bg: #442726;
+    --warning: #fce100;
+    --warning-bg: #433519;
+    --success: #6ccb5f;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.6);
+    --control: #2d2d2d;
+    --control-bottom: rgba(255, 255, 255, 0.2);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 24px 40px;
+    font-family: var(--font);
+    font-size: 14px;
+    background: #d9dce1;
+    color: #1a1a1a;
+  }
+
+  /* ---------- Painel do protótipo (fora da janela) ---------- */
+  .proto-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    max-width: 1100px;
+    margin: 0 auto 10px;
+  }
+  .proto-bar button {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border: 1px solid #b9bdc4;
+    border-radius: 999px;
+    background: #f4f5f7;
+    cursor: pointer;
+  }
+  .proto-bar button.on { background: #1f2937; color: #fff; border-color: #1f2937; }
+  .proto-bar .sep { width: 1px; height: 20px; background: #b9bdc4; margin: 0 6px; }
+  .proto-note {
+    max-width: 1100px;
+    margin: 0 auto 14px;
+    font-size: 13px;
+    color: #374151;
+    min-height: 20px;
+  }
+
+  /* ---------- Janela ---------- */
+  .window {
+    position: relative;
+    width: 1100px;
+    height: 700px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: 32px 1fr 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--base);
+    color: var(--text);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+
+  .titlebar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 12px;
+    font-size: 12px;
+    color: var(--text-2);
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .app-icon {
+    width: 16px; height: 16px; border-radius: 4px;
+    background: linear-gradient(135deg, #2b88d8, #005fb8);
+    color: #fff; font-size: 10px; font-weight: 700;
+    display: grid; place-items: center;
+  }
+  .titlebar .controls { margin-left: auto; display: flex; height: 100%; }
+  .titlebar .controls span {
+    width: 46px; display: grid; place-items: center; color: var(--text-2);
+  }
+  .titlebar .controls svg { width: 10px; height: 10px; }
+
+  .body {
+    display: grid;
+    grid-template-columns: var(--tree-w, 290px) 5px 1fr;
+    min-height: 0;
+  }
+
+  /* ---------- Árvore ---------- */
+  .tree-pane {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 6px 4px 8px 8px;
+  }
+  .tree-head { display: flex; gap: 6px; padding: 2px 4px 8px 0; }
+  .search {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 4px;
+    background: var(--control);
+    border: 1px solid var(--stroke);
+    border-bottom-color: var(--control-bottom);
+    color: var(--text-3);
+  }
+  .search.active { border-bottom: 2px solid var(--accent); }
+  .search .q { color: var(--text); flex: 1; }
+  .search .caret { display: inline-block; width: 1px; height: 16px; background: var(--text); vertical-align: middle; margin-left: 1px; }
+  .search svg { width: 16px; height: 16px; flex: none; }
+  .search .clear { color: var(--text-2); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    font: inherit;
+    border-radius: 4px;
+    border: 1px solid var(--stroke);
+    border-bottom-color: var(--control-bottom);
+    background: var(--control);
+    color: var(--text);
+    cursor: default;
+    white-space: nowrap;
+  }
+  .btn svg { width: 16px; height: 16px; }
+  .btn.accent { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .btn.danger { background: var(--danger); color: #fff; border-color: transparent; }
+  .theme-dark .btn.danger { color: #000; }
+  .btn.subtle { background: transparent; border-color: transparent; }
+  .btn.icon { width: 32px; padding: 0; justify-content: center; }
+  .btn:disabled { opacity: 0.4; }
+  .btn .chev { width: 12px; height: 12px; opacity: 0.85; }
+
+  .chips { display: flex; gap: 6px; padding: 0 4px 6px 0; align-items: center; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 26px; padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid var(--stroke-strong);
+    font-size: 12.5px; color: var(--text-2);
+  }
+  .chip svg { width: 14px; height: 14px; }
+  .chip.on { background: var(--accent-soft); border-color: transparent; color: var(--text); }
+  .chip.on svg { color: var(--star); }
+  .results-info { margin-left: auto; font-size: 12px; color: var(--text-3); padding-right: 6px; }
+
+  .tree { flex: 1; overflow: auto; padding-right: 4px; }
+  .row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 5px 6px 5px calc(8px + var(--depth) * 18px);
+    border-radius: 4px;
+    color: var(--text);
+  }
+  .row:hover { background: var(--hover); }
+  .row.selected { background: var(--selected); }
+  .row.selected::before {
+    content: ""; position: absolute; left: 0; top: 50%;
+    width: 3px; height: 16px; margin-top: -8px;
+    border-radius: 2px; background: var(--accent);
+  }
+  .row.context { outline: 1px solid var(--accent); outline-offset: -1px; }
+  .row .tw { width: 16px; height: 16px; flex: none; color: var(--text-3); display: grid; place-items: center; }
+  .row .tw svg { width: 12px; height: 12px; }
+  .row .ic { width: 16px; height: 16px; flex: none; color: var(--text-2); }
+  .row.folder .ic { color: #c69a2b; }
+  .theme-dark .row.folder .ic { color: #e8c15c; }
+  .row .label { flex: 1; min-width: 0; }
+  .row .name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .excerpt { display: block; font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .star { width: 14px; height: 14px; color: var(--star); flex: none; }
+  .row .more { width: 24px; height: 24px; border-radius: 4px; display: none; place-items: center; color: var(--text-2); flex: none; }
+  .row .more svg { width: 16px; height: 16px; }
+  .row:hover .more, .row.selected .more, .row.context .more { display: grid; }
+  .row.draft .name { font-style: italic; color: var(--text-2); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+  .dot.warn { background: var(--warning); }
+  .dot.err { background: var(--danger); }
+  .dot.pending { background: var(--text-3); }
+  mark { background: var(--accent-soft); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .rename-input {
+    flex: 1; height: 26px; padding: 0 8px; border-radius: 4px;
+    background: var(--control); border: 1px solid var(--stroke);
+    border-bottom: 2px solid var(--accent); display: flex; align-items: center;
+  }
+
+  .tree-empty {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; gap: 8px; padding: 0 24px 40px; color: var(--text-2);
+  }
+  .tree-empty .big { width: 40px; height: 40px; color: var(--text-3); margin-bottom: 4px; }
+  .tree-empty strong { color: var(--text); font-size: 15px; font-weight: 600; }
+  .tree-empty .actions { display: flex; gap: 8px; margin-top: 8px; }
+
+  /* ---------- Divisor ---------- */
+  .divider { cursor: col-resize; position: relative; }
+  .divider::after {
+    content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 1px;
+    background: transparent; transition: background 0.15s;
+  }
+  .divider:hover::after, .divider.dragging::after { background: var(--accent); }
+
+  /* ---------- Editor ---------- */
+  .editor-pane {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--layer);
+    border-top: 1px solid var(--stroke);
+    border-left: 1px solid var(--stroke);
+    border-top-left-radius: 8px;
+  }
+  .editor-head {
+    display: flex; align-items: center; gap: 4px;
+    height: 48px; padding: 0 12px 0 28px; flex: none;
+  }
+  .crumbs { display: flex; align-items: center; gap: 2px; color: var(--text-2); font-size: 13px; min-width: 0; }
+  .crumbs span.seg { padding: 2px 4px; border-radius: 4px; white-space: nowrap; }
+  .crumbs span.seg:hover { background: var(--hover); }
+  .crumbs svg { width: 12px; height: 12px; color: var(--text-3); flex: none; }
+  .crumbs .root { color: var(--text-3); }
+  .badge {
+    margin-left: 8px; font-size: 11.5px; padding: 1px 8px; border-radius: 999px;
+    background: var(--hover); color: var(--text-2); border: 1px solid var(--stroke);
+  }
+  .editor-head .spacer { flex: 1; }
+  .fav-btn svg { color: var(--text-2); }
+  .fav-btn.on svg { color: var(--star); }
+
+  .infobar {
+    display: flex; align-items: center; gap: 10px;
+    margin: 0 28px 8px; padding: 8px 12px;
+    border-radius: 4px; border: 1px solid var(--stroke);
+    font-size: 13px;
+  }
+  .infobar svg { width: 16px; height: 16px; flex: none; }
+  .infobar.error { background: var(--danger-bg); }
+  .infobar.error > svg { color: var(--danger); }
+  .infobar .msg { flex: 1; }
+  .infobar .msg b { font-weight: 600; }
+  .infobar .btn { height: 28px; }
+
+  .doc {
+    flex: 1; min-height: 0; overflow: auto;
+    padding: 12px 28px 24px;
+    display: flex; flex-direction: column;
+  }
+  .doc-inner { max-width: 760px; width: 100%; display: flex; flex-direction: column; flex: 1; }
+  .title {
+    font-family: var(--font-display);
+    font-size: 28px; font-weight: 600; line-height: 1.25;
+    padding: 4px 0 6px;
+    outline: none;
+  }
+  .title.placeholder { color: var(--text-3); }
+  .title .caret, .content .caret {
+    display: inline-block; width: 1.5px; height: 1.1em; background: var(--text);
+    vertical-align: text-bottom; margin-left: 1px; animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .field-hint { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--warning); margin: 0 0 6px; }
+  .field-hint svg { width: 14px; height: 14px; }
+  .rule { height: 1px; background: var(--stroke); margin: 6px 0 14px; }
+  .content {
+    flex: 1;
+    font-size: 15px; line-height: 1.65;
+    white-space: pre-wrap;
+    color: var(--text);
+  }
+  .content.placeholder { color: var(--text-3); }
+
+  .folder-meta { color: var(--text-2); font-size: 13.5px; margin: 0 0 18px; }
+  .folder-actions { display: flex; gap: 8px; }
+
+  .welcome { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 64px 40px; max-width: 640px; }
+  .welcome h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; margin: 0 0 8px; }
+  .welcome p { color: var(--text-2); margin: 0 0 24px; line-height: 1.55; }
+  .steps { display: grid; gap: 14px; }
+  .step { display: flex; gap: 12px; align-items: flex-start; }
+  .step .n {
+    width: 26px; height: 26px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; font-size: 12.5px; font-weight: 600;
+    background: var(--accent-soft); color: var(--text);
+  }
+  .step b { display: block; font-weight: 600; margin-bottom: 2px; }
+  .step span { color: var(--text-2); font-size: 13px; }
+
+  .empty-editor { flex: 1; display: grid; place-items: center; color: var(--text-3); }
+
+  /* ---------- Barra de estado ---------- */
+  .statusbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px;
+    font-size: 12px; color: var(--text-2);
+    border-top: 1px solid var(--stroke);
+    background: var(--base);
+  }
+  .statusbar svg { width: 14px; height: 14px; flex: none; }
+  .statusbar .ok svg { color: var(--success); }
+  .statusbar .warn { color: var(--warning); }
+  .statusbar .err { color: var(--danger); }
+  .statusbar .st { display: flex; align-items: center; gap: 6px; }
+  .statusbar a { color: var(--accent); text-decoration: none; margin-left: 4px; }
+  .statusbar .right { margin-left: auto; color: var(--text-3); }
+  .spinner {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 2px solid var(--stroke-strong); border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---------- Menus ---------- */
+  .menu {
+    position: absolute; z-index: 10;
+    min-width: 230px; padding: 4px;
+    background: var(--layer-alt);
+    border: 1px solid var(--stroke-strong);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+  }
+  .menu .item {
+    display: flex; align-items: center; gap: 10px;
+    height: 32px; padding: 0 10px; border-radius: 4px;
+  }
+  .menu .item:hover, .menu .item.hl { background: var(--hover); }
+  .menu .item svg { width: 16px; height: 16px; color: var(--text-2); }
+  .menu .item .kb { margin-left: auto; font-size: 12px; color: var(--text-3); }
+  .menu .item.danger, .menu .item.danger svg { color: var(--danger); }
+  .menu .sep { height: 1px; background: var(--stroke); margin: 4px 0; }
+  .menu .hint { font-size: 12px; color: var(--text-3); padding: 4px 10px 6px; }
+
+  /* ---------- Diálogo ---------- */
+  .overlay { position: absolute; inset: 0; z-index: 20; background: var(--overlay); display: grid; place-items: center; }
+  .dialog {
+    width: 448px; border-radius: 8px; overflow: hidden;
+    background: var(--layer); border: 1px solid var(--stroke-strong); box-shadow: var(--shadow);
+  }
+  .dialog .dbody { padding: 24px; }
+  .dialog h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin: 0 0 12px; }
+  .dialog p { margin: 0 0 8px; color: var(--text-2); line-height: 1.5; }
+  .dialog ul { margin: 4px 0 0; padding-left: 18px; color: var(--text-2); }
+  .dialog .dfoot {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    padding: 20px 24px; background: var(--layer-alt); border-top: 1px solid var(--stroke);
+  }
+  .dialog .dfoot .btn { justify-content: center; }
+
+  svg.i { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+  svg.f { fill: currentColor; stroke: none; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="i-folder" viewBox="0 0 20 20"><path d="M2.5 5.5A1.5 1.5 0 0 1 4 4h3.4l1.8 2H16a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 16 16H4a1.5 1.5 0 0 1-1.5-1.5z"/></symbol>
+    <symbol id="i-folder-open" viewBox="0 0 20 20"><path d="M2.5 14V5.5A1.5 1.5 0 0 1 4 4h3.4l1.8 2H15a1.5 1.5 0 0 1 1.5 1.5V9"/><path d="M2.6 14.6 4.7 10A1.6 1.6 0 0 1 6.2 9h11a.8.8 0 0 1 .7 1.1l-2 4.7a1.6 1.6 0 0 1-1.5 1.2H3.5a1 1 0 0 1-.9-1.4z"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 20 20"><path d="M5.5 2.5h5.8l3.7 3.7v10.3a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 4 16.5V4a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M11 2.7V6.5h3.8"/><path d="M7 10.5h6M7 13.5h4"/></symbol>
+    <symbol id="i-docs" viewBox="0 0 20 20"><path d="M7 3.5h5.5L16 7v8.5A1.5 1.5 0 0 1 14.5 17H7a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 7 3.5z"/><path d="M12.3 3.7V7.2H15.8"/><path d="M3.5 6v10.5A2 2 0 0 0 5.5 18.5h7"/></symbol>
+    <symbol id="i-star" viewBox="0 0 20 20"><path d="m10 2.8 2.2 4.5 4.9.7-3.6 3.5.9 4.9L10 14.1l-4.4 2.3.9-4.9L2.9 8l4.9-.7z"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 20 20"><path d="m7.5 4.5 5.5 5.5-5.5 5.5"/></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 20 20"><path d="m4.5 7.5 5.5 5.5 5.5-5.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 20 20"><circle cx="8.5" cy="8.5" r="5.2"/><path d="m12.4 12.4 4.6 4.6"/></symbol>
+    <symbol id="i-add" viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></symbol>
+    <symbol id="i-more" viewBox="0 0 20 20"><circle cx="4.5" cy="10" r="1.3"/><circle cx="10" cy="10" r="1.3"/><circle cx="15.5" cy="10" r="1.3"/></symbol>
+    <symbol id="i-check" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.3-4.6"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 20 20"><path d="M10 3 18 16.5H2z"/><path d="M10 8v4"/><path d="M10 14.4v.1"/></symbol>
+    <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="m7.3 7.3 5.4 5.4M12.7 7.3l-5.4 5.4"/></symbol>
+    <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v4.5"/><path d="M10 6.4v.1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 20 20"><path d="M3.5 5.5h13M8 5.5V4h4v1.5"/><path d="m5 5.5.8 10.2A1.5 1.5 0 0 0 7.3 17h5.4a1.5 1.5 0 0 0 1.5-1.3L15 5.5"/></symbol>
+    <symbol id="i-rename" viewBox="0 0 20 20"><path d="m12.8 3.7 3.5 3.5L7.5 16H4v-3.5z"/><path d="m11 5.5 3.5 3.5"/></symbol>
+    <symbol id="i-move" viewBox="0 0 20 20"><path d="M2.5 14V5.5A1.5 1.5 0 0 1 4 4h3.4l1.8 2H16a1.5 1.5 0 0 1 1.5 1.5V10"/><path d="M11 14.5h6.5M15 12l2.5 2.5L15 17"/><path d="M2.5 14A1.5 1.5 0 0 0 4 15.5h4"/></symbol>
+    <symbol id="i-up" viewBox="0 0 20 20"><path d="M10 16V4M5 9l5-5 5 5"/></symbol>
+    <symbol id="i-down" viewBox="0 0 20 20"><path d="M10 4v12M5 11l5 5 5-5"/></symbol>
+    <symbol id="i-x" viewBox="0 0 20 20"><path d="m5 5 10 10M15 5 5 15"/></symbol>
+    <symbol id="i-min" viewBox="0 0 20 20"><path d="M3 10h14"/></symbol>
+    <symbol id="i-max" viewBox="0 0 20 20"><rect x="3.5" y="3.5" width="13" height="13" rx="1.5"/></symbol>
+    <symbol id="i-paste" viewBox="0 0 20 20"><path d="M7.5 3.5h5v2h-5z"/><path d="M7.5 4.5H6A1.5 1.5 0 0 0 4.5 6v10A1.5 1.5 0 0 0 6 17.5h8a1.5 1.5 0 0 0 1.5-1.5V6A1.5 1.5 0 0 0 14 4.5h-1.5"/><path d="M7.5 10h5M7.5 13h3"/></symbol>
+    <symbol id="i-folder-add" viewBox="0 0 20 20"><path d="M9.5 16H4a1.5 1.5 0 0 1-1.5-1.5v-9A1.5 1.5 0 0 1 4 4h3.4l1.8 2H16a1.5 1.5 0 0 1 1.5 1.5V9.5"/><path d="M15 12v6M12 15h6"/></symbol>
+    <symbol id="i-doc-add" viewBox="0 0 20 20"><path d="M10 17.5H5.5A1.5 1.5 0 0 1 4 16V4a1.5 1.5 0 0 1 1.5-1.5h5.8l3.7 3.7V10"/><path d="M11 2.7V6.5h3.8"/><path d="M15 12v6M12 15h6"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/></symbol>
+  </defs>
+</svg>
+
+<div class="proto-bar" id="states"></div>
+<div class="proto-note" id="note"></div>
+<div class="window theme-light" id="win"></div>
+
+<script>
+  const ic = (name, cls = "i") => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+  const icFill = (name) => ic(name, "f");
+
+  // Biblioteca de exemplo: pastas e textos numa árvore única.
+  const LIB = [
+    { type: "folder", id: "trabalho", name: "Trabalho", open: true, children: [
+      { type: "folder", id: "emails", name: "E-mails", open: true, children: [
+        { type: "text", id: "resposta", title: "Resposta padrão",
+          content: "Olá!\n\nObrigado pelo contato. Recebemos sua mensagem e retornaremos em até 24 horas úteis.\n\nAtenciosamente,\nGabriel" },
+        { type: "text", id: "followup", title: "Follow-up",
+          content: "Olá! Passando para saber se você teve a oportunidade de avaliar a proposta enviada na semana passada. Fico no aguardo da sua resposta." },
+      ]},
+      { type: "folder", id: "clientes", name: "Clientes", open: false, children: [
+        { type: "text", id: "proposta", title: "Proposta comercial", content: "Segue em anexo a proposta comercial..." },
+        { type: "text", id: "contrato", title: "Envio de contrato", content: "Segue o contrato para assinatura..." },
+      ]},
+      { type: "text", id: "saudacao", title: "Saudação formal", fav: true,
+        content: "Prezado(a),\n\nEspero que esteja bem." },
+      { type: "text", id: "assinatura", title: "Assinatura", fav: true,
+        content: "Atenciosamente,\nGabriel de Marins\n(11) 90000-0000" },
+    ]},
+    { type: "folder", id: "pessoal", name: "Pessoal", open: false, children: [
+      { type: "text", id: "endereco", title: "Endereço residencial", content: "Rua das Flores, 123 — Apto 45\nSão Paulo — SP, 01000-000" },
+    ]},
+    { type: "text", id: "telefone", title: "Telefone", fav: true, content: "(11) 90000-0000" },
+    { type: "text", id: "agenda", title: "Link da agenda", content: "https://agenda.exemplo.com/gabriel" },
+  ];
+
+  // Estados do protótipo. Cada um descreve o que a tela mostra; `render` monta a janela.
+  const STATES = {
+    "primeiro-uso": {
+      label: "Primeiro uso",
+      note: "Biblioteca vazia: a árvore convida a criar o primeiro texto ou pasta; o editor apresenta o aplicativo.",
+      empty: true, status: { kind: "idle", text: "Nenhum texto cadastrado" },
+    },
+    "criacao": {
+      label: "Criação: menu Novo",
+      note: "Botão único Novo abre o menu com texto e pasta. Os itens são criados na pasta selecionada (indicada no rodapé do menu).",
+      selected: "emails", newMenu: true, folderView: "emails", status: { kind: "ok" },
+    },
+    "nova-pasta": {
+      label: "Criação: nova pasta",
+      note: "Nova pasta entra na árvore com o nome em edição; Enter confirma e grava, Esc cancela.",
+      selected: "nova-pasta", renaming: true, folderView: "nova-pasta", status: { kind: "idle", text: "Digite o nome da pasta e pressione Enter" },
+    },
+    "rascunho": {
+      label: "Criação: novo texto",
+      note: "Novo texto abre como rascunho em itálico na árvore. Só é gravado quando título e conteúdo estiverem preenchidos.",
+      selected: "rascunho", draft: true, status: { kind: "draft" },
+    },
+    "edicao": {
+      label: "Edição",
+      note: "Texto selecionado na árvore e aberto no editor: título destacado, conteúdo direto, caminho no topo. Alterações gravadas automaticamente.",
+      selected: "resposta", status: { kind: "ok" },
+    },
+    "salvando": {
+      label: "Edição: salvando",
+      note: "Durante a gravação, a barra inferior mostra o indicador; o item recebe um ponto até concluir.",
+      selected: "resposta", caret: true, editedContent: true, status: { kind: "saving" }, dot: "pending",
+    },
+    "invalido": {
+      label: "Edição: rascunho inválido",
+      note: "Título apagado: nada é gravado e a última versão salva continua no banco. O rascunho fica preservado e marcado na árvore até ser corrigido.",
+      selected: "followup", invalidTitle: true, status: { kind: "invalid" }, dot: "warn",
+    },
+    "pasta": {
+      label: "Pasta selecionada",
+      note: "Selecionar uma pasta abre seu resumo: o título é o nome (renomear editando), com atalhos para criar dentro dela.",
+      selected: "emails", folderView: "emails", status: { kind: "ok" },
+    },
+    "contexto": {
+      label: "Menu de contexto",
+      note: "Botão … ou clique direito: renomear, mover, reordenar, favoritar e excluir, com atalhos de teclado.",
+      selected: "resposta", context: "followup", status: { kind: "ok" },
+    },
+    "busca": {
+      label: "Busca",
+      note: "A busca filtra a própria árvore, mantendo as pastas dos resultados. Correspondências no conteúdo mostram um trecho.",
+      selected: "resposta", query: "resp", status: { kind: "ok" },
+    },
+    "favoritos": {
+      label: "Filtro: favoritos",
+      note: "O filtro de favoritos reduz a árvore aos textos marcados, preservando as pastas onde estão.",
+      selected: "saudacao", favFilter: true, status: { kind: "ok" },
+    },
+    "confirmacao": {
+      label: "Confirmação",
+      note: "Excluir pede confirmação e informa o que será removido junto.",
+      selected: "trabalho", folderView: "trabalho", dialog: true, status: { kind: "ok" },
+    },
+    "erro": {
+      label: "Erro ao salvar",
+      note: "Falha na gravação: o texto digitado continua no editor, o item fica marcado e é possível tentar de novo. Nova edição também tenta de novo.",
+      selected: "resposta", editedContent: true, error: true, status: { kind: "error" }, dot: "err",
+    },
+  };
+
+  let current = "edicao";
+  let theme = "claro";
+  let treeWidth = 290;
+
+  const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const norm = (s) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+
+  function find(id, nodes = LIB, path = []) {
+    for (const n of nodes) {
+      if (n.id === id) return { node: n, path };
+      if (n.children) {
+        const r = find(id, n.children, [...path, n]);
+        if (r) return r;
+      }
+    }
+    return null;
+  }
+
+  function countAll(nodes) {
+    let texts = 0, folders = 0;
+    for (const n of nodes) {
+      if (n.type === "folder") { folders++; const c = countAll(n.children); texts += c.texts; folders += c.folders; }
+      else texts++;
+    }
+    return { texts, folders };
+  }
+
+  // Mantém pastas que contenham algum texto aceito por `keep`, abrindo-as.
+  function prune(nodes, keep) {
+    const out = [];
+    for (const n of nodes) {
+      if (n.type === "folder") {
+        const kids = prune(n.children, keep);
+        if (kids.length) out.push({ ...n, open: true, children: kids });
+      } else if (keep(n)) out.push(n);
+    }
+    return out;
+  }
+
+  function highlight(text, q) {
+    if (!q) return esc(text);
+    const i = norm(text).indexOf(norm(q));
+    if (i < 0) return esc(text);
+    return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+  }
+
+  function excerpt(content, q) {
+    const i = norm(content).indexOf(norm(q));
+    const start = Math.max(0, i - 18);
+    const piece = content.slice(start, i + q.length + 40).replace(/\n/g, " ");
+    return (start > 0 ? "…" : "") + highlight(piece, q);
+  }
+
+  function treeRows(nodes, depth, st) {
+    let html = "";
+    for (const n of nodes) {
+      const sel = st.selected === n.id;
+      const ctx = st.context === n.id;
+      if (n.type === "folder") {
+        html += `<div class="row folder${sel ? " selected" : ""}" style="--depth:${depth}">
+          <span class="tw">${ic(n.open ? "chev-d" : "chev-r")}</span>
+          <svg class="i ic"><use href="#i-${n.open ? "folder-open" : "folder"}"/></svg>
+          <span class="label"><span class="name">${esc(n.name)}</span></span>
+          <span class="more">${ic("more", "f")}</span>
+        </div>`;
+        if (n.open) html += treeRows(n.children, depth + 1, st);
+        if (n.id === "emails" && st.draft) {
+          html += `<div class="row draft selected" style="--depth:${depth + 1}">
+            <span class="tw"></span>${ic("doc").replace('class="i"', 'class="i ic"')}
+            <span class="label"><span class="name">Sem título</span></span>
+            <span class="dot pending" title="Rascunho não salvo"></span>
+          </div>`;
+        }
+      } else {
+        const matchTitle = st.query && norm(n.title).includes(norm(st.query));
+        const showExcerpt = st.query && !matchTitle;
+        const dot = sel && st.dot ? `<span class="dot ${st.dot}"></span>` : "";
+        html += `<div class="row text${sel ? " selected" : ""}${ctx ? " context" : ""}" style="--depth:${depth}">
+          <span class="tw"></span>
+          <svg class="i ic"><use href="#i-doc"/></svg>
+          <span class="label">
+            <span class="name">${sel && st.invalidTitle ? '<span style="color:var(--text-3);font-style:italic">Sem título</span>' : highlight(n.title, st.query)}</span>
+            ${showExcerpt ? `<span class="excerpt">${excerpt(n.content, st.query)}</span>` : ""}
+          </span>
+          ${dot}
+          ${n.fav ? `<svg class="f star"><use href="#i-star"/></svg>` : ""}
+          <span class="more">${ic("more", "f")}</span>
+        </div>`;
+      }
+    }
+    return html;
+  }
+
+  function renderTree(st) {
+    const head = `
+      <div class="tree-head">
+        <div class="search${st.query ? " active" : ""}">
+          ${ic("search")}
+          ${st.query ? `<span class="q">${esc(st.query)}<span class="caret"></span></span><span class="clear">${ic("x")}</span>` : "<span>Buscar</span>"}
+        </div>
+        <button class="btn accent">${ic("add")} Novo ${ic("chev-d").replace('class="i"', 'class="i chev"')}</button>
+      </div>`;
+
+    if (st.empty) {
+      return head + `
+        <div class="tree-empty">
+          <svg class="i big"><use href="#i-docs"/></svg>
+          <strong>Nenhum texto ainda</strong>
+          <span>Crie um texto para colar em qualquer programa, ou uma pasta para organizar.</span>
+          <div class="actions">
+            <button class="btn accent">${ic("doc-add")} Novo texto</button>
+            <button class="btn">${ic("folder-add")} Nova pasta</button>
+          </div>
+        </div>`;
+    }
+
+    let nodes = LIB;
+    let info = "";
+    if (st.query) {
+      nodes = prune(LIB, (t) => norm(t.title + " " + t.content).includes(norm(st.query)));
+      const n = countAll(nodes).texts;
+      info = `<span class="results-info">${n} resultado${n === 1 ? "" : "s"}</span>`;
+    } else if (st.favFilter) {
+      nodes = prune(LIB, (t) => t.fav);
+    }
+
+    let rows = treeRows(nodes, 0, st);
+    if (st.renaming) {
+      // Itens novos entram no fim: a nova pasta vem depois das pastas da raiz e antes dos textos.
+      const firstRootText = rows.indexOf('<div class="row text" style="--depth:0">');
+      rows = rows.slice(0, firstRootText) + `<div class="row folder selected" style="--depth:0">
+          <span class="tw"></span><svg class="i ic"><use href="#i-folder"/></svg>
+          <span class="rename-input">Nova pasta<span class="caret" style="display:inline-block;width:1px;height:15px;background:var(--text);margin-left:1px"></span></span>
+        </div>` + rows.slice(firstRootText);
+    }
+
+    return head + `
+      <div class="chips">
+        <span class="chip${st.favFilter ? " on" : ""}">${st.favFilter ? icFill("star") : ic("star")} Favoritos</span>
+        ${info}
+      </div>
+      <div class="tree">${rows}</div>`;
+  }
+
+  // Na raiz, o caminho diz "Sem pasta" para textos e "Raiz" para pastas.
+  function crumbs(path, extra, rootLabel = "Sem pasta") {
+    const segs = path.map((p) => `<span class="seg">${esc(p.name)}</span>`);
+    if (!segs.length) segs.push(`<span class="seg root">${rootLabel}</span>`);
+    return `<div class="crumbs">${segs.join(ic("chev-r"))}${extra || ""}</div>`;
+  }
+
+  function renderEditor(st) {
+    if (st.empty) {
+      return `<div class="welcome">
+        <h1>Bem-vindo ao CSTM</h1>
+        <p>Cadastre os textos que você digita toda hora e cole-os em qualquer programa pelo menu de colagem, sem sair do que está fazendo.</p>
+        <div class="steps">
+          <div class="step"><span class="n">1</span><div><b>Crie textos</b><span>Saudações, assinaturas, respostas prontas, endereços.</span></div></div>
+          <div class="step"><span class="n">2</span><div><b>Organize em pastas</b><span>Agrupe por assunto e marque os mais usados como favoritos.</span></div></div>
+          <div class="step"><span class="n">3</span><div><b>Cole com o atalho</b><span>O menu de colagem abre junto ao cursor em qualquer programa.</span></div></div>
+        </div>
+      </div>`;
+    }
+
+    if (st.folderView) {
+      const isNew = st.folderView === "nova-pasta";
+      const f = isNew ? { node: { name: "Nova pasta", children: [] }, path: [] } : find(st.folderView);
+      const c = countAll(f.node.children);
+      const meta = isNew ? "Pasta vazia" :
+        `${c.texts} texto${c.texts === 1 ? "" : "s"} · ${c.folders ? c.folders + " subpasta" + (c.folders === 1 ? "" : "s") : "nenhuma subpasta"}`;
+      return `
+        <div class="editor-head">${crumbs(f.path, "", "Raiz")}<span class="spacer"></span>
+          <button class="btn subtle icon">${ic("more", "f")}</button></div>
+        <div class="doc"><div class="doc-inner">
+          <div class="title">${esc(f.node.name)}</div>
+          <p class="folder-meta">${meta}</p>
+          <div class="folder-actions">
+            <button class="btn">${ic("doc-add")} Novo texto aqui</button>
+            <button class="btn">${ic("folder-add")} Nova subpasta</button>
+          </div>
+        </div></div>`;
+    }
+
+    if (st.draft) {
+      return `
+        <div class="editor-head">${crumbs(find("emails").path.concat(find("emails").node), '<span class="badge">Rascunho</span>')}
+          <span class="spacer"></span>
+          <button class="btn subtle icon fav-btn" title="Salve o texto para favoritar" disabled>${ic("star")}</button>
+          <button class="btn subtle icon">${ic("more", "f")}</button></div>
+        <div class="doc"><div class="doc-inner">
+          <div class="title placeholder"><span class="caret"></span>Sem título</div>
+          <div class="rule"></div>
+          <div class="content placeholder">Escreva o texto que será colado…</div>
+        </div></div>`;
+    }
+
+    const { node: t, path } = find(st.selected);
+    let content = esc(t.content);
+    if (st.editedContent) {
+      content = esc(t.content.replace("\n\nAtenciosamente", "\n\nQualquer dúvida, estou à disposição.\n\nAtenciosamente"));
+    }
+    if (st.caret) content += '<span class="caret"></span>';
+
+    const error = st.error ? `
+      <div class="infobar error">${ic("error")}
+        <span class="msg"><b>Não foi possível salvar.</b> Suas alterações continuam aqui e não foram perdidas.</span>
+        <button class="btn">${ic("refresh")} Tentar novamente</button>
+      </div>` : "";
+
+    const title = st.invalidTitle
+      ? `<div class="title placeholder"><span class="caret"></span>Sem título</div>
+         <div class="field-hint">${ic("warn")} O título é obrigatório. Enquanto estiver vazio, as alterações não são salvas.</div>`
+      : `<div class="title">${esc(t.title)}</div>`;
+
+    let html = `
+      <div class="editor-head">${crumbs(path)}<span class="spacer"></span>
+        <button class="btn subtle icon fav-btn${t.fav ? " on" : ""}" title="Favorito">${t.fav ? icFill("star") : ic("star")}</button>
+        <button class="btn subtle icon">${ic("more", "f")}</button></div>
+      ${error}
+      <div class="doc"><div class="doc-inner">
+        ${title}
+        <div class="rule"></div>
+        <div class="content">${content}</div>
+      </div></div>`;
+    return html;
+  }
+
+  function renderStatus(st) {
+    const counts = st.empty ? "0 textos" : (() => { const c = countAll(LIB); return `${c.texts} textos · ${c.folders} pastas`; })();
+    const s = st.status;
+    let left = "";
+    if (s.kind === "ok") left = `<span class="st ok">${ic("check")} Todas as alterações salvas</span>`;
+    if (s.kind === "saving") left = `<span class="st"><span class="spinner"></span> Salvando…</span>`;
+    if (s.kind === "draft") left = `<span class="st">${ic("info")} Rascunho: preencha o título e o conteúdo para salvar</span>`;
+    if (s.kind === "invalid") left = `<span class="st warn">${ic("warn")} Não salvo: o título está vazio. A última versão salva foi mantida.</span>`;
+    if (s.kind === "error") left = `<span class="st err">${ic("error")} Erro ao salvar “Resposta padrão”: banco de dados indisponível.<a href="#">Tentar novamente</a></span>`;
+    if (s.kind === "idle") left = `<span class="st">${esc(s.text)}</span>`;
+    return `${left}<span class="right">${counts}</span>`;
+  }
+
+  function renderMenus(st) {
+    let html = "";
+    if (st.newMenu) {
+      html += `<div class="menu" style="left:${treeWidth - 128}px; top:76px">
+        <div class="item hl">${ic("doc-add")} Novo texto <span class="kb">Ctrl+N</span></div>
+        <div class="item">${ic("folder-add")} Nova pasta <span class="kb">Ctrl+Shift+N</span></div>
+        <div class="sep"></div>
+        <div class="hint">Em Trabalho › E-mails</div>
+      </div>`;
+    }
+    if (st.context) {
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:262px">
+        <div class="item">${ic("rename")} Renomear <span class="kb">F2</span></div>
+        <div class="item">${ic("move")} Mover para… <span class="kb">Ctrl+M</span></div>
+        <div class="sep"></div>
+        <div class="item hl">${ic("up")} Mover para cima <span class="kb">Alt+↑</span></div>
+        <div class="item">${ic("down")} Mover para baixo <span class="kb">Alt+↓</span></div>
+        <div class="sep"></div>
+        <div class="item">${ic("star")} Adicionar aos favoritos</div>
+        <div class="sep"></div>
+        <div class="item danger">${ic("trash")} Excluir <span class="kb">Del</span></div>
+      </div>`;
+    }
+    if (st.dialog) {
+      html += `<div class="overlay"><div class="dialog">
+        <div class="dbody">
+          <h2>Excluir a pasta “Trabalho”?</h2>
+          <p>Também serão excluídos:</p>
+          <ul><li>2 subpastas (E-mails, Clientes)</li><li>6 textos, incluindo 2 favoritos</li></ul>
+          <p style="margin-top:12px">Esta ação não pode ser desfeita.</p>
+        </div>
+        <div class="dfoot"><button class="btn danger">Excluir</button><button class="btn">Cancelar</button></div>
+      </div></div>`;
+    }
+    return html;
+  }
+
+  function render() {
+    const st = STATES[current];
+    const win = document.getElementById("win");
+    win.className = "window " + (theme === "escuro" ? "theme-dark" : "theme-light");
+    win.innerHTML = `
+      <div class="titlebar"><span class="app-icon">C</span> CSTM
+        <div class="controls"><span>${ic("min")}</span><span>${ic("max")}</span><span>${ic("x")}</span></div></div>
+      <div class="body" style="--tree-w:${treeWidth}px">
+        <aside class="tree-pane">${renderTree(st)}</aside>
+        <div class="divider" id="divider" title="Arraste para redimensionar"></div>
+        <section class="editor-pane">${renderEditor(st)}</section>
+      </div>
+      <div class="statusbar">${renderStatus(st)}</div>
+      ${renderMenus(st)}`;
+    document.getElementById("note").textContent = st.note;
+    document.querySelectorAll("#states button[data-s]").forEach((b) => b.classList.toggle("on", b.dataset.s === current));
+    document.querySelectorAll("#states button[data-t]").forEach((b) => b.classList.toggle("on", b.dataset.t === theme));
+    bindDivider();
+    history.replaceState(null, "", `#estado=${current}&tema=${theme}`);
+  }
+
+  function bindDivider() {
+    const d = document.getElementById("divider");
+    d.addEventListener("pointerdown", (e) => {
+      d.setPointerCapture(e.pointerId);
+      d.classList.add("dragging");
+      const startX = e.clientX, startW = treeWidth;
+      const move = (ev) => {
+        treeWidth = Math.max(220, Math.min(480, startW + ev.clientX - startX));
+        document.querySelector(".body").style.setProperty("--tree-w", treeWidth + "px");
+      };
+      const up = () => { d.removeEventListener("pointermove", move); d.removeEventListener("pointerup", up); render(); };
+      d.addEventListener("pointermove", move);
+      d.addEventListener("pointerup", up);
+    });
+  }
+
+  const bar = document.getElementById("states");
+  bar.innerHTML =
+    Object.entries(STATES).map(([k, v]) => `<button data-s="${k}">${v.label}</button>`).join("") +
+    `<span class="sep"></span><button data-t="claro">Claro</button><button data-t="escuro">Escuro</button>`;
+  bar.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.s) current = b.dataset.s;
+    if (b.dataset.t) theme = b.dataset.t;
+    render();
+  });
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (STATES[params.get("estado")]) current = params.get("estado");
+  if (params.get("tema") === "escuro") theme = "escuro";
+  render();
+</script>
+</body>
+</html>

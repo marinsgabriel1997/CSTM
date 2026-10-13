@@ -4,7 +4,7 @@
 
 - CSTM é um aplicativo desktop para cadastrar, organizar e colar textos reutilizáveis por meio de um menu flutuante e atalho global.
 - O MVP tem como alvo Windows. Histórico de clipboard, expansão por abreviação, transformações de texto, variáveis, inicialização com Windows e suporte a Linux/macOS estão fora do escopo documentado.
-- A stack atual é React 19, TypeScript 6, Vite 8, Tauri 2 e Rust edição 2024.
+- A stack atual é React 19, TypeScript 6, Vite 8, Fluent UI React v9, Tauri 2 e Rust edição 2024. A interface usa componentes, tokens e `makeStyles` do Fluent UI.
 - `src/` contém o frontend; `src-tauri/` contém o backend e a configuração desktop; `docs/mvp.md` descreve o escopo e a arquitetura pretendidos.
 - Não tratar funcionalidades, dependências ou módulos previstos no MVP como já implementados.
 
@@ -21,8 +21,8 @@
 - `npm run lint:rust`: executar o clippy no backend com warnings tratados como erro.
 - `npm run format:rust`: formatar o backend com `cargo fmt`; `cargo fmt --check` em `src-tauri/` verifica sem alterar.
 - O projeto não inclui formatador de frontend; não adicionar Prettier ou equivalente sem aprovação.
+- `npm run test`: executar os testes do frontend com Vitest (jsdom e Testing Library). Os testes substituem `src/api.ts` pela implementação em memória de `src/test/fakeApi.ts` e não cobrem a integração real com o Tauri.
 - `npm run test:rust`: executar os testes do backend com `cargo test`.
-- Não há testes de frontend. Não alegar que existem nem apresentar verificações não executadas como aprovadas.
 
 ## Modos e fluxo de trabalho
 
@@ -82,7 +82,8 @@
 - Preservar testes como contratos de comportamento; investigar falhas antes de alterá-los, sem ajustar expectativas apenas para obter sucesso.
 - Testar comportamento e contratos, evitando acoplamento desnecessário a detalhes internos.
 - Definir critérios de aceite objetivos durante o planejamento e executar testes e verificações oficiais aplicáveis à mudança.
-- Para alterações de frontend, usar `npm run build` como verificação disponível de tipos e build; isso não substitui validação funcional.
+- Para alterações de frontend, executar `npm run test` e `npm run build` (tipos e build); isso não substitui validação funcional no aplicativo desktop.
+- Manter `src/test/fakeApi.ts` coerente com os contratos dos comandos usados pela interface.
 - Validar alterações de backend e integração desktop com verificações adequadas ao Rust/Tauri, relatando os comandos efetivamente executados e seus resultados.
 - Atalho global, foco, clipboard, entrada simulada, bandeja e instância única exigem validação funcional no Windows quando afetados.
 - Distinguir verificações automatizadas de testes manuais e registrar o que não pôde ser validado.
@@ -115,6 +116,7 @@
 | Documento | Quando consultar |
 | --- | --- |
 | `docs/mvp.md` | Antes de alterar escopo, arquitetura, persistência, picker, atalho ou colagem, ler este documento e esclarecer decisões abertas relevantes. |
+| `docs/telas.md` | Antes de alterar layout, navegação ou fluxos de uma tela, ler o desenho aprovado e o protótipo correspondente em `docs/prototipo/`; novas telas são desenhadas ali antes de serem implementadas. |
 | `package.json` | Antes de executar scripts ou atualizar a versão do produto, ler scripts e metadados atuais. |
 | `src-tauri/Cargo.toml` | Antes de alterar dependências, configuração Rust ou versão do backend, ler este manifesto. |
 | `src-tauri/tauri.conf.json` | Antes de alterar janelas, build, identidade, versão ou empacotamento desktop, ler esta configuração. |

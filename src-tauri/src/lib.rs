@@ -2,10 +2,7 @@ use std::sync::Mutex;
 
 use tauri::Manager;
 
-#[expect(
-    dead_code,
-    reason = "a camada de banco só é usada pelos comandos Tauri a partir do p30"
-)]
+mod commands;
 mod db;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,6 +15,22 @@ pub fn run() {
             app.manage(Mutex::new(conn));
             Ok(())
         })
+        .invoke_handler(tauri::generate_handler![
+            commands::list_folders,
+            commands::create_folder,
+            commands::rename_folder,
+            commands::delete_folder,
+            commands::move_folder,
+            commands::list_snippets,
+            commands::list_all_snippets,
+            commands::list_favorites,
+            commands::search_snippets,
+            commands::create_snippet,
+            commands::update_snippet,
+            commands::set_favorite,
+            commands::delete_snippet,
+            commands::move_snippet,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
