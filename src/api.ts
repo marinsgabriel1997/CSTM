@@ -1,6 +1,7 @@
 // Único ponto de acesso do frontend ao backend: cada função chama um comando Tauri.
 // Em caso de falha, a promessa é rejeitada com a mensagem de erro do backend.
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export interface Folder {
@@ -52,14 +53,20 @@ export const api = {
     invoke<void>("move_snippet", { id, folderId, position }),
 
   /**
-   * Intercepta o fechamento da janela: `shouldClose` decide se fecha agora; se devolver
-   * `false`, a janela continua aberta até `closeWindow`. Devolve a função que remove o aviso.
+   * Substitui o fechamento da janela por `onClose`: a janela nunca é fechada, pois o
+   * aplicativo continua na bandeja. Devolve a função que remove o aviso.
    */
-  onCloseRequested: async (shouldClose: () => Promise<boolean>) =>
-    getCurrentWindow().onCloseRequested(async (event) => {
-      if (!(await shouldClose())) event.preventDefault();
+  onCloseRequested: async (onClose: () => void) =>
+    getCurrentWindow().onCloseRequested((event) => {
+      event.preventDefault();
+      onClose();
     }),
-  closeWindow: () => getCurrentWindow().destroy(),
+  /** Avisa quando o usuário escolhe "Sair" na bandeja. Devolve a função que remove o aviso. */
+  onQuitRequested: async (onQuit: () => void) => listen("quit-requested", () => onQuit()),
+  hideWindow: () => getCurrentWindow().hide(),
+  /** Mostra a janela, mesmo oculta ou minimizada, e lhe dá o foco. */
+  showWindow: () => invoke<void>("show_main_window"),
+  exitApp: () => invoke<void>("exit_app"),
 };
 
 export type Api = typeof api;

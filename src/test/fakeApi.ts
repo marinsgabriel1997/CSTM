@@ -22,6 +22,9 @@ export function createFakeApi() {
   const folders: Folder[] = [];
   const snippets: Snippet[] = [];
   let nextId = 1;
+  // Avisos da janela nativa registrados pela interface, disparados pelos testes.
+  const closeListeners = new Set<() => void>();
+  const quitListeners = new Set<() => void>();
 
   function findFolder(id: number): Folder {
     const folder = folders.find((f) => f.id === id);
@@ -149,10 +152,29 @@ export function createFakeApi() {
       reorder(snippets.filter((s) => s.folderId === folderId), snippet, position);
     },
 
-    // Nos testes não há janela nativa: o fechamento nunca é solicitado.
-    onCloseRequested: async () => () => {},
-    closeWindow: async () => {},
+    onCloseRequested: async (onClose) => subscribe(closeListeners, onClose),
+    onQuitRequested: async (onQuit) => subscribe(quitListeners, onQuit),
+    hideWindow: async () => {},
+    showWindow: async () => {},
+    exitApp: async () => {},
   };
 
-  return { api, folders, snippets };
+  function subscribe(listeners: Set<() => void>, listener: () => void) {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  /** Simula o usuário fechando a janela (X ou Alt+F4). */
+  function requestClose() {
+    closeListeners.forEach((listener) => listener());
+  }
+
+  /** Simula o usuário escolhendo "Sair" na bandeja. */
+  function requestQuit() {
+    quitListeners.forEach((listener) => listener());
+  }
+
+  return { api, folders, snippets, requestClose, requestQuit };
 }

@@ -1,5 +1,5 @@
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -404,5 +404,61 @@ describe("busca e favoritos", () => {
     await user.click(screen.getByRole("button", { name: "Favoritos" }));
 
     expect(treeRows()).toEqual(["Trabalho", "  Saudação"]);
+  });
+});
+
+describe("segundo plano", () => {
+  it("fechar a janela a oculta e grava as alterações, sem confirmação", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Saudação", "Olá");
+    const hideWindow = vi.spyOn(api, "hideWindow");
+    const exitApp = vi.spyOn(api, "exitApp");
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Saudação" }));
+    await user.type(screen.getByRole("textbox", { name: "Conteúdo" }), "!");
+    act(() => fake.requestClose());
+
+    expect(hideWindow).toHaveBeenCalled();
+    await waitFor(() => expect(fake.snippets[0].content).toBe("Olá!"));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(exitApp).not.toHaveBeenCalled();
+  });
+
+  it("sair grava as alterações e encerra o aplicativo", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Saudação", "Olá");
+    const exitApp = vi.spyOn(api, "exitApp");
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Saudação" }));
+    await user.type(screen.getByRole("textbox", { name: "Conteúdo" }), "!");
+    act(() => fake.requestQuit());
+
+    await waitFor(() => expect(exitApp).toHaveBeenCalled());
+    expect(fake.snippets[0].content).toBe("Olá!");
+  });
+
+  it("sair com texto que não pode ser gravado mostra a janela e pede confirmação", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Saudação", "Olá");
+    const showWindow = vi.spyOn(api, "showWindow");
+    const exitApp = vi.spyOn(api, "exitApp");
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Saudação" }));
+    await user.clear(screen.getByRole("textbox", { name: "Título" }));
+    act(() => fake.requestQuit());
+
+    const dialog = within(await screen.findByRole("alertdialog", { name: "Sair sem salvar?" }));
+    expect(showWindow).toHaveBeenCalled();
+    await user.click(dialog.getByRole("button", { name: "Cancelar" }));
+    expect(exitApp).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Título" })).toHaveValue("");
+
+    act(() => fake.requestQuit());
+    await user.click(await screen.findByRole("button", { name: "Sair sem salvar" }));
+    expect(exitApp).toHaveBeenCalled();
+    expect(fake.snippets[0].title).toBe("Saudação");
   });
 });

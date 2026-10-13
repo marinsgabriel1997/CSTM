@@ -2,7 +2,9 @@
 
 Aplicativo desktop para cadastrar, organizar e colar textos reutilizáveis por meio de um menu flutuante aberto por atalho global. O MVP tem como alvo o Windows.
 
-O escopo e a arquitetura pretendidos estão em [docs/mvp.md](docs/mvp.md). O projeto está em desenvolvimento: a tela de cadastro (pastas, textos, favoritos e busca) está disponível; o menu de colagem, o atalho global e a bandeja ainda não existem.
+O escopo e a arquitetura pretendidos estão em [docs/mvp.md](docs/mvp.md). O projeto está em desenvolvimento: a tela de cadastro (pastas, textos, favoritos e busca) e a execução em segundo plano (ícone na bandeja e instância única) estão disponíveis; o menu de colagem e o atalho global ainda não existem.
+
+Fechar a janela apenas a oculta: o CSTM continua na bandeja do sistema, e o cadastro é reaberto pelo ícone. Para encerrar, use "Sair" no menu do ícone.
 
 Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db` (SQLite).
 

@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-13
+
+### Added
+
+- Ícone na bandeja do sistema: o clique abre o cadastro e o menu oferece "Abrir cadastro" e "Sair".
+- Apenas uma instância do aplicativo por vez: abri-lo de novo traz a janela que já está aberta.
+
+### Changed
+
+- Fechar a janela apenas a oculta, gravando as alterações; o aplicativo continua na bandeja e os textos que não puderam ser gravados permanecem em memória. A confirmação para descartar esses textos passa a acontecer ao escolher "Sair".
+
 ## [0.3.0] - 2026-10-13
 
 ### Added

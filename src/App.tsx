@@ -95,6 +95,27 @@ function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
+/**
+ * Registra um aviso da janela nativa e devolve a limpeza para o `useEffect`. O registro é
+ * assíncrono, então a remoção também cobre o efeito desfeito antes de ele terminar.
+ */
+function listenWindow(
+  subscribe: (handler: () => void) => Promise<() => void>,
+  handler: () => void,
+): () => void {
+  let unlisten: (() => void) | undefined;
+  let disposed = false;
+  subscribe(handler).then(
+    (remove) => (disposed ? remove() : (unlisten = remove)),
+    // Fora do Tauri (frontend no navegador) não há janela nativa para ouvir.
+    () => undefined,
+  );
+  return () => {
+    disposed = true;
+    unlisten?.();
+  };
+}
+
 function App() {
   const styles = useStyles();
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -179,14 +200,27 @@ function App() {
     return () => window.removeEventListener("blur", flush);
   }, [store]);
 
-  // Fechar a janela grava o que estiver pendente e pede confirmação se algo não puder ser gravado.
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    let disposed = false;
-    api
-      .onCloseRequested(async () => {
+  // O aplicativo continua na bandeja: fechar a janela só a oculta, e os rascunhos que
+  // não puderem ser gravados ficam em memória.
+  useEffect(
+    () =>
+      listenWindow(api.onCloseRequested, () => {
+        void api.hideWindow();
+        void store.flushAll();
+      }),
+    [store],
+  );
+
+  // "Sair" na bandeja grava o que estiver pendente e pede confirmação se algo não puder ser gravado.
+  useEffect(
+    () =>
+      listenWindow(api.onQuitRequested, async () => {
         await store.flushAll();
-        if (!store.hasUnsaved()) return true;
+        if (!store.hasUnsaved()) {
+          void api.exitApp();
+          return;
+        }
+        void api.showWindow();
         setConfirmation({
           title: "Sair sem salvar?",
           message:
@@ -195,21 +229,12 @@ function App() {
           danger: true,
           onConfirm: () => {
             setConfirmation(null);
-            void api.closeWindow();
+            void api.exitApp();
           },
         });
-        return false;
-      })
-      .then(
-        (remove) => (disposed ? remove() : (unlisten = remove)),
-        // Fora do Tauri (frontend no navegador) não há janela nativa para interceptar.
-        () => undefined,
-      );
-    return () => {
-      disposed = true;
-      unlisten?.();
-    };
-  }, [store]);
+      }),
+    [store],
+  );
 
   useEffect(() => {
     if (focusRequest.current === "title") titleRef.current?.focus();

@@ -285,7 +285,7 @@ Regras:
 3. Rascunho inválido é preservado: o texto digitado continua no editor e o item fica marcado na árvore, mesmo trocando de item. O banco mantém a última versão válida. Rascunho novo sem nada digitado é descartado ao sair dele.
 4. Erro não descarta nada: o conteúdo fica no editor, o item é marcado e a gravação é tentada de novo pelo botão ou na próxima edição.
 5. Uma gravação por texto de cada vez; edições feitas durante a gravação disparam outra ao terminar.
-6. Rascunhos inválidos e com erro ficam em memória enquanto o aplicativo estiver aberto (com o p40, fechar a janela apenas a oculta). Encerrar o aplicativo com pendências pede confirmação.
+6. Rascunhos inválidos e com erro ficam em memória enquanto o aplicativo estiver aberto; fechar a janela apenas a oculta. Encerrar o aplicativo ("Sair" na bandeja) com pendências pede confirmação.
 
 #### Impactos funcionais
 
@@ -319,6 +319,20 @@ Decisões tomadas na aprovação:
 2. Pausa de 800 ms antes de gravar.
 3. Largura da árvore e pastas recolhidas no `localStorage`.
 4. Encerrar o aplicativo com pendências pede confirmação.
+
+## Bandeja e ciclo de vida da janela `main`
+
+O aplicativo fica na bandeja do sistema, com a dica "CSTM".
+
+| Ação | Resultado |
+| --- | --- |
+| Fechar a janela (X ou Alt+F4) | Oculta a janela e grava as pendências, sem confirmação; os rascunhos que não puderem ser gravados ficam em memória |
+| Clique esquerdo no ícone | Abre o cadastro: restaura, mostra e foca a janela |
+| Clique direito no ícone | Menu: **Abrir cadastro**, separador, **Sair** |
+| Sair | Grava as pendências e encerra; se algo não puder ser gravado, mostra a janela e pede confirmação ("Sair sem salvar?") |
+| Executar o aplicativo de novo | Não cria outra instância; traz a janela existente |
+
+A janela abre visível ao iniciar o aplicativo. Não há aviso de que o aplicativo continua na bandeja ao fechar a janela.
 
 ## Tela 2 — Menu de colagem (janela `picker`)
 

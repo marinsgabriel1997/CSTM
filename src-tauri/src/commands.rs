@@ -1,13 +1,14 @@
-//! Comandos Tauri expostos ao frontend. Apenas delegam ao módulo `db`; os erros
-//! chegam ao frontend como mensagens prontas para exibição.
+//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db` e `tray`;
+//! os erros chegam ao frontend como mensagens prontas para exibição.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use rusqlite::Connection;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::db::folders::{self, Folder};
 use crate::db::snippets::{self, Snippet};
+use crate::tray;
 
 type Db<'a> = State<'a, Mutex<Connection>>;
 type CommandResult<T> = Result<T, String>;
@@ -130,6 +131,16 @@ pub fn move_snippet(
         folder_id,
         position,
     ))
+}
+
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    tray::show_main_window(&app);
+}
+
+#[tauri::command]
+pub fn exit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 #[cfg(test)]
