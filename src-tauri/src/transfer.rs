@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::db::folders::{self, Folder};
+use crate::db::items::{ItemRef, Kind};
 use crate::db::snippets::{self, Restored, Snippet};
 use crate::db::{self, DbError};
 
@@ -366,18 +367,61 @@ fn sort_key(name: &str) -> (String, String) {
 
 // ---------- Exportação ----------
 
-/// Grava em `file` o backup JSON da biblioteca (`folder_id` = `None`) ou de uma pasta.
-pub fn export_json(conn: &Connection, folder_id: Option<i64>, file: &Path) -> Result<Summary> {
-    let items = match folder_id {
-        None => library(conn, None)?,
-        Some(id) => {
-            let folder = folders::get_folder(conn, id)?;
-            vec![Item::Folder {
-                name: folder.name,
-                items: library(conn, Some(id))?,
-            }]
-        }
+/// O que vai ser exportado: a biblioteca inteira (`selection` vazia) ou os itens escolhidos.
+struct Export {
+    /// Nome da pasta criada na exportação em `.txt` e do arquivo sugerido para o JSON.
+    name: String,
+    /// Itens do backup JSON: uma pasta exportada sozinha entra como ela mesma.
+    items: Vec<Item>,
+    /// Itens gravados dentro da pasta criada: de uma pasta exportada sozinha, o conteúdo.
+    contents: Vec<Item>,
+}
+
+fn export_of(conn: &Connection, selection: &[ItemRef]) -> Result<Export> {
+    if let [
+        ItemRef {
+            kind: Kind::Folder,
+            id,
+        },
+    ] = selection
+    {
+        let folder = folders::get_folder(conn, *id)?;
+        let contents = library(conn, Some(*id))?;
+        return Ok(Export {
+            items: vec![Item::Folder {
+                name: folder.name.clone(),
+                items: contents.clone(),
+            }],
+            name: folder.name,
+            contents,
+        });
+    }
+    let items = if selection.is_empty() {
+        library(conn, None)?
+    } else {
+        selection
+            .iter()
+            .map(|item| match item.kind {
+                Kind::Folder => Ok(Item::Folder {
+                    name: folders::get_folder(conn, item.id)?.name,
+                    items: library(conn, Some(item.id))?,
+                }),
+                Kind::Snippet => Ok(Item::Snippet(snippet_item(snippets::get_snippet(
+                    conn, item.id,
+                )?))),
+            })
+            .collect::<Result<_>>()?
     };
+    Ok(Export {
+        name: LIBRARY_DIR.to_string(),
+        contents: items.clone(),
+        items,
+    })
+}
+
+/// Grava em `file` o backup JSON da biblioteca (`selection` vazia) ou dos itens escolhidos.
+pub fn export_json(conn: &Connection, selection: &[ItemRef], file: &Path) -> Result<Summary> {
+    let items = export_of(conn, selection)?.items;
     let backup = Backup {
         format: BACKUP_FORMAT.into(),
         version: BACKUP_VERSION,
@@ -395,30 +439,31 @@ pub fn export_json(conn: &Connection, folder_id: Option<i64>, file: &Path) -> Re
     Ok(summary)
 }
 
-/// Cria em `dir` uma pasta nova (`CSTM` ou o nome da pasta exportada) com um `.txt` por
-/// texto. Nunca sobrescreve: nomes já existentes recebem ` (2)`, ` (3)`…
-pub fn export_txt(conn: &Connection, folder_id: Option<i64>, dir: &Path) -> Result<Summary> {
-    let name = match folder_id {
-        None => LIBRARY_DIR.to_string(),
-        Some(id) => folders::get_folder(conn, id)?.name,
-    };
-    let items = library(conn, folder_id)?;
+/// Cria em `dir` uma pasta nova (`CSTM` ou o nome da pasta exportada sozinha) com um `.txt`
+/// por texto. Nunca sobrescreve: nomes já existentes recebem ` (2)`, ` (3)`…
+pub fn export_txt(conn: &Connection, selection: &[ItemRef], dir: &Path) -> Result<Summary> {
+    let Export { name, contents, .. } = export_of(conn, selection)?;
     let target = create_new_dir(dir, &file_name(&name))?;
-    write_items(&target, &items)?;
+    write_items(&target, &contents)?;
 
     let mut summary = Summary {
         path: Some(target.display().to_string()),
         ..Summary::default()
     };
-    count(&items, &mut summary);
+    count(&contents, &mut summary);
     Ok(summary)
 }
 
-/// Nome sugerido para o backup JSON: `CSTM.json` ou `<pasta>.json`.
-pub fn json_file_name(conn: &Connection, folder_id: Option<i64>) -> Result<String> {
-    let name = match folder_id {
-        None => LIBRARY_DIR.to_string(),
-        Some(id) => file_name(&folders::get_folder(conn, id)?.name),
+/// Nome sugerido para o backup JSON: `<pasta>.json` para uma pasta sozinha, senão `CSTM.json`.
+pub fn json_file_name(conn: &Connection, selection: &[ItemRef]) -> Result<String> {
+    let name = match selection {
+        [
+            ItemRef {
+                kind: Kind::Folder,
+                id,
+            },
+        ] => file_name(&folders::get_folder(conn, *id)?.name),
+        _ => LIBRARY_DIR.to_string(),
     };
     Ok(format!("{name}.json"))
 }
@@ -460,17 +505,21 @@ fn build(
         });
     }
     for snippet in snippets_by_folder.remove(&parent).unwrap_or_default() {
-        items.push(Item::Snippet(SnippetItem {
-            title: snippet.title,
-            content: snippet.content,
-            favorite: snippet.favorite,
-            use_count: u32::try_from(snippet.use_count).unwrap_or(u32::MAX),
-            last_used_at: snippet.last_used_at,
-            created_at: Some(snippet.created_at),
-            updated_at: Some(snippet.updated_at),
-        }));
+        items.push(Item::Snippet(snippet_item(snippet)));
     }
     items
+}
+
+fn snippet_item(snippet: Snippet) -> SnippetItem {
+    SnippetItem {
+        title: snippet.title,
+        content: snippet.content,
+        favorite: snippet.favorite,
+        use_count: u32::try_from(snippet.use_count).unwrap_or(u32::MAX),
+        last_used_at: snippet.last_used_at,
+        created_at: Some(snippet.created_at),
+        updated_at: Some(snippet.updated_at),
+    }
 }
 
 fn count(items: &[Item], summary: &mut Summary) {
@@ -609,6 +658,20 @@ mod tests {
     impl Drop for TempDir {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn folder_ref(id: i64) -> ItemRef {
+        ItemRef {
+            kind: Kind::Folder,
+            id,
+        }
+    }
+
+    fn snippet_ref(id: i64) -> ItemRef {
+        ItemRef {
+            kind: Kind::Snippet,
+            id,
         }
     }
 
@@ -778,7 +841,7 @@ mod tests {
         snippets::create_snippet(&conn, None, "Telefone", "(11) 90000-0000").unwrap();
         fs::create_dir(dir.0.join("CSTM")).unwrap();
 
-        let summary = export_txt(&conn, None, &dir.0).unwrap();
+        let summary = export_txt(&conn, &[], &dir.0).unwrap();
 
         let target = dir.0.join("CSTM (2)");
         assert_eq!(summary.path, Some(target.display().to_string()));
@@ -813,13 +876,59 @@ mod tests {
         snippets::create_snippet(&conn, Some(work.id), "Nota", "texto").unwrap();
         snippets::create_snippet(&conn, None, "Fora", "não vai").unwrap();
 
-        export_txt(&conn, Some(work.id), &dir.0).unwrap();
+        export_txt(&conn, &[folder_ref(work.id)], &dir.0).unwrap();
 
         assert_eq!(
             fs::read_to_string(dir.0.join("Trabalho/Nota.txt")).unwrap(),
             "texto"
         );
         assert!(!dir.0.join("Trabalho/Fora.txt").exists());
+    }
+
+    #[test]
+    fn export_leaves_out_the_trash() {
+        let mut conn = open_in_memory().unwrap();
+        let work = folders::create_folder(&conn, None, "Trabalho").unwrap();
+        snippets::create_snippet(&conn, Some(work.id), "Dentro", "d").unwrap();
+        let gone = snippets::create_snippet(&conn, None, "Excluído", "x").unwrap();
+        snippets::create_snippet(&conn, None, "Mantido", "m").unwrap();
+
+        crate::db::items::trash(&mut conn, &[folder_ref(work.id), snippet_ref(gone.id)]).unwrap();
+
+        assert_eq!(tree(&conn), ["Mantido=m"]);
+    }
+
+    #[test]
+    fn export_of_selected_items_writes_them_in_a_new_cstm_folder() {
+        let dir = TempDir::new();
+        let conn = open_in_memory().unwrap();
+        let work = folders::create_folder(&conn, None, "Trabalho").unwrap();
+        snippets::create_snippet(&conn, Some(work.id), "Nota", "n").unwrap();
+        let phone = snippets::create_snippet(&conn, None, "Telefone", "1234").unwrap();
+        snippets::create_snippet(&conn, None, "Fora", "não vai").unwrap();
+        let selection = [snippet_ref(phone.id), folder_ref(work.id)];
+
+        let summary = export_txt(&conn, &selection, &dir.0).unwrap();
+        assert_eq!((summary.folders, summary.snippets), (1, 2));
+        assert_eq!(
+            fs::read_to_string(dir.0.join("CSTM/Trabalho/Nota.txt")).unwrap(),
+            "n"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.0.join("CSTM/Telefone.txt")).unwrap(),
+            "1234"
+        );
+        assert!(!dir.0.join("CSTM/Fora.txt").exists());
+
+        assert_eq!(json_file_name(&conn, &selection).unwrap(), "CSTM.json");
+        let file = dir.0.join("selecao.json");
+        export_json(&conn, &selection, &file).unwrap();
+        let mut imported = open_in_memory().unwrap();
+        import_json(&mut imported, None, &file).unwrap();
+        assert_eq!(
+            tree(&imported),
+            ["Trabalho/", "Trabalho/Nota=n", "Telefone=1234"]
+        );
     }
 
     #[test]
@@ -837,7 +946,7 @@ mod tests {
         snippets::record_use(&conn, second.id).unwrap();
         let file = dir.0.join("backup.json");
 
-        let summary = export_json(&conn, None, &file).unwrap();
+        let summary = export_json(&conn, &[], &file).unwrap();
         assert_eq!((summary.folders, summary.snippets), (1, 2));
 
         let mut imported = open_in_memory().unwrap();
@@ -877,7 +986,7 @@ mod tests {
         snippets::create_snippet(&conn, Some(work.id), "Nota", "texto").unwrap();
         let file = dir.0.join("Trabalho.json");
 
-        export_json(&conn, Some(work.id), &file).unwrap();
+        export_json(&conn, &[folder_ref(work.id)], &file).unwrap();
         import_json(&mut conn, Some(work.id), &file).unwrap();
 
         assert_eq!(

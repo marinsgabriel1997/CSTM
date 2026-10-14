@@ -8,7 +8,10 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
 
+use crate::cascade::{PlacedColumn, Subcolumn};
 use crate::db::folders::{self, Folder};
+use crate::db::items::{self, ItemRef, TrashItem};
+use crate::db::settings;
 use crate::db::snippets::{self, Snippet};
 use crate::paste;
 use crate::picker::{self, ShortcutStatus};
@@ -41,11 +44,6 @@ pub fn create_folder(state: Db, parent_id: Option<i64>, name: String) -> Command
 #[tauri::command]
 pub fn rename_folder(state: Db, id: i64, name: String) -> CommandResult<Folder> {
     respond(folders::rename_folder(&lock(&state), id, &name))
-}
-
-#[tauri::command]
-pub fn delete_folder(state: Db, id: i64) -> CommandResult<()> {
-    respond(folders::delete_folder(&lock(&state), id))
 }
 
 #[tauri::command]
@@ -139,6 +137,55 @@ pub fn move_snippet(
 }
 
 #[tauri::command]
+pub fn trash_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::trash(&mut lock(&state), &items))
+}
+
+#[tauri::command]
+pub fn restore_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::restore(&mut lock(&state), &items))
+}
+
+#[tauri::command]
+pub fn delete_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::delete(&mut lock(&state), &items))
+}
+
+#[tauri::command]
+pub fn empty_trash(state: Db) -> CommandResult<()> {
+    respond(items::empty_trash(&mut lock(&state)))
+}
+
+#[tauri::command]
+pub fn list_trash(state: Db) -> CommandResult<Vec<TrashItem>> {
+    respond(items::list_trash(&lock(&state)))
+}
+
+#[tauri::command]
+pub fn copy_items(
+    state: Db,
+    items: Vec<ItemRef>,
+    parent_id: Option<i64>,
+) -> CommandResult<Vec<ItemRef>> {
+    respond(items::copy(&mut lock(&state), &items, parent_id))
+}
+
+#[tauri::command]
+pub fn arrange_items(
+    state: Db,
+    parent_id: Option<i64>,
+    folder_ids: Vec<i64>,
+    snippet_ids: Vec<i64>,
+) -> CommandResult<()> {
+    respond(items::arrange(
+        &mut lock(&state),
+        parent_id,
+        &folder_ids,
+        &snippet_ids,
+    ))
+}
+
+#[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     tray::show_main_window(&app);
 }
@@ -151,6 +198,21 @@ pub fn exit_app(app: AppHandle) {
 #[tauri::command]
 pub fn hide_picker(app: AppHandle) {
     picker::hide(&app);
+}
+
+#[tauri::command]
+pub fn get_picker_navigation(state: Db) -> CommandResult<String> {
+    respond(settings::get_navigation(&lock(&state)))
+}
+
+#[tauri::command]
+pub fn set_picker_navigation(state: Db, navigation: String) -> CommandResult<String> {
+    picker::change_navigation(&lock(&state), &navigation)
+}
+
+#[tauri::command]
+pub fn layout_picker(app: AppHandle, columns: Vec<Subcolumn>) -> CommandResult<Vec<PlacedColumn>> {
+    picker::layout(&app, &columns)
 }
 
 // Assíncrono: a colagem aguarda o foco e a restauração do clipboard fora da thread principal.
@@ -193,6 +255,7 @@ pub async fn resume_shortcut(app: AppHandle) -> ShortcutStatus {
 // Os comandos de importação e exportação são assíncronos: os seletores do Windows
 // bloqueiam até a escolha e não podem rodar na thread principal. O banco só é
 // travado depois da escolha. `None` significa que o seletor foi cancelado.
+// Na exportação, `items` vazio exporta a biblioteca inteira.
 
 fn transferred(result: transfer::Result<Summary>) -> CommandResult<Option<Summary>> {
     result.map(Some).map_err(|error| error.to_string())
@@ -283,9 +346,9 @@ pub async fn import_json(
 pub async fn export_json(
     app: AppHandle,
     state: Db<'_>,
-    folder_id: Option<i64>,
+    items: Vec<ItemRef>,
 ) -> CommandResult<Option<Summary>> {
-    let name = transfer::json_file_name(&lock(&state), folder_id).map_err(|e| e.to_string())?;
+    let name = transfer::json_file_name(&lock(&state), &items).map_err(|e| e.to_string())?;
     // O seletor de salvar pede a confirmação para substituir um arquivo existente.
     let Some(file) = dialog(&app)
         .set_title("Exportar backup JSON")
@@ -295,18 +358,14 @@ pub async fn export_json(
     else {
         return Ok(None);
     };
-    transferred(transfer::export_json(
-        &lock(&state),
-        folder_id,
-        &path(file)?,
-    ))
+    transferred(transfer::export_json(&lock(&state), &items, &path(file)?))
 }
 
 #[tauri::command]
 pub async fn export_txt(
     app: AppHandle,
     state: Db<'_>,
-    folder_id: Option<i64>,
+    items: Vec<ItemRef>,
 ) -> CommandResult<Option<Summary>> {
     let Some(dir) = dialog(&app)
         .set_title("Exportar como pastas e arquivos .txt")
@@ -314,7 +373,7 @@ pub async fn export_txt(
     else {
         return Ok(None);
     };
-    transferred(transfer::export_txt(&lock(&state), folder_id, &path(dir)?))
+    transferred(transfer::export_txt(&lock(&state), &items, &path(dir)?))
 }
 
 #[cfg(test)]
@@ -390,7 +449,7 @@ mod tests {
             Err("o campo título não pode ficar vazio".to_string())
         );
         assert_eq!(
-            respond(folders::delete_folder(&conn, 42)),
+            respond(snippets::delete_snippet(&conn, 42)),
             Err("registro não encontrado".to_string())
         );
     }

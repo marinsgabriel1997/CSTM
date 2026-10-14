@@ -1,5 +1,5 @@
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,8 @@ let fake: ReturnType<typeof createFakeApi>;
 
 beforeEach(() => {
   fake = createFakeApi();
+  // Os testes existentes descrevem a navegação por clique, anterior à cascata.
+  fake.setNavigation("click");
   Object.assign(api, fake.api);
 });
 
@@ -20,6 +22,16 @@ function renderPicker() {
       <Picker />
     </FluentProvider>,
   );
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+let moves = 0;
+
+/** Move o mouse para o elemento; cada movimento tem uma posição nova, como no navegador. */
+function hover(user: ReturnType<typeof userEvent.setup>, element: Element) {
+  moves++;
+  return user.pointer({ target: element, coords: { clientX: moves, clientY: moves } });
 }
 
 function search() {
@@ -53,30 +65,57 @@ async function seed() {
 }
 
 describe("raiz", () => {
-  it("mostra favoritos e o conteúdo da raiz, com a busca focada e a primeira linha selecionada", async () => {
+  it("mostra a pasta Favoritos antes do conteúdo da raiz, com a busca focada e a primeira linha selecionada", async () => {
     await seed();
     renderPicker();
 
     await list().findByRole("option", { name: "Trabalho" });
     expect(search()).toHaveFocus();
-    expect(list().getByText("Favoritos")).toBeInTheDocument();
-    expect(list().getByText("Todos")).toBeInTheDocument();
-    expect(optionNames()).toEqual([
-      "=> Saudação formal",
-      "Telefone",
-      "Trabalho",
-      "Pessoal",
-      "Telefone",
-      "Link da agenda",
-    ]);
+    expect(optionNames()).toEqual(["=> Favoritos", "Trabalho", "Pessoal", "Telefone", "Link da agenda"]);
   });
 
-  it("omite a seção de favoritos quando não há favoritos", async () => {
+  it("omite as pastas Mais usados e Favoritos quando estão vazias", async () => {
     await fake.api.createSnippet(null, "Telefone", "1234");
     renderPicker();
 
     await list().findByRole("option", { name: "Telefone" });
-    expect(list().queryByText("Favoritos")).not.toBeInTheDocument();
+    expect(optionNames()).toEqual(["=> Telefone"]);
+  });
+
+  it("Mais usados lista os textos mais colados, com a pasta de cada um, e volta à raiz", async () => {
+    const user = userEvent.setup();
+    await seed();
+    const [reply, , , quick, phone] = fake.snippets;
+    for (const snippet of [reply, reply, reply, phone, quick, phone]) await fake.api.chooseSnippet(snippet.id);
+    fake.delivered.length = 0;
+    renderPicker();
+
+    await list().findByRole("option", { name: "Mais usados" });
+    expect(optionNames().slice(0, 3)).toEqual(["=> Mais usados", "Favoritos", "Trabalho"]);
+
+    await user.keyboard("{Enter}");
+    expect(screen.getByRole("button", { name: "Mais usados" })).toBeInTheDocument();
+    expect(optionNames()).toEqual(["=> Resposta padrãoE-mails", "Telefone", "Respostas rápidasPessoal"]);
+
+    await user.keyboard("{ArrowLeft}");
+    expect(optionNames()[0]).toBe("=> Mais usados");
+    await user.keyboard("{ArrowDown}{ArrowRight}");
+    expect(optionNames()).toEqual(["=> Saudação formalTrabalho", "Telefone"]);
+  });
+
+  it("mostra no máximo 10 textos em Mais usados", async () => {
+    const user = userEvent.setup();
+    for (let n = 1; n <= 12; n++) {
+      const snippet = await fake.api.createSnippet(null, `Texto ${n}`, `${n}`);
+      for (let use = 0; use < n; use++) await fake.api.chooseSnippet(snippet.id);
+    }
+    renderPicker();
+
+    await user.click(await list().findByRole("option", { name: "Mais usados" }));
+
+    expect(optionNames()).toHaveLength(10);
+    expect(optionNames()[0]).toBe("=> Texto 12");
+    expect(optionNames()[9]).toBe("Texto 3");
   });
 
   it("convida a abrir o cadastro quando a biblioteca está vazia", async () => {
@@ -100,7 +139,7 @@ describe("navegação", () => {
     renderPicker();
     await list().findByRole("option", { name: "Trabalho" });
 
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+    await user.keyboard("{ArrowDown}{Enter}");
     expect(screen.getByRole("button", { name: "Trabalho" })).toBeInTheDocument();
     expect(optionNames()).toEqual(["=> E-mails", "Saudação formal"]);
 
@@ -135,11 +174,11 @@ describe("navegação", () => {
     await list().findByRole("option", { name: "Trabalho" });
 
     await user.keyboard("{End}");
-    expect(optionNames()[5]).toBe("=> Link da agenda");
+    expect(optionNames()[4]).toBe("=> Link da agenda");
     await user.keyboard("{ArrowDown}");
-    expect(optionNames()[5]).toBe("=> Link da agenda");
+    expect(optionNames()[4]).toBe("=> Link da agenda");
     await user.keyboard("{Home}{ArrowUp}");
-    expect(optionNames()[0]).toBe("=> Saudação formal");
+    expect(optionNames()[0]).toBe("=> Favoritos");
   });
 });
 
@@ -150,7 +189,7 @@ describe("escolha", () => {
     renderPicker();
     await list().findByRole("option", { name: "Trabalho" });
 
-    await user.keyboard("{ArrowDown}{Enter}");
+    await user.keyboard("{Enter}{ArrowDown}{Enter}");
 
     expect(fake.delivered).toEqual(["(11) 91234-5678"]);
   });
@@ -243,5 +282,260 @@ describe("abertura", () => {
     expect(search()).toHaveValue("");
     expect(list().getByText("Favoritos")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Pessoal" })).not.toBeInTheDocument();
+  });
+});
+
+describe("modo clique", () => {
+  it("passar o mouse numa pasta não abre coluna nem pede layout", async () => {
+    const user = userEvent.setup();
+    await seed();
+    renderPicker();
+    await hover(user, await list().findByRole("option", { name: "Trabalho" }));
+    await wait(450);
+
+    expect(screen.getAllByRole("listbox")).toHaveLength(1);
+    expect(fake.layouts).toEqual([]);
+  });
+
+  it("a opção vale na próxima abertura, não no menu já aberto", async () => {
+    const user = userEvent.setup();
+    await seed();
+    fake.setNavigation("cascade");
+    renderPicker();
+    await list().findByRole("option", { name: "Trabalho" });
+    fake.setNavigation("click");
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+    await screen.findByRole("listbox", { name: "Trabalho" });
+
+    act(() => fake.openPicker());
+    await waitFor(() => expect(screen.getAllByRole("listbox")).toHaveLength(1));
+    await hover(user, await list().findByRole("option", { name: "Trabalho" }));
+    await wait(450);
+
+    expect(screen.getAllByRole("listbox")).toHaveLength(1);
+  });
+});
+
+describe("cascata", () => {
+  beforeEach(() => fake.setNavigation("cascade"));
+
+  const columns = () => screen.getAllByRole("listbox").map((box) => box.getAttribute("aria-label"));
+  const sub = (name: string) => within(screen.getByRole("listbox", { name }));
+
+  async function openRoot() {
+    await seed();
+    renderPicker();
+    await list().findByRole("option", { name: "Trabalho" });
+  }
+
+  it("abre a coluna assim que o mouse passa sobre a pasta, pedindo o layout antes", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+
+    const column = await screen.findByRole("listbox", { name: "Trabalho" });
+    expect(within(column).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "E-mails",
+      "Saudação formal",
+    ]);
+    // Duas linhas de 32 px mais a margem da lista.
+    expect(fake.layouts).toEqual([[{ contentHeight: 74, anchorY: 0 }]]);
+    // A posição vem do backend.
+    expect(column.parentElement).toHaveStyle({ left: "342px", width: "300px", height: "74px" });
+    // O foco continua na busca.
+    expect(search()).toHaveFocus();
+  });
+
+  it("clicar numa pasta abre a coluna na hora, sem entrar nela", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+
+    await user.click(list().getByRole("option", { name: "Trabalho" }));
+
+    await screen.findByRole("listbox", { name: "Trabalho" });
+    expect(list().getByRole("option", { name: "Trabalho" })).toHaveAttribute("aria-selected", "true");
+    expect(fake.delivered).toEqual([]);
+  });
+
+  it("passar para outra pasta substitui as colunas e voltar a um texto fecha as mais profundas", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+    await screen.findByRole("listbox", { name: "Trabalho" });
+    await hover(user, sub("Trabalho").getByRole("option", { name: "E-mails" }));
+    await screen.findByRole("listbox", { name: "Trabalho › E-mails" });
+    expect(columns()).toEqual(["Textos", "Trabalho", "Trabalho › E-mails"]);
+
+    // Um texto da coluna do meio fecha só a mais profunda.
+    await hover(user, sub("Trabalho").getByRole("option", { name: "Saudação formal" }));
+    await waitFor(() => expect(columns()).toEqual(["Textos", "Trabalho"]));
+
+    // Outra pasta da principal troca tudo dali em diante.
+    await hover(user, list().getByRole("option", { name: "Pessoal" }));
+    await screen.findByRole("listbox", { name: "Pessoal" });
+    expect(columns()).toEqual(["Textos", "Pessoal"]);
+
+    // Um texto da principal fecha todas.
+    await hover(user, list().getByRole("option", { name: "Telefone" }));
+    await waitFor(() => expect(columns()).toEqual(["Textos"]));
+    await waitFor(() => expect(fake.layouts[fake.layouts.length - 1]).toEqual([]));
+  });
+
+  it("mexer o mouse sobre a pasta já aberta não pede outro layout", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+    await screen.findByRole("listbox", { name: "Trabalho" });
+
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+
+    expect(columns()).toEqual(["Textos", "Trabalho"]);
+    expect(fake.layouts).toHaveLength(1);
+  });
+
+  it("as pastas Mais usados e Favoritos também abrem em cascata", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+
+    await hover(user, list().getByRole("option", { name: "Favoritos" }));
+
+    const column = await screen.findByRole("listbox", { name: "Favoritos" });
+    expect(within(column).getAllByRole("option").map((option) => option.textContent)).toEqual([
+      "Saudação formalTrabalho",
+      "Telefone",
+    ]);
+    await user.click(within(column).getByRole("option", { name: /Telefone/ }));
+    expect(fake.delivered).toEqual(["(11) 91234-5678"]);
+  });
+
+  it("→ e Enter entram na coluna, ← volta uma coluna e Enter num texto cola", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    const selected = (box: string) =>
+      sub(box)
+        .getAllByRole("option")
+        .filter((option) => option.getAttribute("aria-selected") === "true")
+        .map((option) => option.textContent);
+
+    await user.keyboard("{ArrowDown}{ArrowRight}");
+    await waitFor(() => expect(selected("Trabalho")).toEqual(["E-mails"]));
+    expect(optionNames()).not.toContain("=> Trabalho");
+
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(selected("Trabalho › E-mails")).toEqual(["Resposta padrão"]));
+    expect(columns()).toEqual(["Textos", "Trabalho", "Trabalho › E-mails"]);
+
+    await user.keyboard("{ArrowDown}");
+    expect(selected("Trabalho › E-mails")).toEqual(["Follow-up"]);
+
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(columns()).toEqual(["Textos", "Trabalho"]));
+    expect(selected("Trabalho")).toEqual(["E-mails"]);
+
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(fake.delivered).toEqual(["Prezado(a),"]);
+
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(optionNames()).toContain("=> Trabalho"));
+    expect(columns()).toEqual(["Textos"]);
+
+    // Na coluna principal não há para onde voltar.
+    await user.keyboard("{ArrowLeft}");
+    expect(optionNames()).toContain("=> Trabalho");
+  });
+
+  it("↑ e ↓ fecham as colunas à direita da atual", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    await user.keyboard("{ArrowDown}{ArrowRight}");
+    await screen.findByRole("listbox", { name: "Trabalho" });
+
+    await user.keyboard("{ArrowLeft}{ArrowDown}");
+
+    await waitFor(() => expect(columns()).toEqual(["Textos"]));
+    expect(optionNames()).toContain("=> Pessoal");
+  });
+
+  it("Esc fecha o menu", async () => {
+    const user = userEvent.setup();
+    const hidePicker = vi.spyOn(api, "hidePicker");
+    await openRoot();
+
+    await user.keyboard("{ArrowDown}{ArrowRight}{Escape}");
+
+    expect(hidePicker).toHaveBeenCalled();
+  });
+
+  it("digitar na busca fecha as colunas e mostra os resultados numa lista única", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    await user.click(list().getByRole("option", { name: "Trabalho" }));
+    await screen.findByRole("listbox", { name: "Trabalho" });
+
+    await user.keyboard("resp");
+
+    await waitFor(() => expect(optionNames()).toEqual(["=> Resposta padrãoE-mails", "Respostas rápidasPessoal"]));
+    expect(columns()).toEqual(["Textos"]);
+    await hover(user, list().getByRole("option", { name: /Resposta padrão/ }));
+    await wait(450);
+    expect(columns()).toEqual(["Textos"]);
+  });
+
+  it("o layout reposiciona a coluna principal e uma coluna coberta sai de vista", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    const main = document.getElementById("picker-column-0");
+    api.layoutPicker = vi.fn().mockResolvedValue([
+      { x: 300, y: 10, width: 340, height: 440, hidden: true },
+      { x: 0, y: 0, width: 300, height: 74, hidden: false },
+    ]);
+
+    await user.click(list().getByRole("option", { name: "Trabalho" }));
+
+    const column = await screen.findByRole("listbox", { name: "Trabalho" });
+    expect(column.parentElement).not.toHaveAttribute("aria-hidden");
+    expect(main).toHaveAttribute("aria-hidden", "true");
+    expect(main).toHaveStyle({ left: "300px", top: "10px" });
+    // Escondida, a coluna principal ainda guarda o foco do teclado.
+    expect(document.activeElement).toBe(main?.querySelector("input"));
+  });
+
+  it("cada abertura volta a uma coluna só", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    await user.click(list().getByRole("option", { name: "Trabalho" }));
+    await screen.findByRole("listbox", { name: "Trabalho" });
+
+    act(() => fake.openPicker());
+
+    await waitFor(() => expect(columns()).toEqual(["Textos"]));
+    expect(optionNames()[0]).toBe("=> Favoritos");
+  });
+
+  it("clicar na área transparente fecha o menu, mas clicar num cartão não", async () => {
+    const hidePicker = vi.spyOn(api, "hidePicker");
+    await openRoot();
+    const pessoal = list().getByRole("option", { name: "Pessoal" });
+    const root = pessoal.closest("[id=picker-column-0]")!.parentElement!;
+
+    fireEvent.mouseDown(pessoal);
+    expect(hidePicker).not.toHaveBeenCalled();
+
+    fireEvent.mouseDown(root);
+    expect(hidePicker).toHaveBeenCalledTimes(1);
+  });
+
+  it("mostra o erro do layout sem abrir a coluna", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    api.layoutPicker = vi.fn().mockRejectedValue("o menu de colagem ainda não foi aberto");
+
+    await user.click(list().getByRole("option", { name: "Trabalho" }));
+
+    expect(await screen.findByText("o menu de colagem ainda não foi aberto")).toBeInTheDocument();
+    expect(screen.queryByRole("listbox", { name: "Trabalho" })).not.toBeInTheDocument();
   });
 });

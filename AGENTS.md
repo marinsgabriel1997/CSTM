@@ -26,23 +26,28 @@
 
 ## Modos e fluxo de trabalho
 
-- Planejamento: ler código e documentos relevantes, definir solução, escopo, riscos e critérios de aceite; não implementar nem alterar o estado do projeto. Registrar o plano quando autorizado dentro desse modo.
-- Execução: implementar somente o plano explicitamente aprovado, em mudanças incrementais; atualizar o andamento e executar as validações previstas.
+- Planejamento: ler código e documentos relevantes, esclarecer com o usuário as dúvidas e pendências identificáveis e definir solução, escopo, riscos, fases e critérios de aceite, incluindo o Marco final; não implementar nem alterar o estado do projeto, exceto registrar ou atualizar o plano quando autorizado dentro desse modo.
+- Execução: implementar somente o plano explicitamente aprovado, em mudanças incrementais; executar continuamente as fases técnicas autorizadas, atualizar o andamento e realizar as validações previstas, sem pedir autorizações ou aceites intermediários.
 - Revisão: inspecionar código, diff e critérios de aceite somente em leitura; relatar problemas sem corrigir arquivos por iniciativa própria.
 - Alinhar o modo com o usuário quando a ambiguidade alterar as permissões da tarefa.
-- Antes da implementação, apresentar o plano e aguardar aprovação explícita. Silêncio não equivale a aprovação.
+- Antes da implementação, resolver as pendências identificáveis, apresentar o plano completo com fases e Marco final e aguardar aprovação explícita. Silêncio não equivale a aprovação.
 - Mudanças relevantes de escopo, arquitetura ou contratos exigem revisão do plano e novo aceite.
-- Após implementar, validar a entrega, atualizar a documentação afetada e registrar mudanças notáveis. Solicitar validação do usuário no Windows quando necessário.
+- Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis; apresentar o Marco final para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.
 - Não realizar commit ou push sem autorização explícita específica para a operação.
 
 ## Planos
 
-- Manter planos em `planos/p<prioridade>-<nome>.md`, por exemplo `planos/p10-banco-de-dados.md`.
-- Menor número significa maior prioridade; usar intervalos de 10 para permitir inserções intermediárias.
-- Mover planos concluídos para `planos/executados/`, preservando o nome e a prioridade histórica.
+- Manter planos ativos em `planos/` e concluídos em `planos/executados/`. Nomear novos planos no formato `NNN-nome-descritivo.md`, por exemplo `001-autenticacao.md`, com ID numérico sequencial, permanente e não reutilizável; o ID não representa prioridade.
+- Antes de criar um plano, consultar os IDs em `planos/` e `planos/executados/` para escolher o próximo ID livre, sem reaproveitar IDs de planos excluídos conhecidos. Preservar nomes e referências dos planos legados `p10-`, `p67-` e similares; não renomeá-los automaticamente. Migração exige proposta separada.
+- Registrar no início do plano `Status`, `Prioridade` (Crítica, Alta, Média ou Baixa) e `Criado em`; preencher `Concluído em` somente após aceite. Alterar prioridade pelo metadado, sem renomear o arquivo nem criar subpastas por prioridade, módulo ou status por padrão.
 - Cada plano deve ser autocontido e registrar objetivo, contexto, escopo, estado desejado, riscos, premissas e estratégia de validação.
-- Dividir a execução em fases com tarefas verificáveis e critério objetivo de conclusão; marcar tarefas concluídas somente após confirmar sua execução.
-- Não avançar à fase seguinte antes de atender ao critério da fase atual.
+- Dividir a execução em fases numeradas, na ordem de execução, com tarefas verificáveis e critério técnico objetivo de conclusão verificável pelo agente; marcar tarefas concluídas somente após confirmar sua execução.
+- Após aprovação, executar as fases continuamente, sem pausas de aceite intermediárias; não avançar à fase seguinte antes de atender ao critério técnico da fase atual.
+- Manter uma única seção `Marco — Validação do usuário`, persistente e sempre a última seção do arquivo, abaixo de todas as fases. Conter checklist das verificações funcionais/manuais do usuário, resultados e aceite explícito; somente o usuário pode validar e aprovar essas verificações.
+- Após reprovação ou ajustes, registrar resultados e pendências no mesmo Marco e acrescentar fases corretivas numeradas imediatamente antes dele, preservando fases concluídas e o histórico das validações. Executar as correções e retornar ao mesmo Marco, sem criar outro Marco ou novo plano para a mesma entrega.
+- Correções dentro do escopo aprovado não exigem nova aprovação do plano. Nova funcionalidade, decisão arquitetural material, risco novo relevante ou ampliação de escopo exigem revisão da proposta e novo aceite antes de executar a parte afetada.
+- Se surgir impedimento real sem solução autorizada ou validação técnica inviável, registrar evidências e solicitar decisão; não fabricar resultados nem avançar como se aprovado.
+- Somente após aceite explícito de todas as verificações aplicáveis no Marco, registrar `Concluído em`, marcar `Status: Concluído` e mover o plano para `planos/executados/`, preservando seu ID e nome. Terminar as fases técnicas não conclui o plano.
 - Manter o plano atualizado com o estado técnico real; não registrar histórico de conversa, instruções ao próximo agente ou duplicações destas regras.
 
 ## Arquitetura e contratos
@@ -87,7 +92,7 @@
 - Validar alterações de backend e integração desktop com verificações adequadas ao Rust/Tauri, relatando os comandos efetivamente executados e seus resultados.
 - Atalho global, foco, clipboard, entrada simulada, bandeja e instância única exigem validação funcional no Windows quando afetados.
 - Distinguir verificações automatizadas de testes manuais e registrar o que não pôde ser validado.
-- Não considerar a entrega concluída sem atender aos critérios aplicáveis; não seguir para commit após validação reprovada.
+- Não considerar a entrega concluída sem atender aos critérios aplicáveis e obter aceite explícito do usuário no Marco final; não seguir para commit após validação reprovada.
 
 ## Compatibilidade e proteção de dados
 

@@ -1,3 +1,4 @@
+import { includesItem, type ItemRef } from "./actions";
 import type { Folder, Snippet } from "./api";
 
 /** Item da árvore única: pastas primeiro, depois textos, cada grupo na ordem manual. */
@@ -90,4 +91,34 @@ export function folderOptions(folders: Folder[], parentId: number | null = null,
     { id: folder.id, name: folder.name, depth },
     ...folderOptions(folders, folder.id, depth + 1),
   ]);
+}
+
+/** Itens na ordem da tela: cada pasta seguida do seu conteúdo, quando aberta. */
+export function visibleItems(nodes: TreeNode[], isOpen: (folderId: number) => boolean): ItemRef[] {
+  return nodes.flatMap((node): ItemRef[] =>
+    node.kind === "snippet"
+      ? [{ kind: "snippet", id: node.snippet.id }]
+      : [
+          { kind: "folder", id: node.folder.id },
+          ...(isOpen(node.folder.id) ? visibleItems(node.children, isOpen) : []),
+        ],
+  );
+}
+
+/** Pasta onde o item está (`null` = raiz); `undefined` se o item não existe mais. */
+export function parentOf(item: ItemRef, folders: Folder[], snippets: Snippet[]): number | null | undefined {
+  return item.kind === "folder"
+    ? folders.find((folder) => folder.id === item.id)?.parentId
+    : snippets.find((snippet) => snippet.id === item.id)?.folderId;
+}
+
+/** Os itens, sem os que já vão junto com uma pasta também presente na lista. */
+export function topLevel(items: ItemRef[], folders: Folder[], snippets: Snippet[]): ItemRef[] {
+  return items.filter((item) => {
+    for (let parent = parentOf(item, folders, snippets); parent != null; ) {
+      if (includesItem(items, { kind: "folder", id: parent })) return false;
+      parent = folders.find((folder) => folder.id === parent)?.parentId;
+    }
+    return true;
+  });
 }

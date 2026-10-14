@@ -7,7 +7,7 @@ import "./App.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <Root>
+    <Root transparent>
       <Picker />
     </Root>
   </React.StrictMode>,

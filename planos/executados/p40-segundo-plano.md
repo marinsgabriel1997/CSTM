@@ -21,7 +21,7 @@ O aplicativo tem apenas a janela `main` (cadastro). Fechá-la encerra o processo
 - Capabilities: adicionar `core:window:allow-hide`; remover `core:window:allow-destroy`.
 - Documentação: menu da bandeja e ciclo de vida da janela em `docs/telas.md`; `README.md` e `CHANGELOG.md`.
 
-Fora do escopo: atalho global e janela `picker` (p50), iniciar com o Windows, aviso de "continua na bandeja" e ícone próprio (p70).
+Fora do escopo: atalho global e janela `picker` (p50), iniciar com o Windows, aviso de "continua na bandeja" e ícone próprio (072).
 
 ## Estado desejado
 
@@ -43,7 +43,7 @@ A janela abre visível ao iniciar o aplicativo.
 
 - Se o frontend travar, "Sair" não encerra o aplicativo; resta o Gerenciador de Tarefas. Aceito no MVP.
 - O Windows pode negar o foco à janela trazida pela segunda instância; nesse caso ela aparece, mas pode apenas piscar na barra de tarefas.
-- O ícone da bandeja é o padrão do template até o p70.
+- O ícone da bandeja é o padrão do template até o 072.
 
 ## Estratégia de validação
 

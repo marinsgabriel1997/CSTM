@@ -4,7 +4,9 @@ use rusqlite::{Connection, OptionalExtension, Row};
 use serde::Serialize;
 
 use super::folders::ensure_folder_exists;
-use super::{DbError, NOW, Ordered, Result, next_sort_order, reorder, required};
+use super::{
+    DbError, LIVE_SNIPPET, NOW, Ordered, Result, ensure_changed, next_sort_order, reorder, required,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -49,14 +51,6 @@ fn query_list(conn: &Connection, sql: &str, params: impl rusqlite::Params) -> Re
     Ok(snippets)
 }
 
-fn ensure_changed(changed: usize) -> Result<()> {
-    if changed == 0 {
-        Err(DbError::NotFound)
-    } else {
-        Ok(())
-    }
-}
-
 pub fn get_snippet(conn: &Connection, id: i64) -> Result<Snippet> {
     conn.query_row(
         &format!("SELECT {COLUMNS} FROM snippets WHERE id = ?1"),
@@ -67,11 +61,16 @@ pub fn get_snippet(conn: &Connection, id: i64) -> Result<Snippet> {
     .ok_or(DbError::NotFound)
 }
 
+// As listagens e a busca deixam de fora os textos na lixeira (`LIVE_SNIPPET`).
+
 /// Textos de uma pasta (ou da raiz), na ordem manual.
 pub fn list_snippets(conn: &Connection, folder_id: Option<i64>) -> Result<Vec<Snippet>> {
     query_list(
         conn,
-        &format!("SELECT {COLUMNS} FROM snippets WHERE folder_id IS ?1 ORDER BY sort_order, id"),
+        &format!(
+            "SELECT {COLUMNS} FROM snippets WHERE folder_id IS ?1 AND {LIVE_SNIPPET}
+             ORDER BY sort_order, id"
+        ),
         [folder_id],
     )
 }
@@ -81,7 +80,8 @@ pub fn list_all_snippets(conn: &Connection) -> Result<Vec<Snippet>> {
     query_list(
         conn,
         &format!(
-            "SELECT {COLUMNS} FROM snippets ORDER BY folder_id IS NOT NULL, folder_id, sort_order, id"
+            "SELECT {COLUMNS} FROM snippets WHERE {LIVE_SNIPPET}
+             ORDER BY folder_id IS NOT NULL, folder_id, sort_order, id"
         ),
         [],
     )
@@ -92,7 +92,8 @@ pub fn list_favorites(conn: &Connection) -> Result<Vec<Snippet>> {
     query_list(
         conn,
         &format!(
-            "SELECT {COLUMNS} FROM snippets WHERE favorite = 1 ORDER BY title COLLATE NOCASE, id"
+            "SELECT {COLUMNS} FROM snippets WHERE favorite = 1 AND {LIVE_SNIPPET}
+             ORDER BY title COLLATE NOCASE, id"
         ),
         [],
     )
@@ -108,7 +109,7 @@ pub fn search_snippets(conn: &Connection, query: &str) -> Result<Vec<Snippet>> {
         conn,
         &format!(
             "SELECT {COLUMNS} FROM snippets_fts JOIN snippets ON snippets.id = snippets_fts.rowid
-             WHERE snippets_fts MATCH ?1
+             WHERE snippets_fts MATCH ?1 AND {LIVE_SNIPPET}
              ORDER BY bm25(snippets_fts, 10.0, 1.0), snippets.id"
         ),
         [query],
@@ -229,7 +230,8 @@ pub fn restore(conn: &Connection, id: i64, restored: &Restored) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::folders::{create_folder, delete_folder};
+    use crate::db::folders::create_folder;
+    use crate::db::items::{self, ItemRef, Kind};
     use crate::db::open_in_memory;
 
     fn titles(snippets: Vec<Snippet>) -> Vec<String> {
@@ -456,7 +458,7 @@ mod tests {
 
     #[test]
     fn search_index_follows_edits_and_deletions() {
-        let conn = open_in_memory().unwrap();
+        let mut conn = open_in_memory().unwrap();
         let folder = create_folder(&conn, None, "Trabalho").unwrap();
         let edited = create_snippet(&conn, None, "Antigo", "texto").unwrap();
         let deleted = create_snippet(&conn, None, "Removido", "texto").unwrap();
@@ -467,7 +469,14 @@ mod tests {
         assert_eq!(search_titles(&conn, "novo"), ["Novo"]);
 
         delete_snippet(&conn, deleted.id).unwrap();
-        delete_folder(&conn, folder.id).unwrap();
+        items::delete(
+            &mut conn,
+            &[ItemRef {
+                kind: Kind::Folder,
+                id: folder.id,
+            }],
+        )
+        .unwrap();
         assert_eq!(search_titles(&conn, "texto"), ["Novo"]);
         assert_fts_in_sync(&conn);
     }

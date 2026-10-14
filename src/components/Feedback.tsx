@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogSurface,
   DialogTitle,
+  Link,
   makeStyles,
   MessageBar,
   MessageBarActions,
@@ -16,10 +17,10 @@ import {
   ToastTrigger,
   tokens,
 } from "@fluentui/react-components";
-import { DismissRegular } from "@fluentui/react-icons";
+import { Delete20Regular, DismissRegular } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
 
-import type { TransferNotice } from "../transfer";
+import type { Notice } from "../notice";
 
 const useStyles = makeStyles({
   danger: {
@@ -36,6 +37,7 @@ const useStyles = makeStyles({
     },
   },
   list: { margin: `${tokens.spacingVerticalXXS} 0 0`, paddingLeft: tokens.spacingHorizontalL },
+  icon: { color: tokens.colorNeutralForeground2 },
 });
 
 export interface Confirmation {
@@ -116,20 +118,25 @@ export function ErrorMessage({ message, intent = "error", action, onClose }: Err
   );
 }
 
-/** Conteúdo da notificação de resultado de importação ou exportação. */
-export function NoticeToast({ notice }: { notice: TransferNotice }) {
+/** Conteúdo de uma notificação: título, detalhes e, se houver, a ação oferecida (que a fecha). */
+export function NoticeToast({ notice }: { notice: Notice }) {
   const styles = useStyles();
   return (
     <Toast>
       <ToastTitle
+        media={notice.icon === "trash" ? <Delete20Regular className={styles.icon} /> : undefined}
         action={
           <ToastTrigger>
-            <Button
-              appearance="transparent"
-              size="small"
-              aria-label="Fechar notificação"
-              icon={<DismissRegular />}
-            />
+            {notice.action ? (
+              <Link onClick={notice.action.onClick}>{notice.action.label}</Link>
+            ) : (
+              <Button
+                appearance="transparent"
+                size="small"
+                aria-label="Fechar notificação"
+                icon={<DismissRegular />}
+              />
+            )}
           </ToastTrigger>
         }
       >

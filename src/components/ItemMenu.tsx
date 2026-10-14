@@ -3,6 +3,7 @@ import {
   makeStyles,
   Menu,
   MenuDivider,
+  MenuGroupHeader,
   MenuItem,
   MenuList,
   MenuPopover,
@@ -13,41 +14,60 @@ import {
 import {
   ArrowDown20Regular,
   ArrowExportUp20Regular,
+  ArrowSort20Regular,
   ArrowUp20Regular,
   Braces20Regular,
+  ClipboardPaste20Regular,
+  Copy20Regular,
+  Cut20Regular,
   Delete20Regular,
   DocumentMultiple20Regular,
   FolderArrowRight20Regular,
+  History20Regular,
   MoreHorizontal20Regular,
   Rename20Regular,
   Star20Regular,
+  TextSortAscending20Regular,
 } from "@fluentui/react-icons";
 import { Fragment, type ReactElement } from "react";
 
 import { SHORTCUTS, type ActionKey, type ItemAction } from "../actions";
 
 const ICONS: Record<ActionKey, ReactElement> = {
+  cut: <Cut20Regular />,
+  copy: <Copy20Regular />,
+  paste: <ClipboardPaste20Regular />,
   rename: <Rename20Regular />,
   move: <FolderArrowRight20Regular />,
   up: <ArrowUp20Regular />,
   down: <ArrowDown20Regular />,
   favorite: <Star20Regular />,
+  sortName: <TextSortAscending20Regular />,
+  sortUses: <Star20Regular />,
+  sortRecent: <History20Regular />,
   exportJson: <Braces20Regular />,
   exportTxt: <DocumentMultiple20Regular />,
   delete: <Delete20Regular />,
 };
 
-// Grupos separados por divisórias, na ordem do menu.
-const GROUPS: ActionKey[][] = [
+interface Submenu {
+  label: string;
+  icon: ReactElement;
+  keys: ActionKey[];
+}
+
+// Grupos separados por divisórias, na ordem do menu; um submenu aparece pelo rótulo de quem o abre.
+const GROUPS: (ActionKey | Submenu)[][] = [
+  ["cut", "copy", "paste"],
   ["rename", "move"],
   ["up", "down"],
-  ["favorite"],
-  ["exportJson", "exportTxt"],
+  [
+    "favorite",
+    { label: "Ordenar", icon: <ArrowSort20Regular />, keys: ["sortName", "sortUses", "sortRecent"] },
+    { label: "Exportar", icon: <ArrowExportUp20Regular />, keys: ["exportJson", "exportTxt"] },
+  ],
   ["delete"],
 ];
-
-/** Grupos mostrados como submenu, pelo primeiro item, com o rótulo de quem os abre. */
-const SUBMENUS: Partial<Record<ActionKey, string>> = { exportJson: "Exportar" };
 
 const useStyles = makeStyles({
   danger: {
@@ -59,13 +79,13 @@ const useStyles = makeStyles({
 interface ItemMenuListProps {
   actions: ItemAction[];
   onAction: (key: ActionKey) => void;
+  /** Linha no topo do menu, como "3 itens selecionados". */
+  header?: string;
 }
 
-function ItemMenuList({ actions, onAction }: ItemMenuListProps) {
+function ItemMenuList({ actions, onAction, header }: ItemMenuListProps) {
   const styles = useStyles();
-  const groups = GROUPS.map((keys) => actions.filter((action) => keys.includes(action.key))).filter(
-    (group) => group.length > 0,
-  );
+  const find = (key: ActionKey) => actions.find((action) => action.key === key);
   const item = (action: ItemAction) => (
     <MenuItem
       key={action.key}
@@ -78,28 +98,37 @@ function ItemMenuList({ actions, onAction }: ItemMenuListProps) {
       {action.label}
     </MenuItem>
   );
+  const groups = GROUPS.map((entries) =>
+    entries.flatMap((entry) => {
+      if (typeof entry === "string") {
+        const action = find(entry);
+        return action ? [item(action)] : [];
+      }
+      const inner = entry.keys.map(find).filter((action) => action !== undefined);
+      if (inner.length === 0) return [];
+      return [
+        <Menu key={entry.label}>
+          <MenuTrigger disableButtonEnhancement>
+            <MenuItem icon={entry.icon} disabled={inner.every((action) => action.disabled)}>
+              {entry.label}
+            </MenuItem>
+          </MenuTrigger>
+          <MenuPopover>
+            <MenuList>{inner.map(item)}</MenuList>
+          </MenuPopover>
+        </Menu>,
+      ];
+    }),
+  ).filter((group) => group.length > 0);
   return (
     <MenuList>
-      {groups.map((group, index) => {
-        const submenu = SUBMENUS[group[0].key];
-        return (
-          <Fragment key={group[0].key}>
-            {index > 0 && <MenuDivider />}
-            {submenu ? (
-              <Menu>
-                <MenuTrigger disableButtonEnhancement>
-                  <MenuItem icon={<ArrowExportUp20Regular />}>{submenu}</MenuItem>
-                </MenuTrigger>
-                <MenuPopover>
-                  <MenuList>{group.map(item)}</MenuList>
-                </MenuPopover>
-              </Menu>
-            ) : (
-              group.map(item)
-            )}
-          </Fragment>
-        );
-      })}
+      {header && <MenuGroupHeader>{header}</MenuGroupHeader>}
+      {groups.map((group, index) => (
+        <Fragment key={index}>
+          {index > 0 && <MenuDivider />}
+          {group}
+        </Fragment>
+      ))}
     </MenuList>
   );
 }

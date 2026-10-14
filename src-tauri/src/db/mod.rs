@@ -7,6 +7,7 @@ use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
 
 pub mod folders;
+pub mod items;
 pub mod settings;
 pub mod snippets;
 
@@ -16,6 +17,7 @@ fn migrations() -> Migrations<'static> {
     Migrations::new(vec![
         M::up(include_str!("migrations/0001_initial.sql")),
         M::up(include_str!("migrations/0002_settings.sql")),
+        M::up(include_str!("migrations/0003_trash.sql")),
     ])
 }
 
@@ -26,6 +28,7 @@ pub enum DbError {
     EmptyField(&'static str),
     NotFound,
     FolderCycle,
+    CopyIntoItself,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
@@ -40,6 +43,10 @@ impl fmt::Display for DbError {
             Self::FolderCycle => write!(
                 f,
                 "uma pasta não pode ser movida para dentro de si mesma ou de uma subpasta"
+            ),
+            Self::CopyIntoItself => write!(
+                f,
+                "uma pasta não pode ser copiada para dentro de si mesma ou de uma subpasta"
             ),
         }
     }
@@ -91,6 +98,9 @@ fn init(conn: &mut Connection) -> Result<()> {
 /// Expressão SQL do instante atual no formato gravado em `created_at`/`updated_at`.
 pub(crate) const NOW: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
 
+/// Condição dos textos fora da lixeira: nem o texto nem uma pasta acima dele foi excluído.
+pub(crate) const LIVE_SNIPPET: &str = "snippets.deleted_at IS NULL     AND (snippets.folder_id IS NULL OR snippets.folder_id IN (SELECT id FROM live_folders))";
+
 /// Retorna `value` sem os espaços das bordas, ou erro se ficar vazio.
 fn required<'a>(value: &'a str, field: &'static str) -> Result<&'a str> {
     let value = value.trim();
@@ -98,6 +108,15 @@ fn required<'a>(value: &'a str, field: &'static str) -> Result<&'a str> {
         Err(DbError::EmptyField(field))
     } else {
         Ok(value)
+    }
+}
+
+/// Erro de registro não encontrado quando uma alteração não atingiu nenhuma linha.
+fn ensure_changed(changed: usize) -> Result<()> {
+    if changed == 0 {
+        Err(DbError::NotFound)
+    } else {
+        Ok(())
     }
 }
 
@@ -134,8 +153,9 @@ fn next_sort_order(conn: &Connection, kind: Ordered, parent: Option<i64>) -> Res
     Ok(conn.query_row(&sql, [parent], |row| row.get(0))?)
 }
 
-/// Coloca o item `id`, já atribuído a `parent`, na `position` entre seus irmãos
-/// e renumera a ordem do grupo a partir de 0. Posições além do fim vão para o fim.
+/// Coloca o item `id`, já atribuído a `parent`, na `position` entre seus irmãos fora da
+/// lixeira e renumera a ordem do grupo a partir de 0. Posições além do fim vão para o fim.
+/// Os irmãos na lixeira não contam: ao serem restaurados, voltam para o fim do grupo.
 fn reorder(
     conn: &Connection,
     kind: Ordered,
@@ -144,7 +164,7 @@ fn reorder(
     position: usize,
 ) -> Result<()> {
     let sql = format!(
-        "SELECT id FROM {} WHERE {} IS ?1 AND id <> ?2 ORDER BY sort_order, id",
+        "SELECT id FROM {} WHERE {} IS ?1 AND id <> ?2 AND deleted_at IS NULL ORDER BY sort_order, id",
         kind.table(),
         kind.parent_column()
     );
@@ -196,6 +216,30 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn trash_migration_keeps_existing_items_visible() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        // Banco como estava antes da lixeira (migrações 0001 e 0002), com dados.
+        Migrations::new(vec![
+            M::up(include_str!("migrations/0001_initial.sql")),
+            M::up(include_str!("migrations/0002_settings.sql")),
+        ])
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute("INSERT INTO folders (name) VALUES ('Trabalho')", [])
+            .unwrap();
+        conn.execute(
+            "INSERT INTO snippets (folder_id, title, content) VALUES (1, 'Nota', 'texto')",
+            [],
+        )
+        .unwrap();
+
+        init(&mut conn).unwrap();
+
+        assert_eq!(folders::list_folders(&conn).unwrap().len(), 1);
+        assert_eq!(snippets::list_all_snippets(&conn).unwrap().len(), 1);
     }
 
     #[test]

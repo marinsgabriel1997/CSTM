@@ -119,6 +119,12 @@ const useStyles = makeStyles({
     color: tokens.colorStatusWarningForeground1,
   },
   meta: { color: tokens.colorNeutralForeground2, marginTop: 0, marginBottom: "18px" },
+  usage: {
+    flex: "none",
+    margin: 0,
+    fontSize: tokens.fontSizeBase200,
+    color: tokens.colorNeutralForeground3,
+  },
   folderActions: { display: "flex", gap: tokens.spacingHorizontalS },
   welcome: {
     flex: 1,
@@ -195,6 +201,8 @@ interface SnippetEditorProps {
   status: SaveStatus;
   error: string | null;
   favorite: boolean;
+  /** Quantas vezes o texto foi colado e quando, como "Usado 12 vezes · último uso em 10/10/2026". */
+  usage: string;
   /** Texto novo ainda não gravado. */
   isNew: boolean;
   titleRef: RefObject<HTMLInputElement | null>;
@@ -214,6 +222,7 @@ export function SnippetEditor({
   status,
   error,
   favorite,
+  usage,
   isNew,
   titleRef,
   contentRef,
@@ -279,6 +288,7 @@ export function SnippetEditor({
             }
           }}
         />
+        {!isNew && <p className={styles.usage}>{usage}</p>}
         {invalid && title.trim() === "" && (
           <div className={styles.hint}>
             <Warning16Regular /> O título é obrigatório. Enquanto estiver vazio, as alterações não são salvas.

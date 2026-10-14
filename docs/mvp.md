@@ -9,17 +9,21 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
 ### 1. Cadastro de textos
 
-- Criar, editar e excluir textos.
+- Criar, editar e excluir textos; excluir envia para uma lixeira, de onde os itens podem ser restaurados ou excluídos definitivamente.
 - Organizar em pastas (com subpastas).
 - Marcar favoritos.
 - Buscar por título e conteúdo.
-- Ordenação manual dentro de cada pasta.
+- Ordenação manual dentro de cada pasta, por arrastar e soltar ou pelo menu, e ordenação pontual por nome, mais usados ou uso recente.
+- Operações de árvore como num gerenciador de arquivos: seleção múltipla, recortar, copiar e colar (que também duplica), desfazer (Ctrl+Z) e navegação por teclado.
+- O editor mostra quantas vezes o texto foi usado e quando foi usado pela última vez.
 
 ### 2. Menu de colagem
 
 - Atalho global (padrão `Alt+Q`, configurável) abre o menu junto ao cursor do mouse, dentro da área útil do monitor.
-- O menu mostra favoritos, pastas (navegáveis) e um campo de busca com foco automático.
+- O menu mostra as pastas virtuais Mais usados (10 textos) e Favoritos, as pastas (navegáveis) e um campo de busca com foco automático.
 - Navegação por teclado (setas, Enter, Esc) e mouse.
+- Navegação nas pastas configurável: em cascata (padrão), o conteúdo de uma pasta abre numa coluna ao lado quando o mouse passa sobre ela ou ao clicar, como os submenus do Windows; no modo "Clicar para abrir", a lista é substituída pelo conteúdo da pasta. A busca mostra os resultados numa lista única nos dois modos.
+- No modo cascata, a janela `picker` cresce para conter as colunas abertas, sempre dentro da área útil do monitor, e volta a uma coluna a cada abertura.
 - Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado.
 - `Esc` ou clique fora fecha o menu sem colar.
 
@@ -32,6 +36,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 ### 4. Configurações
 
 - Tela de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
+- Navegação nas pastas do menu de colagem ("Abrir ao passar o mouse", padrão, ou "Clicar para abrir"); vale na próxima abertura do menu e é lembrada entre execuções.
 
 ### 5. Importação e exportação
 
@@ -74,7 +79,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | Janela | Função |
 |---|---|
 | `main` | Cadastro e organização dos textos |
-| `picker` | Menu flutuante: sem bordas, sempre no topo, fora da barra de tarefas, criada oculta |
+| `picker` | Menu flutuante: sem bordas, transparente e sem sombra nativa (cada coluna é um cartão desenhado pela interface), sempre no topo, fora da barra de tarefas, criada oculta; no modo cascata é redimensionada e movida pelo backend para conter as colunas abertas |
 
 ### Backend (Rust)
 
@@ -82,7 +87,8 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 |---|---|
 | `db` | Conexão SQLite, migrações, consultas |
 | `commands` | Comandos Tauri expostos ao frontend |
-| `picker` | Exibir/ocultar o menu, posicionamento, janela anterior |
+| `picker` | Exibir/ocultar o menu, posicionamento, janela anterior, navegação nas pastas e posicionamento da janela em cascata |
+| `cascade` | Geometria pura das colunas do menu em cascata (posição de cada coluna e retângulo da janela), testada sem janela |
 | `paste` | Clipboard e simulação de `Ctrl+V` (Windows) |
 | `tray` | Ícone e menu da bandeja |
 
@@ -151,5 +157,6 @@ Cada etapa termina com um commit funcional.
 4. **Segundo plano:** bandeja, instância única, fechar para a bandeja.
 5. **Menu de colagem:** janela `picker`, atalho global, busca e navegação por teclado.
 5b. **Configurações:** tela de configurações com a troca do atalho.
+5c. **Menu em cascata:** colunas de pastas ao passar o mouse, janela transparente e opção de navegação nas Configurações.
 6. **Colagem:** foco na janela anterior, clipboard, `SendInput`, restauração do clipboard.
 7. **Acabamento:** ícones, nome, versão, instalador.

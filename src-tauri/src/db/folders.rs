@@ -39,11 +39,13 @@ pub fn get_folder(conn: &Connection, id: i64) -> Result<Folder> {
     .ok_or(DbError::NotFound)
 }
 
-/// Todas as pastas, na ordem manual de cada grupo de irmãos; a árvore é montada por quem consome.
+/// Todas as pastas fora da lixeira, na ordem manual de cada grupo de irmãos; a árvore é
+/// montada por quem consome.
 pub fn list_folders(conn: &Connection) -> Result<Vec<Folder>> {
     let folders = conn
         .prepare(&format!(
-            "SELECT {COLUMNS} FROM folders ORDER BY sort_order, id"
+            "SELECT {COLUMNS} FROM folders WHERE id IN (SELECT id FROM live_folders)
+             ORDER BY sort_order, id"
         ))?
         .query_map([], from_row)?
         .collect::<rusqlite::Result<_>>()?;
@@ -73,14 +75,6 @@ pub fn rename_folder(conn: &Connection, id: i64, name: &str) -> Result<Folder> {
         return Err(DbError::NotFound);
     }
     get_folder(conn, id)
-}
-
-/// Exclui a pasta com suas subpastas e textos (cascata do esquema).
-pub fn delete_folder(conn: &Connection, id: i64) -> Result<()> {
-    match conn.execute("DELETE FROM folders WHERE id = ?1", [id])? {
-        0 => Err(DbError::NotFound),
-        _ => Ok(()),
-    }
 }
 
 /// Move a pasta para `parent_id` na `position` entre os novos irmãos.
@@ -121,7 +115,7 @@ pub(super) fn ensure_folder_exists(conn: &Connection, id: i64) -> Result<()> {
 }
 
 /// Indica se `folder` é `ancestor` ou está abaixo dele na árvore.
-fn is_self_or_descendant(conn: &Connection, folder: i64, ancestor: i64) -> Result<bool> {
+pub(super) fn is_self_or_descendant(conn: &Connection, folder: i64, ancestor: i64) -> Result<bool> {
     Ok(conn.query_row(
         "WITH RECURSIVE ancestors(id, parent_id) AS (
              SELECT id, parent_id FROM folders WHERE id = ?1
@@ -137,7 +131,15 @@ fn is_self_or_descendant(conn: &Connection, folder: i64, ancestor: i64) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::db::items::{self, ItemRef, Kind};
     use crate::db::open_in_memory;
+
+    fn folder(id: i64) -> ItemRef {
+        ItemRef {
+            kind: Kind::Folder,
+            id,
+        }
+    }
 
     fn names_in(conn: &Connection, parent_id: Option<i64>) -> Vec<String> {
         list_folders(conn)
@@ -256,7 +258,7 @@ mod tests {
 
     #[test]
     fn delete_cascades_to_subfolders_and_snippets() {
-        let conn = open_in_memory().unwrap();
+        let mut conn = open_in_memory().unwrap();
         let a = create_folder(&conn, None, "A").unwrap();
         let b = create_folder(&conn, Some(a.id), "B").unwrap();
         let other = create_folder(&conn, None, "Outra").unwrap();
@@ -266,13 +268,13 @@ mod tests {
         )
         .unwrap();
 
-        delete_folder(&conn, a.id).unwrap();
+        items::delete(&mut conn, &[folder(a.id)]).unwrap();
 
         assert_eq!(list_folders(&conn).unwrap(), [other]);
         let snippets: i64 = conn
             .query_row("SELECT count(*) FROM snippets", [], |row| row.get(0))
             .unwrap();
         assert_eq!(snippets, 0);
-        assert!(matches!(delete_folder(&conn, a.id), Err(DbError::NotFound)));
+        assert!(matches!(get_folder(&conn, a.id), Err(DbError::NotFound)));
     }
 }

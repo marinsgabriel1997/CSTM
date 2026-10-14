@@ -8,17 +8,20 @@ import {
   DialogSurface,
   DialogTitle,
   DialogTrigger,
+  Divider,
   makeStyles,
   mergeClasses,
   MessageBar,
   MessageBarBody,
+  Radio,
+  RadioGroup,
   Text,
   tokens,
 } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { api, type ShortcutStatus } from "../api";
+import { api, errorMessage, type PickerNavigation, type ShortcutStatus } from "../api";
 import { DEFAULT_SHORTCUT, recordKey, shortcutKeys, shortcutLabel, usesAltGr } from "../shortcut";
 
 const useStyles = makeStyles({
@@ -58,6 +61,7 @@ const useStyles = makeStyles({
   plus: { color: tokens.colorNeutralForeground3 },
   hint: { color: tokens.colorNeutralForeground2 },
   success: { color: tokens.colorStatusSuccessForeground1 },
+  section: { marginTop: tokens.spacingVerticalS },
   actions: { justifyContent: "space-between" },
 });
 
@@ -68,7 +72,7 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Diálogo de configurações. Por enquanto, apenas o atalho do menu de colagem. */
+/** Diálogo de configurações: o atalho do menu de colagem e a navegação nas pastas dele. */
 function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogProps) {
   const styles = useStyles();
   const [recording, setRecording] = useState(false);
@@ -78,6 +82,9 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
   const [changed, setChanged] = useState(false);
   // Atalho recusado pelo Windows na última tentativa.
   const [refused, setRefused] = useState<string | null>(null);
+  // Navegação nas pastas do menu; `null` até carregar.
+  const [navigation, setNavigation] = useState<PickerNavigation | null>(null);
+  const [navigationError, setNavigationError] = useState<string | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   // Espelho de `recording` para os avisos de janela e o fechamento do diálogo.
   const recordingRef = useRef(false);
@@ -105,6 +112,27 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
     },
     [],
   );
+
+  useEffect(() => {
+    let current = true;
+    api.getPickerNavigation().then(
+      (value) => current && setNavigation(value),
+      (reason) => current && setNavigationError(errorMessage(reason)),
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
+
+  // A escolha vale na próxima abertura do menu de colagem.
+  async function changeNavigation(value: PickerNavigation) {
+    setNavigationError(null);
+    try {
+      setNavigation(await api.setPickerNavigation(value));
+    } catch (reason) {
+      setNavigationError(errorMessage(reason));
+    }
+  }
 
   async function startRecording() {
     recordingRef.current = true;
@@ -231,6 +259,34 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
                   Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no
                   teclado ABNT2).
                 </MessageBarBody>
+              </MessageBar>
+            )}
+            <Divider className={styles.section} />
+            <Text id="navigation-title" className={styles.title}>
+              Navegação nas pastas
+            </Text>
+            <Caption1 className={styles.help}>
+              Como as pastas se abrem no menu de colagem. Vale a partir da próxima abertura do menu.
+            </Caption1>
+            <RadioGroup
+              aria-labelledby="navigation-title"
+              value={navigation ?? ""}
+              disabled={navigation === null}
+              onChange={(_, data) => void changeNavigation(data.value as PickerNavigation)}
+            >
+              <Radio
+                value="cascade"
+                label={
+                  <>
+                    Abrir ao passar o mouse <Caption1 className={styles.hint}>padrão</Caption1>
+                  </>
+                }
+              />
+              <Radio value="click" label="Clicar para abrir" />
+            </RadioGroup>
+            {navigationError && (
+              <MessageBar intent="error">
+                <MessageBarBody>Não foi possível salvar a navegação nas pastas: {navigationError}</MessageBarBody>
               </MessageBar>
             )}
           </DialogContent>

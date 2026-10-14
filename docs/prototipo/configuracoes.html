@@ -198,6 +198,20 @@
   .bar.error { background: var(--danger-bg); color: var(--text); border-left: 3px solid var(--danger); }
   .bar.warning { background: var(--warning-bg); color: var(--text); border-left: 3px solid var(--warning); }
   .dialog-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+  .setting-sep { height: 1px; margin: 20px 0 16px; background: var(--stroke); }
+  .radio-group { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .radio { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 4px; cursor: pointer; }
+  .radio:hover { background: var(--hover); }
+  .radio input { position: absolute; opacity: 0; }
+  .radio-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--text-2); background: var(--control);
+    display: grid; place-items: center; flex: none;
+  }
+  .radio input:checked + .radio-dot { border-color: var(--accent); }
+  .radio input:checked + .radio-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .radio input:focus-visible + .radio-dot { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .radio-note { margin-left: 4px; font-size: 12px; color: var(--text-3); }
 
   /* ---------- Menu da bandeja (estado próprio) ---------- */
   .tray-menu {
@@ -257,6 +271,7 @@
   let shortcut = ["Ctrl", "Shift", "Espaço"];
   let pending = [];
   let message = null;
+  let navMode = "hover"; // "hover" = Abrir ao passar o mouse (padrão); "click" = Clicar para abrir
 
   const $ = (id) => document.getElementById(id);
   const label = (keys) => keys.join("+");
@@ -309,12 +324,22 @@
               : `<button class="button" id="change">Alterar</button>`}
           </div>
           ${lines}
+          <div class="setting-sep"></div>
+          <div class="setting-title" id="nav-title">Navegação nas pastas</div>
+          <div class="setting-help">Como as pastas se abrem no menu de colagem. Vale a partir da próxima abertura do menu.</div>
+          <div class="radio-group" role="radiogroup" aria-labelledby="nav-title">
+            <label class="radio"><input type="radio" name="nav" value="hover" ${navMode === "hover" ? "checked" : ""} /><span class="radio-dot"></span>Abrir ao passar o mouse<span class="radio-note">padrão</span></label>
+            <label class="radio"><input type="radio" name="nav" value="click" ${navMode === "click" ? "checked" : ""} /><span class="radio-dot"></span>Clicar para abrir</label>
+          </div>
           <div class="dialog-actions" style="justify-content: space-between">
             <button class="button" id="restore" ${isDefault || recording ? "disabled" : ""}>Restaurar padrão (Alt+Q)</button>
             <button class="button primary">Fechar</button>
           </div>
         </div>
       </div>`;
+    document.querySelectorAll('input[name="nav"]').forEach((input) => {
+      input.addEventListener("change", () => { navMode = input.value; });
+    });
     $("change")?.addEventListener("click", () => go("gravando"));
     $("cancel")?.addEventListener("click", () => go("atual"));
     $("restore").addEventListener("click", () => { shortcut = [...DEFAULT]; go("alterado"); });

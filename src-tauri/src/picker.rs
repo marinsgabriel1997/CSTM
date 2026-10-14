@@ -6,11 +6,12 @@ use rusqlite::Connection;
 use serde::Serialize;
 use tauri::plugin::TauriPlugin;
 use tauri::{
-    App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, Window, WindowEvent,
-    Wry,
+    App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, Window,
+    WindowEvent, Wry,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+use crate::cascade::{self, PlacedColumn, Subcolumn};
 use crate::db::settings;
 use crate::paste;
 
@@ -34,8 +35,21 @@ pub struct ShortcutStatus {
 
 type ShortcutLock = Mutex<ShortcutStatus>;
 
-/// Retângulo em pixels físicos, como a área útil de um monitor.
+/// Onde `show()` colocou a coluna principal: a cascata abre as demais a partir dela.
 #[derive(Debug, Clone, Copy)]
+struct MainColumn {
+    /// Posição e tamanho em pixels físicos.
+    rect: Area,
+    work_area: Area,
+    scale: f64,
+}
+
+/// Coluna principal do menu aberto; vazia enquanto o menu nunca foi aberto.
+#[derive(Default)]
+pub struct PickerGeometry(Mutex<Option<MainColumn>>);
+
+/// Retângulo em pixels físicos, como a área útil de um monitor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Area {
     pub x: i32,
     pub y: i32,
@@ -242,10 +256,64 @@ fn show(app: &AppHandle) -> tauri::Result<()> {
         window.set_position(PhysicalPosition::new(x, y))?;
         // Ao passar para um monitor com outra escala, o tamanho lógico é reaplicado.
         window.set_size(LogicalSize::new(WIDTH, HEIGHT))?;
+        // Cada abertura começa com uma coluna só, do tamanho da janela.
+        *lock_geometry(app) = Some(MainColumn {
+            rect: Area {
+                x,
+                y,
+                width: size.width,
+                height: size.height,
+            },
+            work_area: area,
+            scale: monitor.scale_factor(),
+        });
     }
     app.emit_to(PICKER_WINDOW, PICKER_OPENED, ())?;
     window.show()?;
     window.set_focus()
+}
+
+fn lock_geometry(app: &AppHandle) -> MutexGuard<'_, Option<MainColumn>> {
+    app.state::<PickerGeometry>()
+        .inner()
+        .0
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Posiciona a janela do menu para conter a coluna principal e as subcolunas abertas e
+/// devolve a posição de cada coluna, relativa à janela. Sem subcolunas, é a abertura.
+pub fn layout(app: &AppHandle, subs: &[Subcolumn]) -> Result<Vec<PlacedColumn>, String> {
+    let window = app
+        .get_webview_window(PICKER_WINDOW)
+        .ok_or("o menu de colagem não existe")?;
+    let main = (*lock_geometry(app)).ok_or("o menu de colagem ainda não foi aberto")?;
+    let arrangement = cascade::arrange(main.rect, main.work_area, main.scale, subs);
+    let size = PhysicalSize::new(
+        arrangement.window.width.max(1) as u32,
+        arrangement.window.height.max(1) as u32,
+    );
+    // Sem decorações, o tamanho externo é o da área de conteúdo.
+    window
+        .set_size(size)
+        .and_then(|()| {
+            window.set_position(PhysicalPosition::new(
+                arrangement.window.x,
+                arrangement.window.y,
+            ))
+        })
+        .map_err(|error| error.to_string())?;
+    Ok(arrangement.columns)
+}
+
+/// Grava a navegação nas pastas (`cascade` ou `click`); vale na próxima abertura do menu.
+pub fn change_navigation(conn: &Connection, navigation: &str) -> Result<String, String> {
+    if navigation != settings::NAVIGATION_CASCADE && navigation != settings::NAVIGATION_CLICK {
+        return Err("navegação inválida: use cascade ou click".to_string());
+    }
+    settings::set_setting(conn, settings::PICKER_NAVIGATION, navigation)
+        .map_err(|error| error.to_string())?;
+    Ok(navigation.to_string())
 }
 
 pub fn hide(app: &AppHandle) {
@@ -319,6 +387,18 @@ mod tests {
         };
         assert_eq!(place((-100, 50), SIZE, left), (-440, 50));
         assert_eq!(place((-1280, 900), SIZE, left), (-1280, 460));
+    }
+
+    #[test]
+    fn navigation_accepts_only_the_two_modes() {
+        let conn = crate::db::open_in_memory().unwrap();
+
+        assert_eq!(change_navigation(&conn, "click").unwrap(), "click");
+        assert_eq!(settings::get_navigation(&conn).unwrap(), "click");
+        assert!(change_navigation(&conn, "hover").is_err());
+        assert_eq!(settings::get_navigation(&conn).unwrap(), "click");
+        assert_eq!(change_navigation(&conn, "cascade").unwrap(), "cascade");
+        assert_eq!(settings::get_navigation(&conn).unwrap(), "cascade");
     }
 
     #[test]

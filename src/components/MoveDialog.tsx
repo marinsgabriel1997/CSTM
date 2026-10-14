@@ -29,19 +29,20 @@ const useStyles = makeStyles({
 });
 
 interface MoveDialogProps {
-  /** Nome do item movido, para o título. */
-  name: string;
+  /** Título do diálogo, como "Mover “Assinatura”" ou "Mover 3 itens". */
+  title: string;
   rootLabel: string;
-  /** Pastas que podem receber o item. */
+  /** Pastas que podem receber os itens. */
   options: FolderOption[];
-  current: number | null;
+  /** Pasta onde os itens estão; `undefined` quando estão em pastas diferentes. */
+  current: number | null | undefined;
   onMove: (folderId: number | null) => void;
   onCancel: () => void;
 }
 
-function MoveDialog({ name, rootLabel, options, current, onMove, onCancel }: MoveDialogProps) {
+function MoveDialog({ title, rootLabel, options, current, onMove, onCancel }: MoveDialogProps) {
   const styles = useStyles();
-  const [value, setValue] = useState(current === null ? ROOT : String(current));
+  const [value, setValue] = useState(current === null ? ROOT : current === undefined ? "" : String(current));
   const destination = value === ROOT ? null : Number(value);
 
   return (
@@ -53,7 +54,7 @@ function MoveDialog({ name, rootLabel, options, current, onMove, onCancel }: Mov
     >
       <DialogSurface>
         <DialogBody>
-          <DialogTitle>Mover “{name}”</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
           <DialogContent>
             <RadioGroup
               aria-label="Destino"
@@ -73,7 +74,11 @@ function MoveDialog({ name, rootLabel, options, current, onMove, onCancel }: Mov
             </RadioGroup>
           </DialogContent>
           <DialogActions>
-            <Button appearance="primary" disabled={destination === current} onClick={() => onMove(destination)}>
+            <Button
+              appearance="primary"
+              disabled={value === "" || destination === current}
+              onClick={() => onMove(destination)}
+            >
               Mover
             </Button>
             <Button onClick={onCancel}>Cancelar</Button>

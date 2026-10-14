@@ -4,7 +4,21 @@ export interface ItemRef {
   id: number;
 }
 
-export type ActionKey = "rename" | "move" | "up" | "down" | "favorite" | "exportJson" | "exportTxt" | "delete";
+export type ActionKey =
+  | "cut"
+  | "copy"
+  | "paste"
+  | "rename"
+  | "move"
+  | "up"
+  | "down"
+  | "favorite"
+  | "sortName"
+  | "sortUses"
+  | "sortRecent"
+  | "exportJson"
+  | "exportTxt"
+  | "delete";
 
 export interface ItemAction {
   key: ActionKey;
@@ -12,11 +26,12 @@ export interface ItemAction {
   disabled?: boolean;
 }
 
+/** Somente atalhos que funcionam igual em qualquer programa do Windows. */
 export const SHORTCUTS: Partial<Record<ActionKey, string>> = {
+  cut: "Ctrl+X",
+  copy: "Ctrl+C",
+  paste: "Ctrl+V",
   rename: "F2",
-  move: "Ctrl+M",
-  up: "Alt+↑",
-  down: "Alt+↓",
   delete: "Del",
 };
 
@@ -24,22 +39,6 @@ export function sameItem(a: ItemRef | null, b: ItemRef | null): boolean {
   return a?.kind === b?.kind && a?.id === b?.id;
 }
 
-/** Ação do menu de contexto correspondente a um atalho de teclado na árvore. */
-export function shortcutAction(event: {
-  key: string;
-  ctrlKey: boolean;
-  altKey: boolean;
-  shiftKey: boolean;
-}): ActionKey | null {
-  const { key, ctrlKey, altKey, shiftKey } = event;
-  if (shiftKey) return null;
-  if (altKey && !ctrlKey) {
-    if (key === "ArrowUp") return "up";
-    if (key === "ArrowDown") return "down";
-    return null;
-  }
-  if (ctrlKey) return !altKey && key.toLowerCase() === "m" ? "move" : null;
-  if (key === "F2") return "rename";
-  if (key === "Delete") return "delete";
-  return null;
+export function includesItem(items: readonly ItemRef[], item: ItemRef | null): boolean {
+  return items.some((candidate) => sameItem(candidate, item));
 }

@@ -7,6 +7,12 @@ use super::Result;
 /// Atalho global do menu de colagem, no formato do `tauri-plugin-global-shortcut`.
 pub const SHORTCUT: &str = "shortcut";
 
+/// Como as pastas se abrem no menu de colagem: `cascade` (ao passar o mouse) ou `click`.
+pub const PICKER_NAVIGATION: &str = "picker_navigation";
+
+pub const NAVIGATION_CASCADE: &str = "cascade";
+pub const NAVIGATION_CLICK: &str = "click";
+
 /// Valor gravado para `key`, ou `None` se nunca foi definido.
 pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
@@ -23,6 +29,15 @@ pub fn set_setting(conn: &Connection, key: &str, value: &str) -> Result<()> {
         (key, value),
     )?;
     Ok(())
+}
+
+/// Navegação nas pastas do menu de colagem; vale `cascade` enquanto nada foi gravado.
+pub fn get_navigation(conn: &Connection) -> Result<String> {
+    Ok(match get_setting(conn, PICKER_NAVIGATION)?.as_deref() {
+        Some(NAVIGATION_CLICK) => NAVIGATION_CLICK,
+        _ => NAVIGATION_CASCADE,
+    }
+    .to_string())
 }
 
 #[cfg(test)]
@@ -55,5 +70,24 @@ mod tests {
             .query_row("SELECT count(*) FROM settings", [], |row| row.get(0))
             .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn navigation_defaults_to_cascade_and_reads_the_saved_choice() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_navigation(&conn).unwrap(), "cascade");
+
+        set_setting(&conn, PICKER_NAVIGATION, NAVIGATION_CLICK).unwrap();
+        assert_eq!(get_navigation(&conn).unwrap(), "click");
+
+        set_setting(&conn, PICKER_NAVIGATION, NAVIGATION_CASCADE).unwrap();
+        assert_eq!(get_navigation(&conn).unwrap(), "cascade");
+    }
+
+    #[test]
+    fn unknown_saved_navigation_falls_back_to_cascade() {
+        let conn = open_in_memory().unwrap();
+        set_setting(&conn, PICKER_NAVIGATION, "hover").unwrap();
+        assert_eq!(get_navigation(&conn).unwrap(), "cascade");
     }
 }

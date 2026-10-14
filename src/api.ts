@@ -4,6 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
+import type { ItemRef } from "./actions";
+
 export interface Folder {
   id: number;
   parentId: number | null;
@@ -19,6 +21,27 @@ export interface ShortcutStatus {
   registered: boolean;
 }
 
+/** Como as pastas se abrem no menu de colagem: ao passar o mouse (cascata) ou ao clicar. */
+export type PickerNavigation = "cascade" | "click";
+
+/** Subcoluna aberta no menu de colagem, em pixels lógicos. */
+export interface PickerSubcolumn {
+  /** Altura que o conteúdo ocupa, sem rolagem. */
+  contentHeight: number;
+  /** Distância do topo da linha da pasta ao topo da coluna anterior, já com a rolagem dela. */
+  anchorY: number;
+}
+
+/** Posição de uma coluna, em pixels lógicos relativos ao canto superior esquerdo da janela. */
+export interface PickerColumn {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Coberta por uma coluna mais nova: sai de vista até essa coluna fechar. */
+  hidden: boolean;
+}
+
 export interface Snippet {
   id: number;
   folderId: number | null;
@@ -30,6 +53,19 @@ export interface Snippet {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Item na lixeira, com o lugar de onde saiu. */
+export interface TrashItem {
+  kind: ItemRef["kind"];
+  id: number;
+  name: string;
+  /** Pastas onde o item estava, da raiz até o pai; vazio para a raiz. */
+  path: string[];
+  deletedAt: string;
+  /** Subpastas e textos que voltam junto com uma pasta (zero para textos). */
+  folders: number;
+  snippets: number;
 }
 
 /** Motivo de um arquivo não ter sido importado. */
@@ -53,7 +89,6 @@ export const api = {
   createFolder: (parentId: number | null, name: string) =>
     invoke<Folder>("create_folder", { parentId, name }),
   renameFolder: (id: number, name: string) => invoke<Folder>("rename_folder", { id, name }),
-  deleteFolder: (id: number) => invoke<void>("delete_folder", { id }),
   moveFolder: (id: number, parentId: number | null, position: number) =>
     invoke<void>("move_folder", { id, parentId, position }),
 
@@ -70,6 +105,24 @@ export const api = {
   deleteSnippet: (id: number) => invoke<void>("delete_snippet", { id }),
   moveSnippet: (id: number, folderId: number | null, position: number) =>
     invoke<void>("move_snippet", { id, folderId, position }),
+
+  // Operações sobre vários itens. Pastas levam todo o conteúdo.
+  /** Move para a lixeira. */
+  trashItems: (items: ItemRef[]) => invoke<void>("trash_items", { items }),
+  /** Tira da lixeira, para o fim do grupo na pasta de origem (ou na raiz, se ela estiver na lixeira). */
+  restoreItems: (items: ItemRef[]) => invoke<void>("restore_items", { items }),
+  /** Exclui definitivamente. */
+  deleteItems: (items: ItemRef[]) => invoke<void>("delete_items", { items }),
+  emptyTrash: () => invoke<void>("empty_trash"),
+  listTrash: () => invoke<TrashItem[]>("list_trash"),
+  /** Copia para o fim do grupo em `parentId` e devolve as cópias; na mesma pasta, o nome ganha " - Cópia". */
+  copyItems: (items: ItemRef[], parentId: number | null) => invoke<ItemRef[]>("copy_items", { items, parentId }),
+  /**
+   * Coloca as pastas e os textos em `parentId`, nessa ordem, movendo os que estão em outro lugar;
+   * os demais itens do grupo ficam depois deles.
+   */
+  arrangeItems: (parentId: number | null, folderIds: number[], snippetIds: number[]) =>
+    invoke<void>("arrange_items", { parentId, folderIds, snippetIds }),
 
   /**
    * Substitui o fechamento da janela por `onClose`: a janela nunca é fechada, pois o
@@ -98,20 +151,30 @@ export const api = {
   resumeShortcut: () => invoke<ShortcutStatus>("resume_shortcut"),
 
   // Importação e exportação: cada uma abre o seletor do Windows e resolve com `null`
-  // se ele for cancelado. `folderId` é o destino da importação ou a pasta exportada
-  // (`null` = raiz ou biblioteca inteira).
+  // se ele for cancelado. `folderId` é o destino da importação (`null` = raiz); `items`
+  // são os itens exportados (vazio = biblioteca inteira).
   importTxtFiles: (folderId: number | null) => invoke<TransferSummary | null>("import_txt_files", { folderId }),
   /** Com `includeRoot`, cria a própria pasta escolhida; sem ele, importa só o seu conteúdo. */
   importFolder: (folderId: number | null, includeRoot: boolean) =>
     invoke<TransferSummary | null>("import_folder", { folderId, includeRoot }),
   importJson: (folderId: number | null) => invoke<TransferSummary | null>("import_json", { folderId }),
-  exportJson: (folderId: number | null) => invoke<TransferSummary | null>("export_json", { folderId }),
-  exportTxt: (folderId: number | null) => invoke<TransferSummary | null>("export_txt", { folderId }),
+  exportJson: (items: ItemRef[]) => invoke<TransferSummary | null>("export_json", { items }),
+  exportTxt: (items: ItemRef[]) => invoke<TransferSummary | null>("export_txt", { items }),
 
   // Menu de colagem (janela `picker`).
   /** Avisa a cada abertura do menu. Devolve a função que remove o aviso. */
   onPickerOpened: async (onOpen: () => void) => listen("picker-opened", () => onOpen()),
   hidePicker: () => invoke<void>("hide_picker"),
+  /** Navegação nas pastas; `cascade` enquanto nada foi escolhido. Vale na próxima abertura do menu. */
+  getPickerNavigation: () => invoke<PickerNavigation>("get_picker_navigation"),
+  setPickerNavigation: (navigation: PickerNavigation) =>
+    invoke<PickerNavigation>("set_picker_navigation", { navigation }),
+  /**
+   * Redimensiona e move a janela do menu para conter a coluna principal e as subcolunas
+   * abertas (sem subcolunas, volta ao tamanho de uma coluna). Devolve a posição de cada
+   * coluna, a principal primeiro; a principal não muda de lugar na tela.
+   */
+  layoutPicker: (columns: PickerSubcolumn[]) => invoke<PickerColumn[]>("layout_picker", { columns }),
   /** Entrega o texto escolhido no menu (copia para o clipboard) e fecha o menu. */
   chooseSnippet: (id: number) => invoke<void>("choose_snippet", { id }),
 };

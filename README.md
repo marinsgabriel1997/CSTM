@@ -2,13 +2,15 @@
 
 Aplicativo desktop para cadastrar, organizar e colar textos reutilizáveis por meio de um menu flutuante aberto por atalho global. O MVP tem como alvo o Windows.
 
-O escopo e a arquitetura pretendidos estão em [docs/mvp.md](docs/mvp.md). O projeto está em desenvolvimento: a tela de cadastro (pastas, textos, favoritos e busca), a execução em segundo plano (ícone na bandeja e instância única), o menu de colagem com a colagem no programa anterior, as configurações e a importação e exportação estão disponíveis.
+O escopo e a arquitetura pretendidos estão em [docs/mvp.md](docs/mvp.md). O projeto está em desenvolvimento: a tela de cadastro (pastas, textos, favoritos e busca), a execução em segundo plano (ícone na bandeja e instância única), o menu de colagem com a colagem no programa anterior, as configurações, a importação e exportação e as operações da árvore (seleção múltipla, arrastar e soltar, recortar/copiar/colar, lixeira e desfazer) estão disponíveis.
 
 Fechar a janela apenas a oculta: o CSTM continua na bandeja do sistema, e o cadastro é reaberto pelo ícone. Para encerrar, use "Sair" no menu do ícone.
 
-`Alt+Q`, em qualquer programa, abre o menu de colagem junto ao cursor do mouse. O atalho pode ser trocado em Configurações (engrenagem na barra inferior do cadastro ou menu do ícone na bandeja).
+`Alt+Q`, em qualquer programa, abre o menu de colagem junto ao cursor do mouse; as pastas abrem em colunas ao lado quando o mouse passa sobre elas (ou, se preferir, ao clicar). O atalho e a navegação nas pastas podem ser trocados em Configurações (engrenagem na barra inferior do cadastro ou menu do ícone na bandeja).
 
 Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db` (SQLite). O botão `...` ao lado de "Novo", no cadastro, importa arquivos `.txt`, pastas e backups JSON e exporta a biblioteca; uma pasta pode ser exportada pelo seu menu de contexto.
+
+Na árvore do cadastro valem os atalhos de um gerenciador de arquivos: Ctrl+clique, Shift+clique e Ctrl+A (seleção múltipla), Ctrl+X, Ctrl+C e Ctrl+V (mover e copiar), Ctrl+Z (desfazer), F2 (renomear), Del (enviar para a lixeira) e Shift+Del (excluir definitivamente). Itens excluídos ficam na Lixeira, no fim da árvore, até serem restaurados ou excluídos definitivamente.
 
 ## Stack
 

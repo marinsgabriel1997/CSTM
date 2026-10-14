@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use tauri::Manager;
 
+mod cascade;
 mod commands;
 mod db;
 mod paste;
@@ -27,6 +28,7 @@ pub fn run() {
             picker::register_shortcut(app, &conn);
             app.manage(Mutex::new(conn));
             app.manage(paste::PasteState::default());
+            app.manage(picker::PickerGeometry::default());
             tray::create(app)?;
             Ok(())
         })
@@ -35,7 +37,6 @@ pub fn run() {
             commands::list_folders,
             commands::create_folder,
             commands::rename_folder,
-            commands::delete_folder,
             commands::move_folder,
             commands::list_snippets,
             commands::list_all_snippets,
@@ -46,10 +47,20 @@ pub fn run() {
             commands::set_favorite,
             commands::delete_snippet,
             commands::move_snippet,
+            commands::trash_items,
+            commands::restore_items,
+            commands::delete_items,
+            commands::empty_trash,
+            commands::list_trash,
+            commands::copy_items,
+            commands::arrange_items,
             commands::show_main_window,
             commands::exit_app,
             commands::hide_picker,
             commands::choose_snippet,
+            commands::get_picker_navigation,
+            commands::set_picker_navigation,
+            commands::layout_picker,
             commands::get_shortcut,
             commands::set_shortcut,
             commands::suspend_shortcut,

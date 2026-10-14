@@ -1,5 +1,6 @@
 // Opções de importação e exportação e as notificações de resultado mostradas na janela.
 import type { SkipReason, TransferSummary } from "./api";
+import { capitalize, type Notice } from "./notice";
 
 export type ImportKind = "txt" | "folder" | "folderContents" | "json";
 export type ExportFormat = "json" | "txt";
@@ -14,13 +15,6 @@ const SKIP_REASONS: Record<SkipReason, string> = {
 
 /** Arquivos ignorados listados no aviso; os demais são resumidos numa contagem. */
 export const MAX_LISTED_SKIPS = 10;
-
-export interface TransferNotice {
-  intent: "success" | "error";
-  title: string;
-  details?: string;
-  items?: string[];
-}
 
 function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
@@ -38,8 +32,8 @@ function amount(summary: TransferSummary, verb: "importad" | "exportad"): string
 }
 
 /** Aviso de importação concluída; `target` é o destino, como "Trabalho › E-mails" ou `null` (raiz). */
-export function importNotice(summary: TransferSummary, target: string | null): TransferNotice {
-  const notice: TransferNotice = {
+export function importNotice(summary: TransferSummary, target: string | null): Notice {
+  const notice: Notice = {
     intent: "success",
     title: `${amount(summary, "importad")} ${target ? `em ${target}` : "na raiz"}.`,
   };
@@ -52,18 +46,14 @@ export function importNotice(summary: TransferSummary, target: string | null): T
   return notice;
 }
 
-export function exportNotice(summary: TransferSummary): TransferNotice {
+export function exportNotice(summary: TransferSummary): Notice {
   return { intent: "success", title: `${amount(summary, "exportad")}.`, details: summary.path ?? undefined };
 }
 
-export function importFailure(message: string): TransferNotice {
+export function importFailure(message: string): Notice {
   return { intent: "error", title: "Não foi possível importar.", details: `${capitalize(message)}. Nada foi importado.` };
 }
 
-export function exportFailure(message: string): TransferNotice {
+export function exportFailure(message: string): Notice {
   return { intent: "error", title: "Não foi possível exportar.", details: `${capitalize(message)}.` };
-}
-
-function capitalize(text: string): string {
-  return text.charAt(0).toUpperCase() + text.slice(1);
 }

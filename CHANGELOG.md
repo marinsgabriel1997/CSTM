@@ -6,6 +6,42 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-14
+
+### Added
+
+- Menu de colagem em cascata: ao passar o mouse sobre uma pasta (ou ao clicar nela), o conteúdo dela abre numa coluna ao lado, alinhada à pasta e com a altura do conteúdo, como os submenus do Windows. Vale também para Mais usados e Favoritos. Passar para outra pasta substitui as colunas abertas; passar sobre um texto fecha as mais profundas.
+- No teclado, `→` ou `Enter` numa pasta abre a coluna e entra nela, `←` volta uma coluna e `↑`/`↓` movem a seleção na coluna atual.
+- As colunas se ajustam à área útil do monitor: abrem à esquerda perto da borda direita, sobem perto da borda inferior e rolam quando o conteúdo é maior que a tela; sem espaço dos dois lados, as colunas mais antigas saem de vista.
+- Opção "Navegação nas pastas" nas Configurações, com "Abrir ao passar o mouse" (padrão) e "Clicar para abrir"; a escolha é gravada no banco e vale na próxima abertura do menu.
+
+### Changed
+
+- O menu de colagem passou a ser uma janela transparente em que cada coluna é um cartão com cantos arredondados e sombra próprios; clicar na área transparente fecha o menu. A cascata é o modo padrão, inclusive para quem já usava o aplicativo; "Clicar para abrir" mantém o comportamento anterior.
+
+## [0.9.0] - 2026-10-14
+
+### Added
+
+- Seleção múltipla na árvore do cadastro (Ctrl+clique, Shift+clique, Shift+setas e Ctrl+A), com um painel que move, recorta, copia, favorita, exporta e exclui todos os itens de uma vez.
+- Recortar, copiar e colar itens (Ctrl+X, Ctrl+C, Ctrl+V e menu de contexto). Colar cópias na mesma pasta duplica o item com " - Cópia" no nome; a cópia começa sem favorito e com uso zerado. Copiar um único texto também coloca o conteúdo dele no clipboard do Windows.
+- Arrastar e soltar na árvore: mover para uma pasta, reordenar pela linha de inserção, copiar com Ctrl, abrir pastas fechadas ao parar sobre elas e enviar para a Lixeira.
+- Lixeira no fim da árvore: Del envia os itens para ela com a notificação "Desfazer"; é possível restaurá-los, excluí-los definitivamente ou esvaziar a lixeira, com confirmação. Shift+Del exclui definitivamente. Itens na lixeira não aparecem na busca, no menu de colagem, nos totais nem nas exportações.
+- Ctrl+Z desfaz as últimas operações da árvore (até 50), sem interferir no desfazer dos campos de texto.
+- Submenu Ordenar (por nome, mais usados ou uso mais recente) nas pastas e na raiz, Expandir tudo e Recolher tudo no botão `...`, salto por letras digitadas e Enter para abrir pastas ou ir ao conteúdo do texto.
+- O editor mostra quantas vezes o texto foi usado e quando foi usado pela última vez.
+- O menu de colagem mostra as pastas Mais usados (os 10 textos mais colados) e Favoritos no topo da raiz.
+- A exportação a partir de itens selecionados exporta somente eles.
+
+### Changed
+
+- Excluir passou a enviar os itens para a lixeira, sem confirmação, em vez de apagá-los na hora.
+- Os atalhos Ctrl+M (Mover para…) e Alt+↑/↓ (Mover para cima/baixo) foram removidos; as ações continuam no menu de contexto.
+
+### Removed
+
+- A exclusão direta de pastas com confirmação foi substituída pela lixeira; a exclusão definitiva fica em Shift+Del, na própria Lixeira e em Esvaziar lixeira.
+
 ## [0.8.0] - 2026-10-14
 
 ### Added

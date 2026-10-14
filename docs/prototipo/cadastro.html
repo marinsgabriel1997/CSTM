@@ -254,6 +254,33 @@
   .dot.err { background: var(--danger); }
   .dot.pending { background: var(--text-3); }
   mark { background: var(--accent-soft); color: inherit; border-radius: 2px; padding: 0 1px; }
+  .row.cut .ic, .row.cut .label, .row.cut .star { opacity: 0.45; }
+  .row.drop-into { background: var(--accent-soft); outline: 1px solid var(--accent); outline-offset: -1px; }
+  .drop-line {
+    position: relative; height: 2px; border-radius: 1px; background: var(--accent);
+    margin: -1px 6px -1px calc(14px + var(--depth) * 18px);
+  }
+  .drop-line::before {
+    content: ""; position: absolute; left: -6px; top: -3px;
+    width: 6px; height: 6px; border-radius: 50%; border: 2px solid var(--accent); background: var(--layer);
+  }
+  .drag-ghost {
+    position: absolute; z-index: 12;
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 10px 4px 8px; border-radius: 4px;
+    background: var(--layer); border: 1px solid var(--stroke-strong); box-shadow: var(--shadow);
+    font-size: 12.5px; opacity: 0.95; pointer-events: none;
+  }
+  .drag-ghost svg { width: 16px; height: 16px; color: var(--text-2); }
+  .drag-ghost .count {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+    background: var(--accent); color: var(--on-accent); font-size: 11px; font-weight: 600;
+    display: grid; place-items: center;
+  }
+  .drag-ghost .copy-mark { color: var(--accent); font-weight: 700; }
+  .tree-foot { border-top: 1px solid var(--stroke); margin: 4px 4px 0 0; padding-top: 4px; }
+  .row.trash .ic { color: var(--text-2); }
+  .row .count { font-size: 12px; color: var(--text-3); padding: 0 4px; }
   .rename-input {
     flex: 1; height: 26px; padding: 0 8px; border-radius: 4px;
     background: var(--control); border: 1px solid var(--stroke);
@@ -347,8 +374,28 @@
   }
   .content.placeholder { color: var(--text-3); }
 
+  .usage { color: var(--text-3); font-size: 12.5px; margin: 0 0 2px; }
   .folder-meta { color: var(--text-2); font-size: 13.5px; margin: 0 0 18px; }
-  .folder-actions { display: flex; gap: 8px; }
+  .folder-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* Painel de seleção e lixeira */
+  .item-list { margin-top: 22px; border-top: 1px solid var(--stroke); }
+  .item-list .li {
+    display: grid; grid-template-columns: 16px 1fr auto auto; align-items: center; column-gap: 10px;
+    min-height: 36px; padding: 0 8px; border-bottom: 1px solid var(--stroke); border-radius: 4px;
+  }
+  .item-list .li.selected { background: var(--selected); }
+  .item-list .li svg { width: 16px; height: 16px; color: var(--text-2); }
+  .item-list .li.folder > svg { color: #c69a2b; }
+  .theme-dark .item-list .li.folder > svg { color: #e8c15c; }
+  .item-list .li .sub { display: block; font-size: 12px; color: var(--text-3); }
+  .item-list .li .from { font-size: 12.5px; color: var(--text-2); }
+  .item-list .li .when { font-size: 12px; color: var(--text-3); min-width: 110px; text-align: right; }
+  .item-list.trash .li { grid-template-columns: 16px 1fr 170px 120px 64px; }
+  .item-list .li .acts { display: flex; gap: 2px; justify-content: flex-end; visibility: hidden; }
+  .item-list .li:hover .acts, .item-list .li.selected .acts { visibility: visible; }
+  .item-list .li .acts .btn { height: 28px; }
+  .item-list .head { font-size: 12px; color: var(--text-3); min-height: 28px; border-bottom: 1px solid var(--stroke); }
 
   .welcome { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 0 64px 40px; max-width: 640px; }
   .welcome h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; margin: 0 0 8px; }
@@ -404,6 +451,7 @@
   .menu .item svg { width: 16px; height: 16px; color: var(--text-2); }
   .menu .item .kb { margin-left: auto; font-size: 12px; color: var(--text-3); }
   .menu .item.danger, .menu .item.danger svg { color: var(--danger); }
+  .menu .item.off { opacity: 0.4; }
   .menu .sep { height: 1px; background: var(--stroke); margin: 4px 0; }
   .menu .hint { font-size: 12px; color: var(--text-3); padding: 4px 10px 6px; }
   .menu .item svg.sub { margin-left: auto; width: 12px; height: 12px; color: var(--text-3); }
@@ -429,6 +477,9 @@
   .toast .b { grid-column: 2; color: var(--text-2); }
   .toast .b ul { margin: 2px 0 0; padding-left: 18px; }
   .toast > svg.close { width: 16px; height: 16px; color: var(--text-2); margin: 2px 0 0 4px; }
+  .toast.undo { grid-template-columns: 20px 1fr auto; align-items: center; }
+  .toast.undo > svg:first-child { color: var(--text-2); }
+  .toast .action { color: var(--accent); font-weight: 600; }
   @keyframes toast-in { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
   @keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(24px); } }
 
@@ -485,6 +536,13 @@
     <symbol id="i-export" viewBox="0 0 20 20"><path d="M10 12V3M6.5 6.5 10 3l3.5 3.5"/><path d="M3.5 12.5v2A1.5 1.5 0 0 0 5 16h10a1.5 1.5 0 0 0 1.5-1.5v-2"/></symbol>
     <symbol id="i-json" viewBox="0 0 20 20"><path d="M7 3.5c-1.5 0-2 .7-2 2V8c0 1-.6 1.6-1.5 2 .9.4 1.5 1 1.5 2v2.5c0 1.3.5 2 2 2M13 3.5c1.5 0 2 .7 2 2V8c0 1 .6 1.6 1.5 2-.9.4-1.5 1-1.5 2v2.5c0 1.3-.5 2-2 2"/></symbol>
     <symbol id="i-refresh" viewBox="0 0 20 20"><path d="M16 10a6 6 0 1 1-1.8-4.3"/><path d="M16 3.5V7h-3.5"/></symbol>
+    <symbol id="i-cut" viewBox="0 0 20 20"><circle cx="6" cy="14.5" r="2.5"/><circle cx="14" cy="14.5" r="2.5"/><path d="M7.6 12.6 14.5 3M12.4 12.6 5.5 3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 20 20"><rect x="7" y="6.5" width="9.5" height="11" rx="1.5"/><path d="M13 6.5V4A1.5 1.5 0 0 0 11.5 2.5H5A1.5 1.5 0 0 0 3.5 4v8.5A1.5 1.5 0 0 0 5 14h2"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 20 20"><path d="M6 4v12M3 13l3 3 3-3"/><path d="M11 5h6M11 9h4.5M11 13h3"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 20 20"><path d="m6 7 4 4 4-4"/><path d="m6 11.5 4 4 4-4"/></symbol>
+    <symbol id="i-collapse" viewBox="0 0 20 20"><path d="m6 13 4-4 4 4"/><path d="m6 8.5 4-4 4 4"/></symbol>
+    <symbol id="i-restore" viewBox="0 0 20 20"><path d="M4 10a6 6 0 1 0 1.8-4.3"/><path d="M4 3.5V7h3.5"/></symbol>
+    <symbol id="i-history" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M10 6v4l2.5 2"/></symbol>
   </defs>
 </svg>
 
@@ -500,7 +558,7 @@
   const LIB = [
     { type: "folder", id: "trabalho", name: "Trabalho", open: true, children: [
       { type: "folder", id: "emails", name: "E-mails", open: true, children: [
-        { type: "text", id: "resposta", title: "Resposta padrão",
+        { type: "text", id: "resposta", title: "Resposta padrão", uses: 12, lastUsed: "10/10/2026",
           content: "Olá!\n\nObrigado pelo contato. Recebemos sua mensagem e retornaremos em até 24 horas úteis.\n\nAtenciosamente,\nGabriel" },
         { type: "text", id: "followup", title: "Follow-up",
           content: "Olá! Passando para saber se você teve a oportunidade de avaliar a proposta enviada na semana passada. Fico no aguardo da sua resposta." },
@@ -519,6 +577,13 @@
     ]},
     { type: "text", id: "telefone", title: "Telefone", fav: true, content: "(11) 90000-0000" },
     { type: "text", id: "agenda", title: "Link da agenda", content: "https://agenda.exemplo.com/gabriel" },
+  ];
+
+  // Itens já na lixeira (fora da árvore).
+  const TRASH = [
+    { type: "text", title: "Proposta antiga", from: "Trabalho › Clientes", at: "14/10/2026 09:12" },
+    { type: "folder", name: "Rascunhos", info: "3 textos", from: "Raiz", at: "13/10/2026 18:40" },
+    { type: "text", title: "Endereço antigo", from: "Pessoal", at: "02/10/2026 11:05" },
   ];
 
   // Estados do protótipo. Cada um descreve o que a tela mostra; `render` monta a janela.
@@ -545,7 +610,7 @@
     },
     "edicao": {
       label: "Edição",
-      note: "Texto selecionado na árvore e aberto no editor: título destacado, conteúdo direto, caminho no topo. Alterações gravadas automaticamente.",
+      note: "Texto selecionado na árvore e aberto no editor: título destacado, uso logo abaixo, conteúdo direto, caminho no topo. Alterações gravadas automaticamente.",
       selected: "resposta", status: { kind: "ok" },
     },
     "salvando": {
@@ -565,8 +630,63 @@
     },
     "contexto": {
       label: "Menu de contexto",
-      note: "Botão … ou clique direito: renomear, mover, reordenar, favoritar e excluir, com atalhos de teclado.",
-      selected: "resposta", context: "followup", status: { kind: "ok" },
+      note: "Botão … ou clique direito: recortar, copiar e colar, renomear, mover, reordenar, favoritar e excluir. Só os atalhos que valem em qualquer programa do Windows aparecem; Colar fica desabilitado até haver itens recortados ou copiados.",
+      selected: "followup", context: "followup", status: { kind: "ok" },
+    },
+    "selecao": {
+      label: "Seleção múltipla",
+      note: "Ctrl+clique alterna itens; Shift+clique seleciona o intervalo; Ctrl+A seleciona tudo o que está visível. Com mais de um item, o editor vira o painel da seleção, com as ações em lote. Esc volta a um item só.",
+      selected: "assinatura", multi: ["resposta", "followup", "assinatura"], status: { kind: "ok" },
+    },
+    "selecao-menu": {
+      label: "Seleção: menu",
+      note: "O menu de contexto sobre a seleção age em todos os itens. Renomear e Mover para cima/baixo não aparecem com mais de um item.",
+      selected: "assinatura", multi: ["resposta", "followup", "assinatura"], multiContext: true, status: { kind: "ok" },
+    },
+    "recortar": {
+      label: "Recortar (Ctrl+X)",
+      note: "Itens recortados ficam esmaecidos até colar. Ctrl+V cola no destino do Novo (aqui, a pasta Clientes) e move os itens. Esc desfaz o recorte sem mover nada.",
+      selected: "clientes", cut: ["resposta", "followup"], folderView: "clientes", status: { kind: "ok" },
+    },
+    "colar-copia": {
+      label: "Copiar e colar na mesma pasta",
+      note: "Copiar (Ctrl+C) e colar (Ctrl+V) na mesma pasta duplica o item, com “ - Cópia” no nome, como no Explorer. Em outra pasta, o nome se mantém. Pastas são copiadas com todo o conteúdo. Copiar um único texto também põe o conteúdo no clipboard do Windows.",
+      selected: "assinatura-copia", insert: { after: "assinatura", node: { type: "text", id: "assinatura-copia", title: "Assinatura - Cópia", content: "Atenciosamente,\nGabriel de Marins\n(11) 90000-0000" } }, status: { kind: "ok" },
+    },
+    "arrastar-pasta": {
+      label: "Arrastar: para uma pasta",
+      note: "Arrastar sobre uma pasta destaca a pasta: soltar move para dentro dela (no fim). Parar sobre uma pasta fechada por um instante a abre. Com Ctrl pressionado, soltar copia (aparece um +).",
+      selected: "followup", multi: ["resposta", "followup"], drop: { into: "clientes" }, ghost: { label: "2 itens", count: 2, top: 248 }, status: { kind: "ok" },
+    },
+    "arrastar-posicao": {
+      label: "Arrastar: reordenar",
+      note: "Entre dois itens aparece a linha de inserção: soltar coloca o item naquela posição. Pastas ficam sempre antes dos textos, então a linha só aparece em posições válidas. Soltar sobre a Lixeira exclui; Esc cancela.",
+      selected: "agenda", drop: { before: "telefone" }, ghost: { label: "Link da agenda", top: 372 }, status: { kind: "ok" },
+    },
+    "ordenar": {
+      label: "Ordenar pasta",
+      note: "Ordenar reorganiza uma vez os itens diretos da pasta: pastas por nome, textos pelo critério escolhido. A ordem manual continua editável depois (arrastar, Mover para cima/baixo) e Ctrl+Z desfaz.",
+      selected: "emails", folderView: "emails", folderContext: "emails", sortMenu: true, status: { kind: "ok" },
+    },
+    "mais-opcoes": {
+      label: "Botão … da raiz",
+      note: "O botão … ao lado do Novo reúne importar, exportar, ordenar a raiz e expandir ou recolher todas as pastas.",
+      selected: "emails", folderView: "emails", libMenu: "more", status: { kind: "ok" },
+    },
+    "excluido": {
+      label: "Excluir (Del)",
+      note: "Excluir manda para a lixeira, sem confirmação. A notificação oferece Desfazer (Ctrl+Z também desfaz) e some após 6 segundos. A Lixeira mostra quantos itens tem.",
+      selected: "emails", folderView: "emails", hidden: ["resposta", "followup"], trashCount: 5, toasts: ["trashed"], status: { kind: "ok" },
+    },
+    "lixeira": {
+      label: "Lixeira",
+      note: "Selecionar a Lixeira mostra os itens excluídos, com a pasta de origem e a data. Restaurar devolve o item à pasta de origem (ou à raiz, se ela não existir mais). Itens na lixeira não aparecem no menu de colagem, na busca, nos totais nem nas exportações.",
+      selected: "lixeira", trashSelected: 0, status: { kind: "ok" },
+    },
+    "esvaziar": {
+      label: "Esvaziar lixeira",
+      note: "Esvaziar e Excluir definitivamente são as únicas ações sem volta; por isso pedem confirmação.",
+      selected: "lixeira", dialog: "empty", status: { kind: "ok" },
     },
     "importar": {
       label: "Importar",
@@ -609,9 +729,9 @@
       selected: "saudacao", favFilter: true, status: { kind: "ok" },
     },
     "confirmacao": {
-      label: "Confirmação",
-      note: "Excluir pede confirmação e informa o que será removido junto.",
-      selected: "trabalho", folderView: "trabalho", dialog: true, status: { kind: "ok" },
+      label: "Excluir definitivamente",
+      note: "Shift+Del exclui sem passar pela lixeira: pede confirmação e informa o que será removido junto.",
+      selected: "trabalho", folderView: "trabalho", dialog: "permanent", status: { kind: "ok" },
     },
     "erro": {
       label: "Erro ao salvar",
@@ -676,10 +796,13 @@
   function treeRows(nodes, depth, st) {
     let html = "";
     for (const n of nodes) {
-      const sel = st.selected === n.id;
-      const ctx = st.context === n.id;
+      if (st.hidden?.includes(n.id)) continue;
+      const sel = st.selected === n.id || !!st.multi?.includes(n.id);
+      const ctx = st.context === n.id || (st.multiContext && st.selected === n.id);
+      const extra = (st.cut?.includes(n.id) ? " cut" : "") + (st.drop?.into === n.id ? " drop-into" : "");
+      if (st.drop?.before === n.id) html += `<div class="drop-line" style="--depth:${depth}"></div>`;
       if (n.type === "folder") {
-        html += `<div class="row folder${sel ? " selected" : ""}${st.folderContext === n.id ? " context" : ""}" style="--depth:${depth}">
+        html += `<div class="row folder${sel ? " selected" : ""}${st.folderContext === n.id ? " context" : ""}${extra}" style="--depth:${depth}">
           <span class="tw">${ic(n.open ? "chev-d" : "chev-r")}</span>
           <svg class="i ic"><use href="#i-${n.open ? "folder-open" : "folder"}"/></svg>
           <span class="label"><span class="name">${esc(n.name)}</span></span>
@@ -697,7 +820,7 @@
         const matchTitle = st.query && norm(n.title).includes(norm(st.query));
         const showExcerpt = st.query && !matchTitle;
         const dot = sel && st.dot ? `<span class="dot ${st.dot}"></span>` : "";
-        html += `<div class="row text${sel ? " selected" : ""}${ctx ? " context" : ""}" style="--depth:${depth}">
+        html += `<div class="row text${sel ? " selected" : ""}${ctx ? " context" : ""}${extra}" style="--depth:${depth}">
           <span class="tw"></span>
           <svg class="i ic"><use href="#i-doc"/></svg>
           <span class="label">
@@ -708,6 +831,7 @@
           ${n.fav ? `<svg class="f star"><use href="#i-star"/></svg>` : ""}
           <span class="more">${ic("more", "f")}</span>
         </div>`;
+        if (st.insert?.after === n.id) html += treeRows([st.insert.node], depth, st);
       }
     }
     return html;
@@ -762,7 +886,14 @@
         <span class="chip${st.favFilter ? " on" : ""}">${st.favFilter ? icFill("star") : ic("star")} Favoritos</span>
         ${info}
       </div>
-      <div class="tree">${rows}</div>`;
+      <div class="tree">${rows}</div>
+      <div class="tree-foot">
+        <div class="row trash${st.selected === "lixeira" ? " selected" : ""}" style="--depth:0">
+          <span class="tw"></span><svg class="i ic"><use href="#i-trash"/></svg>
+          <span class="label"><span class="name">Lixeira</span></span>
+          <span class="count">${st.trashCount ?? TRASH.length}</span>
+        </div>
+      </div>`;
   }
 
   // Na raiz, o caminho diz "Sem pasta" para textos e "Raiz" para pastas.
@@ -783,6 +914,65 @@
           <div class="step"><span class="n">3</span><div><b>Cole com o atalho</b><span>O menu de colagem abre junto ao cursor em qualquer programa.</span></div></div>
         </div>
       </div>`;
+    }
+
+    if (st.selected === "lixeira") {
+      const rows = TRASH.map((t, i) => `
+        <div class="li ${t.type}${st.trashSelected === i ? " selected" : ""}">
+          ${ic(t.type === "folder" ? "folder" : "doc")}
+          <span>${esc(t.title ?? t.name)}${t.info ? `<span class="sub">Pasta com ${t.info}</span>` : ""}</span>
+          <span class="from">${esc(t.from)}</span>
+          <span class="when">${t.at}</span>
+          <span class="acts">
+            <button class="btn subtle icon" title="Restaurar">${ic("restore")}</button>
+            <button class="btn subtle icon" title="Excluir definitivamente">${ic("trash")}</button>
+          </span>
+        </div>`).join("");
+      return `
+        <div class="editor-head"><div class="crumbs"><span class="seg">Lixeira</span></div><span class="spacer"></span></div>
+        <div class="doc"><div class="doc-inner">
+          <div class="title">Lixeira</div>
+          <p class="folder-meta">${TRASH.length} itens. Na lixeira, eles não aparecem no menu de colagem, na busca nem nas exportações.</p>
+          <div class="folder-actions">
+            <button class="btn">${ic("restore")} Restaurar</button>
+            <button class="btn">${ic("trash")} Excluir definitivamente</button>
+            <span style="flex:1"></span>
+            <button class="btn">Esvaziar lixeira</button>
+          </div>
+          <div class="item-list trash">
+            <div class="li head"><span></span><span>Nome</span><span>Estava em</span><span style="text-align:right">Excluído em</span><span></span></div>
+            ${rows}
+          </div>
+        </div></div>`;
+    }
+
+    if (st.multi?.length > 1) {
+      const items = st.multi.map((id) => find(id));
+      const texts = items.filter((f) => f.node.type === "text").length;
+      const folders = items.length - texts;
+      const parts = [texts && `${texts} texto${texts === 1 ? "" : "s"}`, folders && `${folders} pasta${folders === 1 ? "" : "s"}`].filter(Boolean);
+      const list = items.map(({ node: n, path }) => `
+        <div class="li ${n.type}">
+          ${ic(n.type === "folder" ? "folder" : "doc")}
+          <span>${esc(n.title ?? n.name)}</span>
+          <span class="from">${esc(path.map((p) => p.name).join(" › ") || "Raiz")}</span>
+          <span>${n.fav ? `<svg class="f" style="color:var(--star)"><use href="#i-star"/></svg>` : ""}</span>
+        </div>`).join("");
+      return `
+        <div class="editor-head"><div class="crumbs"><span class="seg">Seleção</span></div><span class="spacer"></span></div>
+        <div class="doc"><div class="doc-inner">
+          <div class="title">${items.length} itens selecionados</div>
+          <p class="folder-meta">${parts.join(" e ")}</p>
+          <div class="folder-actions">
+            <button class="btn">${ic("move")} Mover para…</button>
+            <button class="btn">${ic("cut")} Recortar</button>
+            <button class="btn">${ic("copy")} Copiar</button>
+            <button class="btn">${ic("star")} Adicionar aos favoritos</button>
+            <button class="btn">${ic("export")} Exportar ${ic("chev-d").replace('class="i"', 'class="i chev"')}</button>
+            <button class="btn">${ic("trash")} Excluir</button>
+          </div>
+          <div class="item-list">${list}</div>
+        </div></div>`;
     }
 
     if (st.folderView) {
@@ -817,7 +1007,9 @@
         </div></div>`;
     }
 
-    const { node: t, path } = find(st.selected);
+    const { node: t, path } = st.insert?.node.id === st.selected
+      ? { node: st.insert.node, path: find(st.insert.after).path }
+      : find(st.selected);
     let content = esc(t.content);
     if (st.editedContent) {
       content = esc(t.content.replace("\n\nAtenciosamente", "\n\nQualquer dúvida, estou à disposição.\n\nAtenciosamente"));
@@ -833,7 +1025,8 @@
     const title = st.invalidTitle
       ? `<div class="title placeholder"><span class="caret"></span>Sem título</div>
          <div class="field-hint">${ic("warn")} O título é obrigatório. Enquanto estiver vazio, as alterações não são salvas.</div>`
-      : `<div class="title">${esc(t.title)}</div>`;
+      : `<div class="title">${esc(t.title)}</div>
+         <p class="usage">${t.uses ? `Usado ${t.uses} vez${t.uses === 1 ? "" : "es"} · último uso em ${t.lastUsed}` : "Ainda não usado"}</p>`;
 
     let html = `
       <div class="editor-head">${crumbs(path)}<span class="spacer"></span>
@@ -871,32 +1064,65 @@
         <div class="hint">Em Trabalho › E-mails</div>
       </div>`;
     }
-    if (st.context) {
-      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:262px">
+    const sub = ic("chev-r").replace('class="i"', 'class="i sub"');
+    // Grupos de itens comuns aos menus de contexto.
+    const clip = (canPaste) => `
+        <div class="item">${ic("cut")} Recortar <span class="kb">Ctrl+X</span></div>
+        <div class="item">${ic("copy")} Copiar <span class="kb">Ctrl+C</span></div>
+        <div class="item${canPaste ? "" : " off"}">${ic("paste")} Colar <span class="kb">Ctrl+V</span></div>
+        <div class="sep"></div>`;
+    const arrange = (hl) => `
         <div class="item">${ic("rename")} Renomear <span class="kb">F2</span></div>
-        <div class="item">${ic("move")} Mover para… <span class="kb">Ctrl+M</span></div>
+        <div class="item">${ic("move")} Mover para…</div>
         <div class="sep"></div>
-        <div class="item hl">${ic("up")} Mover para cima <span class="kb">Alt+↑</span></div>
-        <div class="item">${ic("down")} Mover para baixo <span class="kb">Alt+↓</span></div>
-        <div class="sep"></div>
+        <div class="item${hl ? " hl" : ""}">${ic("up")} Mover para cima</div>
+        <div class="item">${ic("down")} Mover para baixo</div>
+        <div class="sep"></div>`;
+    const remove = `<div class="item danger">${ic("trash")} Excluir <span class="kb">Del</span></div>`;
+    if (st.context) {
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:236px">
+        ${clip(false)}${arrange(true)}
         <div class="item">${ic("star")} Adicionar aos favoritos</div>
         <div class="sep"></div>
-        <div class="item danger">${ic("trash")} Excluir <span class="kb">Del</span></div>
+        ${remove}
       </div>`;
     }
-    const sub = ic("chev-r").replace('class="i"', 'class="i sub"');
+    if (st.multiContext) {
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:300px">
+        <div class="hint">3 itens selecionados</div>
+        ${clip(false)}
+        <div class="item">${ic("move")} Mover para…</div>
+        <div class="sep"></div>
+        <div class="item">${ic("star")} Adicionar aos favoritos</div>
+        <div class="item">${ic("export")} Exportar ${sub}</div>
+        <div class="sep"></div>
+        ${remove}
+      </div>`;
+    }
     const close = ic("x").replace('class="i"', 'class="i close"');
     const formats = (left, top) => `<div class="menu" style="left:${left}px; top:${top}px">
         <div class="item hl">${ic("json")} Backup JSON…</div>
         <div class="item">${ic("docs")} Pastas e arquivos .txt…</div>
+      </div>`;
+    const sorts = (left, top) => `<div class="menu" style="left:${left}px; top:${top}px">
+        <div class="item hl">${ic("sort")} Por nome (A–Z)</div>
+        <div class="item">${ic("star")} Por mais usados</div>
+        <div class="item">${ic("history")} Por uso mais recente</div>
       </div>`;
     if (st.libMenu) {
       const left = treeWidth - 40, top = 76;
       html += `<div class="menu" style="left:${left}px; top:${top}px">
         <div class="item${st.libMenu === "import" ? " hl" : ""}">${ic("import")} Importar ${sub}</div>
         <div class="item${st.libMenu === "export" ? " hl" : ""}">${ic("export")} Exportar tudo ${sub}</div>
+        <div class="sep"></div>
+        <div class="item${st.libMenu === "more" ? " hl" : ""}">${ic("sort")} Ordenar a raiz ${sub}</div>
+        <div class="sep"></div>
+        <div class="item">${ic("expand")} Expandir tudo</div>
+        <div class="item">${ic("collapse")} Recolher tudo</div>
       </div>`;
-      if (st.libMenu === "import") {
+      if (st.libMenu === "more") {
+        html += sorts(left + 232, top + 4 + 2 * 32 + 9);
+      } else if (st.libMenu === "import") {
         html += `<div class="menu" style="left:${left + 232}px; top:${top}px">
           <div class="item hl">${ic("doc")} Arquivos .txt…</div>
           <div class="item">${ic("folder")} Pasta…</div>
@@ -912,17 +1138,20 @@
     if (st.folderContext) {
       const left = Math.min(treeWidth - 40, 300), top = 150;
       html += `<div class="menu" style="left:${left}px; top:${top}px">
-        <div class="item">${ic("rename")} Renomear <span class="kb">F2</span></div>
-        <div class="item">${ic("move")} Mover para… <span class="kb">Ctrl+M</span></div>
+        ${clip(false)}${arrange(false)}
+        <div class="item${st.sortMenu ? " hl" : ""}">${ic("sort")} Ordenar ${sub}</div>
+        <div class="item${st.sortMenu ? "" : " hl"}">${ic("export")} Exportar ${sub}</div>
         <div class="sep"></div>
-        <div class="item">${ic("up")} Mover para cima <span class="kb">Alt+↑</span></div>
-        <div class="item">${ic("down")} Mover para baixo <span class="kb">Alt+↓</span></div>
-        <div class="sep"></div>
-        <div class="item hl">${ic("export")} Exportar ${sub}</div>
-        <div class="sep"></div>
-        <div class="item danger">${ic("trash")} Excluir <span class="kb">Del</span></div>
+        ${remove}
       </div>`;
-      html += formats(left + 232, top + 4 + 4 * 32 + 2 * 9);
+      const subTop = top + 4 + 7 * 32 + 3 * 9;
+      html += st.sortMenu ? sorts(left + 232, subTop) : formats(left + 232, subTop + 32);
+    }
+    if (st.ghost) {
+      html += `<div class="drag-ghost" style="left:${Math.min(treeWidth - 120, 170)}px; top:${st.ghost.top}px">
+        ${ic(st.ghost.count ? "docs" : "doc")} ${esc(st.ghost.label)}
+        ${st.ghost.count ? `<span class="count">${st.ghost.count}</span>` : ""}
+      </div>`;
     }
     const TOASTS = {
       imported: `<div class="toast success">${ic("check")}
@@ -935,19 +1164,32 @@
       error: `<div class="toast error">${ic("error")}
         <span class="t">Não foi possível importar.</span>${close}
         <span class="b">O arquivo não é um backup do CSTM. Nada foi importado.</span></div>`,
+      trashed: `<div class="toast undo">${ic("trash")}
+        <span class="t">2 itens movidos para a lixeira.</span>
+        <span class="action">Desfazer</span></div>`,
     };
     if (st.toasts) {
       html += `<div class="toasts">${st.toasts.map((t) => TOASTS[t]).join("")}</div>`;
     }
-    if (st.dialog) {
+    if (st.dialog === "permanent") {
       html += `<div class="overlay"><div class="dialog">
         <div class="dbody">
-          <h2>Excluir a pasta “Trabalho”?</h2>
+          <h2>Excluir definitivamente a pasta “Trabalho”?</h2>
           <p>Também serão excluídos:</p>
           <ul><li>2 subpastas (E-mails, Clientes)</li><li>6 textos, incluindo 2 favoritos</li></ul>
-          <p style="margin-top:12px">Esta ação não pode ser desfeita.</p>
+          <p style="margin-top:12px">Esta ação não pode ser desfeita. Para poder recuperar depois, use Excluir (Del), que move para a lixeira.</p>
         </div>
-        <div class="dfoot"><button class="btn danger">Excluir</button><button class="btn">Cancelar</button></div>
+        <div class="dfoot"><button class="btn danger">Excluir definitivamente</button><button class="btn">Cancelar</button></div>
+      </div></div>`;
+    }
+    if (st.dialog === "empty") {
+      html += `<div class="overlay"><div class="dialog">
+        <div class="dbody">
+          <h2>Esvaziar a lixeira?</h2>
+          <p>Os 3 itens da lixeira serão excluídos definitivamente, incluindo 1 pasta com 3 textos.</p>
+          <p>Esta ação não pode ser desfeita.</p>
+        </div>
+        <div class="dfoot"><button class="btn danger">Esvaziar lixeira</button><button class="btn">Cancelar</button></div>
       </div></div>`;
     }
     return html;

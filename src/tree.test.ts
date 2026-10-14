@@ -8,6 +8,8 @@ import {
   folderOptions,
   folderPath,
   subtreeIds,
+  topLevel,
+  visibleItems,
   type TreeNode,
 } from "./tree";
 
@@ -111,5 +113,29 @@ describe("folderContents", () => {
   it("conta subpastas, textos e favoritos de toda a subárvore", () => {
     expect(folderContents(folders, snippets, 1)).toEqual({ folders: 3, snippets: 3, favorites: 2 });
     expect(folderContents(folders, snippets, 2)).toEqual({ folders: 0, snippets: 0, favorites: 0 });
+  });
+});
+
+describe("visibleItems", () => {
+  it("segue a ordem da tela, entrando só nas pastas abertas", () => {
+    const nodes = buildTree(folders, snippets);
+    const key = ({ kind, id }: { kind: string; id: number }) => `${kind === "folder" ? "p" : "t"}${id}`;
+    expect(visibleItems(nodes, () => true).map(key)).toEqual(["p1", "p3", "p5", "t13", "p4", "t14", "t12", "p2", "t10", "t11"]);
+    expect(visibleItems(nodes, (id) => id !== 3).map(key)).toEqual(["p1", "p3", "p4", "t14", "t12", "p2", "t10", "t11"]);
+  });
+});
+
+describe("topLevel", () => {
+  it("tira os itens que já vão junto com uma pasta da lista", () => {
+    const items = [
+      { kind: "snippet" as const, id: 13 },
+      { kind: "folder" as const, id: 3 },
+      { kind: "folder" as const, id: 1 },
+      { kind: "snippet" as const, id: 10 },
+    ];
+    expect(topLevel(items, folders, snippets)).toEqual([
+      { kind: "folder", id: 1 },
+      { kind: "snippet", id: 10 },
+    ]);
   });
 });

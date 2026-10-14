@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>CSTM — Protótipo do ícone do aplicativo</title>
+<!--
+  Protótipo estático de opções de ícone (não faz parte do aplicativo): abre direto no navegador.
+  Cada opção é um <symbol> SVG (viewBox 0 0 256 256) reutilizado por <use> em todos os
+  tamanhos, fundos e simulações, garantindo consistência. No 16 px o navegador reduz o
+  SVG, como o Windows faria a partir do .ico.
+-->
+<style>
+  :root {
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px 24px 40px;
+    font-family: var(--font);
+    font-size: 14px;
+    background: #d9dce1;
+    color: #1a1a1a;
+  }
+  .page { max-width: 900px; margin: 0 auto; }
+  h1 { font-family: var(--font-display); font-size: 22px; margin: 0 0 4px; }
+  .lead { color: #5d5d5d; margin: 0 0 20px; }
+  .option {
+    background: #eef0f3;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 8px;
+    padding: 16px 20px 20px;
+    margin-bottom: 20px;
+  }
+  h2 { font-family: var(--font-display); font-size: 17px; margin: 0 0 2px; }
+  .desc { color: #5d5d5d; margin: 0 0 14px; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .panel { border-radius: 8px; padding: 12px; border: 1px solid rgba(0, 0, 0, 0.1); }
+  .panel h3 { font-size: 12px; font-weight: 600; margin: 0 0 10px; opacity: 0.7; }
+  .light { background: #ffffff; color: #1a1a1a; }
+  .gray { background: #f3f3f3; color: #1a1a1a; }
+  .dark { background: #202020; color: #ffffff; border-color: rgba(255, 255, 255, 0.1); }
+  .sizes { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; }
+  .sizes figure { margin: 0; text-align: center; font-size: 11px; opacity: 0.8; }
+  .sizes svg { display: block; margin: 0 auto 4px; }
+  .big { grid-column: 1 / -1; }
+  .big .sizes { justify-content: space-around; }
+
+  /* Simulação da barra de tarefas e da bandeja do Windows 11 */
+  .sim { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .taskbar {
+    display: flex; align-items: center; height: 48px; padding: 0 12px; gap: 6px;
+    border-radius: 6px; border: 1px solid rgba(128, 128, 128, 0.3);
+  }
+  .taskbar.light { background: #e8eaee; }
+  .taskbar.dark { background: #1c1c1c; }
+  .tb-btn {
+    width: 40px; height: 40px; border-radius: 6px; display: grid; place-items: center;
+    position: relative;
+  }
+  .tb-btn.active { background: rgba(128, 128, 128, 0.18); }
+  .tb-btn.active::after {
+    content: ""; position: absolute; bottom: 2px; width: 14px; height: 3px;
+    border-radius: 2px; background: #0f6cbd;
+  }
+  .dark .tb-btn.active::after { background: #60cdff; }
+  .tb-btn.ghost span { width: 20px; height: 20px; border-radius: 5px; background: rgba(128, 128, 128, 0.35); }
+  .spacer { flex: 1; }
+  .tray { display: flex; align-items: center; gap: 2px; font-size: 12px; }
+  .tray .slot { width: 28px; height: 32px; display: grid; place-items: center; border-radius: 4px; }
+  .tray .slot.ghost span { width: 14px; height: 14px; border-radius: 50%; background: rgba(128, 128, 128, 0.4); }
+  .tray .clock { margin-left: 8px; text-align: right; line-height: 1.25; font-size: 11px; }
+  .caption { font-size: 11px; opacity: 0.7; margin: 0 0 6px; }
+</style>
+</head>
+<body>
+
+<!-- Definições dos ícones -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- A: prancheta -->
+    <symbol id="icon-a" viewBox="0 0 256 256">
+      <rect x="8" y="8" width="240" height="240" rx="56" fill="#0F6CBD" />
+      <rect x="52" y="44" width="152" height="184" rx="22" fill="#ffffff" />
+      <rect x="88" y="26" width="80" height="48" rx="16" fill="#FFB900" stroke="#0F6CBD" stroke-width="12" />
+      <path d="M82 118h92M82 152h92M82 186h56" stroke="#0F6CBD" stroke-width="16" stroke-linecap="round" fill="none" />
+    </symbol>
+
+    <!-- B: cartão de texto com seta de colar -->
+    <symbol id="icon-b" viewBox="0 0 256 256">
+      <rect x="8" y="8" width="240" height="240" rx="56" fill="#0F6CBD" />
+      <rect x="40" y="44" width="176" height="114" rx="24" fill="#ffffff" />
+      <path d="M78 84h100M78 120h64" stroke="#0F6CBD" stroke-width="16" stroke-linecap="round" fill="none" />
+      <path d="M128 176v46M98 196l30 30 30-30" stroke="#FFB900" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    </symbol>
+
+    <!-- C: monograma C com cursor de texto -->
+    <symbol id="icon-c" viewBox="0 0 256 256">
+      <rect x="8" y="8" width="240" height="240" rx="56" fill="#0F6CBD" />
+      <path d="M186 80A68 68 0 1 0 186 176" stroke="#ffffff" stroke-width="36" stroke-linecap="round" fill="none" />
+      <rect x="120" y="92" width="18" height="72" rx="9" fill="#FFB900" />
+    </symbol>
+  </defs>
+</svg>
+
+<div class="page">
+  <h1>CSTM — Opções de ícone do aplicativo</h1>
+  <p class="lead">Três propostas autorais em SVG (256 × 256), com base azul #0F6CBD, acento âmbar #FFB900 e cantos arredondados no estilo do Windows 11. Cada uma é exibida em 16, 24, 32, 48 e 256 px sobre fundos claro e escuro, na barra de tarefas e na bandeja.</p>
+
+  <div id="options"></div>
+</div>
+
+<script>
+  const OPCOES = [
+    { id: "icon-a", nome: "Opção A — Prancheta", desc: "Prancheta branca com presilha âmbar e três linhas de texto sobre fundo azul." },
+    { id: "icon-b", nome: "Opção B — Cartão de texto com seta de colar", desc: "Cartão branco com linhas de texto e seta âmbar apontando para baixo, indicando a colagem." },
+    { id: "icon-c", nome: "Opção C — Monograma C", desc: "Letra C geométrica de traço grosso com um cursor de texto âmbar no centro." },
+  ];
+  const TAMANHOS = [16, 24, 32, 48];
+
+  const ico = (id, px) =>
+    `<svg width="${px}" height="${px}" viewBox="0 0 256 256" aria-hidden="true"><use href="#${id}"/></svg>`;
+
+  const figuras = (id, tamanhos) =>
+    tamanhos.map((px) => `<figure>${ico(id, px)}${px} px</figure>`).join("");
+
+  const painel = (classe, titulo, id) =>
+    `<div class="panel ${classe}"><h3>${titulo}</h3><div class="sizes">${figuras(id, TAMANHOS)}</div></div>`;
+
+  const barra = (tema, id, px) => `
+    <div class="taskbar ${tema}">
+      <div class="tb-btn ghost"><span></span></div>
+      <div class="tb-btn active">${ico(id, px)}</div>
+      <div class="tb-btn ghost"><span></span></div>
+      <div class="spacer"></div>
+      <div class="tray">
+        <div class="slot ghost"><span></span></div>
+        <div class="slot">${ico(id, px)}</div>
+        <div class="slot ghost"><span></span></div>
+        <div class="clock">14:32<br>14/10/2026</div>
+      </div>
+    </div>`;
+
+  document.getElementById("options").innerHTML = OPCOES.map((o) => `
+    <section class="option">
+      <h2>${o.nome}</h2>
+      <p class="desc">${o.desc}</p>
+      <div class="row">
+        ${painel("light", "Fundo claro (#ffffff)", o.id)}
+        ${painel("gray", "Fundo claro (#f3f3f3)", o.id)}
+        ${painel("dark", "Fundo escuro (#202020)", o.id)}
+        <div class="panel gray big"><h3>Tamanho de 256 px</h3>
+          <div class="sizes"><figure>${ico(o.id, 256)}256 px</figure></div></div>
+        <div class="sim">
+          <div><p class="caption">Barra de tarefas e bandeja — 24 px na barra, 16 px na bandeja (tema claro)</p>${barra("light", o.id, 24).replace(/(<div class="slot">)<svg width="24" height="24"/, '$1<svg width="16" height="16"')}</div>
+          <div><p class="caption">Barra de tarefas e bandeja — 24 px na barra, 16 px na bandeja (tema escuro)</p>${barra("dark", o.id, 24).replace(/(<div class="slot">)<svg width="24" height="24"/, '$1<svg width="16" height="16"')}</div>
+        </div>
+      </div>
+    </section>`).join("");
+</script>
+</body>
+</html>

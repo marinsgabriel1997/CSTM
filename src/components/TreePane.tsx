@@ -18,10 +18,14 @@ import {
 } from "@fluentui/react-components";
 import {
   Add20Regular,
+  ArrowCollapseAll20Regular,
+  ArrowExpandAll20Regular,
   ArrowExportUp20Regular,
   ArrowImport20Regular,
+  ArrowSort20Regular,
   Braces20Regular,
   ChevronDown12Regular,
+  Delete20Regular,
   DocumentAdd20Regular,
   DocumentMultiple20Regular,
   DocumentMultiple24Regular,
@@ -29,12 +33,16 @@ import {
   Folder20Regular,
   FolderAdd20Regular,
   FolderOpen20Regular,
+  History20Regular,
   MoreHorizontal20Regular,
   Star16Filled,
   Star16Regular,
+  Star20Regular,
+  TextSortAscending20Regular,
 } from "@fluentui/react-icons";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
+import type { SortKind } from "../operations";
 import type { ExportFormat, ImportKind } from "../transfer";
 
 const useStyles = makeStyles({
@@ -93,6 +101,56 @@ const useStyles = makeStyles({
     paddingLeft: tokens.spacingHorizontalM,
     color: tokens.colorNeutralForeground3,
   },
+  // Lixeira fixa no fim da árvore, fora da rolagem.
+  trashArea: {
+    flex: "none",
+    marginTop: tokens.spacingVerticalXS,
+    marginRight: tokens.spacingHorizontalXS,
+    paddingTop: tokens.spacingVerticalXS,
+    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  trash: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    minHeight: "32px",
+    paddingLeft: "30px",
+    paddingRight: tokens.spacingHorizontalS,
+    borderRadius: tokens.borderRadiusMedium,
+    cursor: "default",
+    userSelect: "none",
+    outline: "none",
+    color: tokens.colorNeutralForeground1,
+    ":hover": { backgroundColor: tokens.colorSubtleBackgroundHover },
+    ":focus-visible": {
+      outline: `${tokens.strokeWidthThick} solid ${tokens.colorStrokeFocus2}`,
+      outlineOffset: "-2px",
+    },
+  },
+  trashSelected: {
+    backgroundColor: tokens.colorSubtleBackgroundSelected,
+    ":hover": { backgroundColor: tokens.colorSubtleBackgroundSelected },
+    "::before": {
+      content: '""',
+      position: "absolute",
+      left: 0,
+      top: "50%",
+      width: "3px",
+      height: "16px",
+      marginTop: "-8px",
+      borderRadius: "2px",
+      backgroundColor: tokens.colorCompoundBrandStroke,
+    },
+  },
+  trashDrop: {
+    backgroundColor: tokens.colorBrandBackground2,
+    outline: `${tokens.strokeWidthThin} solid ${tokens.colorCompoundBrandStroke}`,
+    outlineOffset: "-1px",
+  },
+  trashIcon: { flex: "none", color: tokens.colorNeutralForeground2 },
+  trashLabel: { flex: 1 },
+  trashCount: { color: tokens.colorNeutralForeground3 },
 });
 
 interface TreePaneProps {
@@ -113,6 +171,17 @@ interface TreePaneProps {
   onImport: (kind: ImportKind) => void;
   /** Exporta a biblioteca inteira. */
   onExport: (format: ExportFormat) => void;
+  /** Ordena a raiz; indisponível com a busca ou o filtro ativos. */
+  onSort: (kind: SortKind) => void;
+  canSort: boolean;
+  onExpandAll: () => void;
+  onCollapseAll: () => void;
+  trashCount: number;
+  trashSelected: boolean;
+  onSelectTrash: () => void;
+  /** Há itens sendo arrastados, que podem ser soltos na Lixeira. */
+  dragging: boolean;
+  onDropOnTrash: () => void;
   children: ReactNode;
 }
 
@@ -129,9 +198,19 @@ function TreePane({
   onNewFolder,
   onImport,
   onExport,
+  onSort,
+  canSort,
+  onExpandAll,
+  onCollapseAll,
+  trashCount,
+  trashSelected,
+  onSelectTrash,
+  dragging,
+  onDropOnTrash,
   children,
 }: TreePaneProps) {
   const styles = useStyles();
+  const [dropOnTrash, setDropOnTrash] = useState(false);
 
   return (
     <aside className={styles.pane} aria-label="Textos e pastas">
@@ -165,7 +244,7 @@ function TreePane({
         </Menu>
         <Menu>
           <MenuTrigger disableButtonEnhancement>
-            <Button appearance="subtle" aria-label="Importar e exportar" icon={<MoreHorizontal20Regular />} />
+            <Button appearance="subtle" aria-label="Mais opções" icon={<MoreHorizontal20Regular />} />
           </MenuTrigger>
           <MenuPopover>
             <MenuList>
@@ -207,6 +286,34 @@ function TreePane({
                   </MenuList>
                 </MenuPopover>
               </Menu>
+              <MenuDivider />
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <MenuItem icon={<ArrowSort20Regular />} disabled={!canSort}>
+                    Ordenar a raiz
+                  </MenuItem>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>
+                    <MenuItem icon={<TextSortAscending20Regular />} onClick={() => onSort("name")}>
+                      Por nome (A–Z)
+                    </MenuItem>
+                    <MenuItem icon={<Star20Regular />} onClick={() => onSort("uses")}>
+                      Por mais usados
+                    </MenuItem>
+                    <MenuItem icon={<History20Regular />} onClick={() => onSort("recent")}>
+                      Por uso mais recente
+                    </MenuItem>
+                  </MenuList>
+                </MenuPopover>
+              </Menu>
+              <MenuDivider />
+              <MenuItem icon={<ArrowExpandAll20Regular />} onClick={onExpandAll}>
+                Expandir tudo
+              </MenuItem>
+              <MenuItem icon={<ArrowCollapseAll20Regular />} onClick={onCollapseAll}>
+                Recolher tudo
+              </MenuItem>
             </MenuList>
           </MenuPopover>
         </Menu>
@@ -251,6 +358,44 @@ function TreePane({
           </div>
           {noMatches ? <Text className={styles.noMatches}>{noMatches}</Text> : children}
         </>
+      )}
+      {(!empty || trashCount > 0) && (
+        <div className={styles.trashArea}>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-pressed={trashSelected}
+            aria-label={`Lixeira, ${trashCount} ${trashCount === 1 ? "item" : "itens"}`}
+            className={mergeClasses(
+              styles.trash,
+              trashSelected && styles.trashSelected,
+              dropOnTrash && styles.trashDrop,
+            )}
+            onClick={onSelectTrash}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter" && event.key !== " ") return;
+              event.preventDefault();
+              onSelectTrash();
+            }}
+            onDragOver={(event) => {
+              if (!dragging) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDropOnTrash(true);
+            }}
+            onDragLeave={() => setDropOnTrash(false)}
+            onDrop={(event) => {
+              setDropOnTrash(false);
+              if (!dragging) return;
+              event.preventDefault();
+              onDropOnTrash();
+            }}
+          >
+            <Delete20Regular className={styles.trashIcon} />
+            <span className={styles.trashLabel}>Lixeira</span>
+            {trashCount > 0 && <Caption1 className={styles.trashCount}>{trashCount}</Caption1>}
+          </div>
+        </div>
       )}
     </aside>
   );

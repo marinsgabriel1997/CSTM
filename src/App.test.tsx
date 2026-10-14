@@ -1,5 +1,5 @@
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -287,40 +287,32 @@ describe("menu de contexto", () => {
     expect(within(tree().getByRole("treeitem", { name: "Telefone" })).getByLabelText("Favorito")).toBeInTheDocument();
   });
 
-  it("exclui a pasta somente após confirmar, informando o que vai junto", async () => {
+  it("exclui a pasta para a lixeira, com o conteúdo e sem confirmação", async () => {
     const user = userEvent.setup();
     const work = await fake.api.createFolder(null, "Trabalho");
-    const emails = await fake.api.createFolder(work.id, "E-mails");
-    const favorite = await fake.api.createSnippet(emails.id, "Resposta", "Olá");
-    await fake.api.setFavorite(favorite.id, true);
     await fake.api.createSnippet(work.id, "Assinatura", "Att.");
+    await fake.api.createSnippet(null, "Telefone", "1234");
     renderApp();
     await tree().findByRole("treeitem", { name: "Trabalho" });
 
-    let menu = await openContextMenu("Trabalho");
+    const menu = await openContextMenu("Trabalho");
     await user.click(menu.getByRole("menuitem", { name: /Excluir/ }));
-    let dialog = within(await screen.findByRole("alertdialog"));
-    expect(dialog.getByText("Excluir a pasta “Trabalho”?")).toBeInTheDocument();
-    expect(dialog.getByText("1 subpasta")).toBeInTheDocument();
-    expect(dialog.getByText("2 textos, incluindo 1 favorito")).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: "Cancelar" }));
-    expect(fake.folders).toHaveLength(2);
 
-    menu = await openContextMenu("Trabalho");
-    await user.click(menu.getByRole("menuitem", { name: /Excluir/ }));
-    dialog = within(await screen.findByRole("alertdialog"));
-    await user.click(dialog.getByRole("button", { name: "Excluir" }));
-
-    await waitFor(() => expect(fake.folders).toHaveLength(0));
-    expect(fake.snippets).toHaveLength(0);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    await waitFor(() => expect(treeRows()).toEqual(["Telefone"]));
+    expect(await screen.findByText("1 item movido para a lixeira.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lixeira, 1 item" })).toBeInTheDocument();
+    expect(status()).toHaveTextContent("1 texto · 0 pastas");
+    expect(await fake.api.listTrash()).toMatchObject([{ kind: "folder", name: "Trabalho", snippets: 1 }]);
   });
 });
 
 describe("teclado na árvore", () => {
-  it("navega com as setas e exclui com Del após confirmar", async () => {
+  it("navega com as setas e Del move para a lixeira, selecionando o item seguinte", async () => {
     const user = userEvent.setup();
     await fake.api.createSnippet(null, "Primeiro", "1");
     await fake.api.createSnippet(null, "Segundo", "2");
+    await fake.api.createSnippet(null, "Terceiro", "3");
     renderApp();
     await tree().findByRole("treeitem", { name: "Primeiro" });
 
@@ -330,10 +322,48 @@ describe("teclado na árvore", () => {
     expect(screen.getByRole("textbox", { name: "Título" })).toHaveValue("Segundo");
 
     await user.keyboard("{Delete}");
-    const dialog = within(await screen.findByRole("alertdialog"));
-    await user.click(dialog.getByRole("button", { name: "Excluir" }));
 
-    await waitFor(() => expect(fake.snippets.map((s) => s.title)).toEqual(["Primeiro"]));
+    await waitFor(() => expect(treeRows()).toEqual(["Primeiro", "Terceiro"]));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(tree().getByRole("treeitem", { name: "Terceiro" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Shift+Del pede confirmação, informando o que vai junto, e Cancelar mantém tudo", async () => {
+    const user = userEvent.setup();
+    const work = await fake.api.createFolder(null, "Trabalho");
+    const emails = await fake.api.createFolder(work.id, "E-mails");
+    const favorite = await fake.api.createSnippet(emails.id, "Resposta", "Olá");
+    await fake.api.setFavorite(favorite.id, true);
+    await fake.api.createSnippet(work.id, "Assinatura", "Att.");
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Trabalho" }));
+    await user.keyboard("{Shift>}{Delete}{/Shift}");
+    const dialog = within(await screen.findByRole("alertdialog"));
+    expect(dialog.getByText("Excluir definitivamente a pasta “Trabalho”?")).toBeInTheDocument();
+    expect(dialog.getByText("1 subpasta")).toBeInTheDocument();
+    expect(dialog.getByText("2 textos, incluindo 1 favorito")).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Cancelar" }));
+
+    expect(fake.folders).toHaveLength(2);
+    expect(treeRows()).toEqual(["Trabalho", "  E-mails", "    Resposta", "  Assinatura"]);
+  });
+
+  it("Shift+Del exclui definitivamente, sem passar pela lixeira", async () => {
+    const user = userEvent.setup();
+    const work = await fake.api.createFolder(null, "Trabalho");
+    await fake.api.createSnippet(work.id, "Assinatura", "Att.");
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Trabalho" }));
+    await user.keyboard("{Shift>}{Delete}{/Shift}");
+    const dialog = within(await screen.findByRole("alertdialog"));
+    await user.click(dialog.getByRole("button", { name: "Excluir definitivamente" }));
+
+    await waitFor(() => expect(fake.folders).toHaveLength(0));
+    expect(fake.snippets.map((s) => s.title)).toEqual(["Telefone"]);
+    expect(await fake.api.listTrash()).toEqual([]);
   });
 
   it("recolhe e abre pastas com as setas, lembrando a escolha", async () => {
@@ -507,6 +537,47 @@ describe("configurações", () => {
     return [...shortcutField().querySelectorAll("kbd")].map((key) => key.textContent);
   }
 
+  it("oferece a navegação nas pastas, com a cascata como padrão, e grava a escolha", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    let dialog = await openSettings(user);
+
+    const cascade = await dialog.findByRole("radio", { name: /Abrir ao passar o mouse/ });
+    const click = dialog.getByRole("radio", { name: "Clicar para abrir" });
+    expect(dialog.getByRole("radiogroup", { name: "Navegação nas pastas" })).toBeInTheDocument();
+    await waitFor(() => expect(cascade).toBeChecked());
+    expect(click).not.toBeChecked();
+
+    await user.click(click);
+
+    expect(click).toBeChecked();
+    expect(await fake.api.getPickerNavigation()).toBe("click");
+    // A escolha persiste: o diálogo de uma nova sessão a mostra.
+    cleanup();
+    renderApp();
+    dialog = await openSettings(user);
+    await waitFor(() => expect(dialog.getByRole("radio", { name: "Clicar para abrir" })).toBeChecked());
+
+    await user.click(dialog.getByRole("radio", { name: /Abrir ao passar o mouse/ }));
+    expect(await fake.api.getPickerNavigation()).toBe("cascade");
+  });
+
+  it("restaurar o atalho padrão não altera a navegação nas pastas", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("click");
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+    await user.keyboard("{Alt>}w{/Alt}");
+    await dialog.findByText("Atalho alterado.");
+
+    await user.click(dialog.getByRole("button", { name: "Restaurar padrão (Alt+Q)" }));
+
+    await waitFor(() => expect(fake.shortcut.shortcut).toBe("Alt+KeyQ"));
+    expect(await fake.api.getPickerNavigation()).toBe("click");
+    expect(dialog.getByRole("radio", { name: "Clicar para abrir" })).toBeChecked();
+  });
+
   it("mostra o atalho atual, com o padrão sem a opção de restaurar", async () => {
     const user = userEvent.setup();
     renderApp();
@@ -620,7 +691,7 @@ describe("importação e exportação", () => {
   const summary = { folders: 0, snippets: 0, skipped: [], path: null };
 
   async function chooseTransfer(user: User, submenu: "Importar" | "Exportar tudo", option: string) {
-    await user.click(await screen.findByRole("button", { name: "Importar e exportar" }));
+    await user.click(await screen.findByRole("button", { name: "Mais opções" }));
     await user.click(await screen.findByRole("menuitem", { name: submenu }));
     await user.click(await screen.findByRole("menuitem", { name: option }));
   }
@@ -649,7 +720,7 @@ describe("importação e exportação", () => {
     const user = userEvent.setup();
     const work = await fake.api.createFolder(null, "Trabalho");
     fake.transfer.handle = async (call) => {
-      const folder = await fake.api.createFolder(call.folderId, "Clientes");
+      const folder = await fake.api.createFolder(call.folderId ?? null, "Clientes");
       await fake.api.createSnippet(folder.id, "Contrato", "Segue o contrato.");
       return { ...summary, folders: 1, snippets: 1, skipped: [{ path: "logo.png", reason: "notTxt" }] };
     };
@@ -745,7 +816,7 @@ describe("importação e exportação", () => {
     await user.type(screen.getByRole("textbox", { name: "Conteúdo" }), ",");
     await chooseTransfer(user, "Exportar tudo", "Backup JSON…");
 
-    expect(fake.transfers).toEqual([{ command: "exportJson", folderId: null }]);
+    expect(fake.transfers).toEqual([{ command: "exportJson", items: [] }]);
     expect(exported).toBe("Att.,");
     expect(await findToast("1 texto exportado.")).toHaveTextContent("C:\\Users\\gabriel\\CSTM.json");
   });
@@ -761,7 +832,7 @@ describe("importação e exportação", () => {
     await user.click(menu.getByRole("menuitem", { name: "Exportar" }));
     await user.click(await screen.findByRole("menuitem", { name: "Pastas e arquivos .txt…" }));
 
-    expect(fake.transfers).toEqual([{ command: "exportTxt", folderId: work.id }]);
+    expect(fake.transfers).toEqual([{ command: "exportTxt", items: [{ kind: "folder", id: work.id }] }]);
     expect(await findToast("3 textos e 2 pastas exportados.")).toHaveTextContent("D:\\Trabalho");
   });
 

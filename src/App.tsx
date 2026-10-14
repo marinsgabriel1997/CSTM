@@ -9,16 +9,26 @@ import {
   type PointerEvent,
 } from "react";
 
-import { sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
-import { api, END, errorMessage, type Folder, type ShortcutStatus, type Snippet } from "./api";
+import { includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
+import { api, errorMessage, type Folder, type ShortcutStatus, type Snippet, type TrashItem } from "./api";
 import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
-import LibraryTree from "./components/LibraryTree";
+import LibraryTree, { type DropTarget, type SelectMode } from "./components/LibraryTree";
 import MoveDialog from "./components/MoveDialog";
+import { SelectionPanel, TrashPanel } from "./components/Panels";
 import SettingsDialog from "./components/SettingsDialog";
 import StatusBar from "./components/StatusBar";
 import TreePane from "./components/TreePane";
 import { DraftStore } from "./drafts";
+import { capitalize, type Notice } from "./notice";
+import {
+  groupOrder,
+  groupOrders,
+  insertInto,
+  restoreOrders,
+  sortedOrder,
+  type SortKind,
+} from "./operations";
 import { clampTreeWidth, loadPreferences, savePreferences, TREE_WIDTH } from "./preferences";
 import { searchTerms } from "./search";
 import { shortcutLabel } from "./shortcut";
@@ -29,7 +39,6 @@ import {
   importNotice,
   type ExportFormat,
   type ImportKind,
-  type TransferNotice,
 } from "./transfer";
 import {
   buildTree,
@@ -37,15 +46,22 @@ import {
   folderContents,
   folderOptions,
   folderPath,
+  parentOf,
   siblingsOf,
   snippetsIn,
   subtreeIds,
+  topLevel,
+  visibleItems,
   type TreeNode,
 } from "./tree";
 
 const SEARCH_DELAY_MS = 200;
-/** Tempo de exibição da notificação de importação ou exportação concluída. */
+/** Tempo de exibição das notificações de sucesso, como a de importação ou exportação concluída. */
 export const NOTICE_DURATION_MS = 4000;
+/** A notificação da lixeira fica um pouco mais, para dar tempo de usar o Desfazer. */
+export const TRASH_NOTICE_MS = 6000;
+/** Operações guardadas para o Ctrl+Z enquanto o aplicativo está aberto. */
+export const UNDO_LIMIT = 50;
 /** Distância das notificações à borda: acima da barra inferior. */
 const TOASTER_OFFSET = { horizontal: 16, vertical: 40 };
 const DIVIDER_KEY_STEP = 16;
@@ -113,6 +129,32 @@ function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
+/** Campo onde Ctrl+C, Ctrl+X, Ctrl+V e Ctrl+Z pertencem ao texto, não aos itens. */
+function isEditable(target: EventTarget): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+  );
+}
+
+/** "Usado 12 vezes · último uso em 10/10/2026" ou "Ainda não usado". */
+function usageLabel(snippet: Snippet): string {
+  if (snippet.useCount === 0 || !snippet.lastUsedAt) return "Ainda não usado";
+  const date = new Date(snippet.lastUsedAt).toLocaleDateString("pt-BR");
+  return `Usado ${plural(snippet.useCount, "vez", "vezes")} · último uso em ${date}`;
+}
+
+/** Desfaz uma operação da árvore. */
+interface UndoEntry {
+  run: () => Promise<void>;
+}
+
+/** Itens recortados (movidos ao colar) ou copiados (duplicados ao colar). */
+interface Marked {
+  mode: "cut" | "copy";
+  items: ItemRef[];
+}
+
 /**
  * Registra um aviso da janela nativa e devolve a limpeza para o `useEffect`. O registro é
  * assíncrono, então a remoção também cobre o efeito desfeito antes de ele terminar.
@@ -143,7 +185,18 @@ function App() {
   const [version, setVersion] = useState(0);
   const [store] = useState(() => new DraftStore());
   const drafts = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const [trash, setTrash] = useState<TrashItem[]>([]);
+  // Item com o foco: aberto no editor quando é o único selecionado.
   const [selection, setSelection] = useState<ItemRef | null>(null);
+  // Seleção múltipla (dois itens ou mais); vazia quando só `selection` está selecionado.
+  const [multi, setMulti] = useState<ItemRef[]>([]);
+  // Início do intervalo selecionado com Shift.
+  const anchor = useRef<ItemRef | null>(null);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [marked, setMarked] = useState<Marked | null>(null);
+  const [dragging, setDragging] = useState<ItemRef[] | null>(null);
+  const undoStack = useRef<UndoEntry[]>([]);
+  const itemShortcut = useRef<(event: globalThis.KeyboardEvent) => void>(() => undefined);
   const [query, setQuery] = useState("");
   // Termo efetivamente buscado: acompanha `query` após uma pausa na digitação.
   const [searchTerm, setSearchTerm] = useState("");
@@ -153,7 +206,7 @@ function App() {
   // Pasta onde uma nova pasta está sendo nomeada (`null` é a raiz).
   const [newFolderIn, setNewFolderIn] = useState<number | null | undefined>(undefined);
   const [renamingFolder, setRenamingFolder] = useState<number | null>(null);
-  const [moving, setMoving] = useState<ItemRef | null>(null);
+  const [moving, setMoving] = useState<ItemRef[] | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Atalho do menu de colagem; `null` até carregar (ou fora do Tauri).
@@ -170,11 +223,12 @@ function App() {
 
   useEffect(() => {
     let current = true;
-    Promise.all([api.listFolders(), api.listAllSnippets()]).then(
-      ([folderList, snippetList]) => {
+    Promise.all([api.listFolders(), api.listAllSnippets(), api.listTrash()]).then(
+      ([folderList, snippetList, trashList]) => {
         if (!current) return;
         setFolders(folderList);
         setSnippets(snippetList);
+        setTrash(trashList);
         setLoaded(true);
       },
       (reason) => current && setError(errorMessage(reason)),
@@ -229,6 +283,12 @@ function App() {
   );
 
   useEffect(() => savePreferences(preferences), [preferences]);
+
+  useEffect(() => {
+    const listener = (event: globalThis.KeyboardEvent) => itemShortcut.current(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   useEffect(() => {
     const flush = () => void store.flushAll();
@@ -329,6 +389,30 @@ function App() {
     selection?.kind === "snippet" ? displaySnippets.find((snippet) => snippet.id === selection.id) : undefined;
   const openDraft = openSnippet && drafts.get(openSnippet.id);
   const empty = loaded && folders.length === 0 && displaySnippets.length === 0 && newFolderIn === undefined;
+  const exists = (item: ItemRef) =>
+    item.kind === "folder"
+      ? folders.some((folder) => folder.id === item.id)
+      : displaySnippets.some((snippet) => snippet.id === item.id);
+  // Itens que saíram da árvore (excluídos, por exemplo) deixam de contar como selecionados.
+  const multiSelection = multi.filter(exists);
+  const selectedItems = multiSelection.length > 1 ? multiSelection : selection ? [selection] : [];
+  // Ordem de toda a árvore, para as operações tratarem os itens na ordem da tela.
+  const treeOrder = useMemo(() => visibleItems(fullTree, () => true), [fullTree]);
+
+  function inTreeOrder(items: ItemRef[]): ItemRef[] {
+    const position = (item: ItemRef) => treeOrder.findIndex((candidate) => sameItem(candidate, item));
+    return [...items].sort((a, b) => position(a) - position(b));
+  }
+
+  /** Itens a operar: na ordem da tela, sem os que já vão junto com uma pasta da lista. */
+  function prepare(items: ItemRef[]): ItemRef[] {
+    return inTreeOrder(topLevel(items, folders, displaySnippets));
+  }
+
+  function nameOf(item: ItemRef): string {
+    if (item.kind === "folder") return folders.find((folder) => folder.id === item.id)?.name ?? "";
+    return displaySnippets.find((snippet) => snippet.id === item.id)?.title.trim() || "Sem título";
+  }
 
   function targetFolder(): number | null {
     if (selection?.kind === "folder") return selectedFolder ? selection.id : null;
@@ -353,6 +437,54 @@ function App() {
   function select(item: ItemRef | null) {
     store.open(item?.kind === "snippet" ? item.id : null);
     setSelection(item);
+    setMulti([]);
+    setTrashOpen(false);
+    anchor.current = item;
+  }
+
+  /** Seleciona vários itens; com um só, volta à seleção simples. */
+  function selectMany(items: ItemRef[], focus: ItemRef | null = items[items.length - 1] ?? null) {
+    if (items.length <= 1) {
+      const kept = anchor.current;
+      select(items[0] ?? null);
+      anchor.current = kept ?? items[0] ?? null;
+      return;
+    }
+    // O editor dá lugar ao painel da seleção: as pendências são gravadas.
+    store.open(null);
+    setSelection(focus);
+    setMulti(items);
+    setTrashOpen(false);
+  }
+
+  function selectWith(item: ItemRef, mode: SelectMode) {
+    if (mode === "single") {
+      select(item);
+      return;
+    }
+    if (mode === "toggle") {
+      const next = includesItem(selectedItems, item)
+        ? selectedItems.filter((candidate) => !sameItem(candidate, item))
+        : [...selectedItems, item];
+      anchor.current = item;
+      selectMany(next, includesItem(next, item) ? item : (next[next.length - 1] ?? null));
+      return;
+    }
+    const visible = visibleItems(nodes, isOpen);
+    const from = visible.findIndex((candidate) => sameItem(candidate, anchor.current ?? selection));
+    const to = visible.findIndex((candidate) => sameItem(candidate, item));
+    selectMany(from < 0 || to < 0 ? [item] : visible.slice(Math.min(from, to), Math.max(from, to) + 1), item);
+  }
+
+  function selectAll() {
+    const visible = visibleItems(nodes, isOpen);
+    selectMany(visible, selection && includesItem(visible, selection) ? selection : (visible[0] ?? null));
+  }
+
+  /** Esc desfaz o recorte, se houver; senão, volta a seleção a um item. */
+  function escape() {
+    if (marked?.mode === "cut") setMarked(null);
+    else if (multiSelection.length > 1) select(selection);
   }
 
   /** Abre as pastas até `folderId` para que o item criado ou movido fique visível. */
@@ -411,17 +543,57 @@ function App() {
     }));
   }
 
+  /** O item faz parte de uma seleção múltipla: as ações valem para todos os selecionados. */
+  function inSelection(item: ItemRef): boolean {
+    return selectedItems.length > 1 && includesItem(selectedItems, item);
+  }
+
+  const clipboardActions = (disabled = false): ItemAction[] => [
+    { key: "cut", label: "Recortar", disabled },
+    { key: "copy", label: "Copiar", disabled },
+    { key: "paste", label: "Colar", disabled: marked === null },
+  ];
+
+  /** Textos gravados entre os itens. */
+  function snippetsOf(items: ItemRef[]): Snippet[] {
+    return items.flatMap((item) =>
+      item.kind === "snippet" ? snippets.filter((snippet) => snippet.id === item.id) : [],
+    );
+  }
+
+  /** "Adicionar aos favoritos" ou, se todos os textos já são favoritos, "Remover"; `null` sem textos. */
+  function favoriteLabel(items: ItemRef[]): string | null {
+    const texts = snippetsOf(items);
+    if (texts.length === 0) return null;
+    return texts.every((snippet) => snippet.favorite) ? "Remover dos favoritos" : "Adicionar aos favoritos";
+  }
+
   function actionsFor(item: ItemRef): ItemAction[] {
+    if (inSelection(item)) {
+      const favorite = favoriteLabel(selectedItems);
+      return [
+        ...clipboardActions(),
+        { key: "move", label: "Mover para…" },
+        ...(favorite ? [{ key: "favorite", label: favorite } as ItemAction] : []),
+        { key: "exportJson", label: "Backup JSON…" },
+        { key: "exportTxt", label: "Pastas e arquivos .txt…" },
+        { key: "delete", label: "Excluir" },
+      ];
+    }
     if (item.kind === "folder") {
       const folder = folders.find((candidate) => candidate.id === item.id);
       if (!folder) return [];
       const siblings = siblingsOf(folders, folder.parentId);
       const index = siblings.findIndex((sibling) => sibling.id === folder.id);
       return [
+        ...clipboardActions(),
         { key: "rename", label: "Renomear" },
         { key: "move", label: "Mover para…" },
-        { key: "up", label: "Mover para cima", disabled: index <= 0 },
-        { key: "down", label: "Mover para baixo", disabled: index >= siblings.length - 1 },
+        { key: "up", label: "Mover para cima", disabled: filtering || index <= 0 },
+        { key: "down", label: "Mover para baixo", disabled: filtering || index >= siblings.length - 1 },
+        { key: "sortName", label: "Por nome (A–Z)", disabled: filtering },
+        { key: "sortUses", label: "Por mais usados", disabled: filtering },
+        { key: "sortRecent", label: "Por uso mais recente", disabled: filtering },
         { key: "exportJson", label: "Backup JSON…" },
         { key: "exportTxt", label: "Pastas e arquivos .txt…" },
         { key: "delete", label: "Excluir" },
@@ -433,10 +605,11 @@ function App() {
     const siblings = snippetsIn(snippets, snippet.folderId);
     const index = siblings.findIndex((sibling) => sibling.id === snippet.id);
     return [
+      ...clipboardActions(isNew),
       { key: "rename", label: "Renomear" },
       { key: "move", label: "Mover para…" },
-      { key: "up", label: "Mover para cima", disabled: isNew || index <= 0 },
-      { key: "down", label: "Mover para baixo", disabled: isNew || index >= siblings.length - 1 },
+      { key: "up", label: "Mover para cima", disabled: isNew || filtering || index <= 0 },
+      { key: "down", label: "Mover para baixo", disabled: isNew || filtering || index >= siblings.length - 1 },
       {
         key: "favorite",
         label: snippet.favorite ? "Remover dos favoritos" : "Adicionar aos favoritos",
@@ -446,8 +619,22 @@ function App() {
     ];
   }
 
+  function menuHeaderFor(item: ItemRef): string | undefined {
+    return inSelection(item) ? `${selectedItems.length} itens selecionados` : undefined;
+  }
+
+  const SORTS: Partial<Record<ActionKey, SortKind>> = { sortName: "name", sortUses: "uses", sortRecent: "recent" };
+
   function runAction(item: ItemRef, key: ActionKey) {
+    const items = inSelection(item) ? selectedItems : [item];
     switch (key) {
+      case "cut":
+      case "copy":
+        mark(key, items);
+        break;
+      case "paste":
+        void paste();
+        break;
       case "rename":
         select(item);
         if (item.kind === "folder") {
@@ -458,22 +645,49 @@ function App() {
         }
         break;
       case "move":
-        setMoving(item);
+        setMoving(prepare(items));
         break;
       case "up":
       case "down":
         reorder(item, key === "up" ? -1 : 1);
         break;
       case "favorite":
-        toggleFavorite(item.id);
+        if (items.length > 1) void favoriteAll(items);
+        else toggleFavorite(item.id);
+        break;
+      case "sortName":
+      case "sortUses":
+      case "sortRecent":
+        sortGroup(item.id, SORTS[key]!);
         break;
       case "exportJson":
       case "exportTxt":
-        void runExport(key === "exportJson" ? "json" : "txt", item.id);
+        void runExport(key === "exportJson" ? "json" : "txt", items);
         break;
       case "delete":
-        confirmDelete(item);
+        void trashItems(items);
         break;
+    }
+  }
+
+  function pushUndo(entry: UndoEntry) {
+    const stack = undoStack.current;
+    stack.push(entry);
+    if (stack.length > UNDO_LIMIT) stack.shift();
+  }
+
+  /** Desfaz a última operação (ou `entry`, pelo botão da notificação), se ainda estiver na pilha. */
+  async function undo(entry?: UndoEntry) {
+    const stack = undoStack.current;
+    const index = entry ? stack.lastIndexOf(entry) : stack.length - 1;
+    if (index < 0) return;
+    const [target] = stack.splice(index, 1);
+    try {
+      await target.run();
+    } catch (reason) {
+      notify({ intent: "error", title: "Não foi possível desfazer.", details: `${capitalize(errorMessage(reason))}.` });
+    } finally {
+      reload();
     }
   }
 
@@ -481,25 +695,89 @@ function App() {
     if (item.kind === "folder") {
       const folder = folders.find((candidate) => candidate.id === item.id);
       if (!folder) return;
-      const index = siblingsOf(folders, folder.parentId).findIndex((sibling) => sibling.id === folder.id);
-      attempt(() => api.moveFolder(folder.id, folder.parentId, index + delta));
+      const before = groupOrder(folders, snippets, folder.parentId);
+      const index = before.folderIds.indexOf(folder.id);
+      attempt(async () => {
+        await api.moveFolder(folder.id, folder.parentId, index + delta);
+        pushUndo({ run: () => restoreOrders([before]) });
+      });
     } else {
       const snippet = snippets.find((candidate) => candidate.id === item.id);
       if (!snippet) return;
-      const index = snippetsIn(snippets, snippet.folderId).findIndex((sibling) => sibling.id === snippet.id);
-      attempt(() => api.moveSnippet(snippet.id, snippet.folderId, index + delta));
+      const before = groupOrder(folders, snippets, snippet.folderId);
+      const index = before.snippetIds.indexOf(snippet.id);
+      attempt(async () => {
+        await api.moveSnippet(snippet.id, snippet.folderId, index + delta);
+        pushUndo({ run: () => restoreOrders([before]) });
+      });
     }
   }
 
-  function moveItem(item: ItemRef, folderId: number | null) {
-    setMoving(null);
-    reveal(folderId);
-    if (item.kind === "folder") {
-      attempt(() => api.moveFolder(item.id, folderId, END));
-      return;
+  /** Move os itens para `parentId`, antes de `before` ou no fim do grupo. */
+  async function moveItems(items: ItemRef[], parentId: number | null, before: ItemRef | null = null) {
+    const top = prepare(items);
+    for (const item of top) if (item.kind === "snippet" && item.id < 0) store.setFolder(item.id, parentId);
+    const saved = top.filter((item) => item.id >= 0);
+    reveal(parentId);
+    if (saved.length === 0) return;
+    const sources = saved.map((item) => parentOf(item, folders, snippets) ?? null);
+    const orders = groupOrders(folders, snippets, [parentId, ...sources]);
+    const target = insertInto(orders[0], saved, before);
+    await attempt(async () => {
+      await api.arrangeItems(parentId, target.folderIds, target.snippetIds);
+      pushUndo({ run: () => restoreOrders(orders) });
+    });
+  }
+
+  /** Copia os itens para `parentId` (duplica, na mesma pasta), antes de `before` ou no fim do grupo. */
+  async function copyItems(items: ItemRef[], parentId: number | null, before: ItemRef | null = null) {
+    const top = prepare(items).filter((item) => item.id >= 0);
+    if (top.length === 0) return;
+    // A cópia é feita a partir do banco: as edições pendentes são gravadas antes.
+    await store.flushAll();
+    const order = groupOrder(folders, snippets, parentId);
+    const copies = await attempt(async () => {
+      const copies = await api.copyItems(top, parentId);
+      if (before) {
+        const target = insertInto(order, copies, before);
+        await api.arrangeItems(parentId, target.folderIds, target.snippetIds);
+      }
+      pushUndo({ run: () => api.deleteItems(copies) });
+      return copies;
+    });
+    if (!copies) return;
+    reveal(parentId);
+    selectMany(copies);
+  }
+
+  /** Recorta ou copia os itens para colar depois; copiar um único texto também leva o conteúdo ao clipboard. */
+  function mark(mode: Marked["mode"], items: ItemRef[]) {
+    const saved = prepare(items).filter((item) => item.id >= 0);
+    if (saved.length === 0) return;
+    setMarked({ mode, items: saved });
+    if (mode === "copy" && saved.length === 1 && saved[0].kind === "snippet") {
+      const content = displaySnippets.find((snippet) => snippet.id === saved[0].id)?.content;
+      if (content) void navigator.clipboard?.writeText(content).catch(() => undefined);
     }
-    store.setFolder(item.id, folderId);
-    if (item.id >= 0) attempt(() => api.moveSnippet(item.id, folderId, END));
+  }
+
+  /** Destino do Colar: o do Novo; com um item marcado selecionado, a pasta dele (o que duplica). */
+  function pasteTarget(): number | null {
+    if (marked && selection && includesItem(marked.items, selection)) {
+      return parentOf(selection, folders, displaySnippets) ?? null;
+    }
+    return targetFolder();
+  }
+
+  async function paste() {
+    if (!marked || trashOpen) return;
+    const parentId = pasteTarget();
+    if (marked.mode === "cut") {
+      setMarked(null);
+      await moveItems(marked.items, parentId);
+    } else {
+      await copyItems(marked.items, parentId);
+    }
   }
 
   function toggleFavorite(id: number) {
@@ -507,11 +785,57 @@ function App() {
     if (snippet) attempt(() => api.setFavorite(id, !snippet.favorite));
   }
 
-  /** Notificação no canto inferior direito; as de sucesso somem sozinhas, as de erro ficam até serem fechadas. */
-  function notify(notice: TransferNotice) {
+  /** Favorita os textos da seleção (ou desfavorita, se todos já são favoritos). */
+  async function favoriteAll(items: ItemRef[]) {
+    const texts = snippetsOf(items);
+    const favorite = texts.some((snippet) => !snippet.favorite);
+    await attempt(async () => {
+      for (const snippet of texts) await api.setFavorite(snippet.id, favorite);
+      pushUndo({
+        run: async () => {
+          for (const snippet of texts) await api.setFavorite(snippet.id, snippet.favorite);
+        },
+      });
+    });
+  }
+
+  /** Reorganiza uma vez os itens diretos da pasta (`null` = raiz). */
+  function sortGroup(parentId: number | null, kind: SortKind) {
+    const before = groupOrder(folders, snippets, parentId);
+    const sorted = sortedOrder(folders, snippets, parentId, kind);
+    attempt(async () => {
+      await api.arrangeItems(parentId, sorted.folderIds, sorted.snippetIds);
+      pushUndo({ run: () => restoreOrders([before]) });
+    });
+  }
+
+  /** Itens arrastados: a seleção, se o arrasto começa nela; senão, só o item. */
+  function startDrag(item: ItemRef): ItemRef[] {
+    if (!includesItem(selectedItems, item)) select(item);
+    const items = prepare(includesItem(selectedItems, item) ? selectedItems : [item]).filter((i) => i.id >= 0);
+    setDragging(items);
+    return items;
+  }
+
+  function canDropInto(folderId: number | null): boolean {
+    if (!dragging || folderId === null) return true;
+    return !dragging.some((item) => item.kind === "folder" && subtreeIds(folders, item.id).has(folderId));
+  }
+
+  async function dropItems(target: DropTarget, copy: boolean) {
+    const items = dragging;
+    setDragging(null);
+    if (!items) return;
+    const [parentId, before] = target.kind === "into" ? [target.folderId, null] : [target.parentId, target.before];
+    if (copy) await copyItems(items, parentId, before);
+    else await moveItems(items, parentId, before);
+  }
+
+  /** Notificação no canto inferior direito; as de erro ficam até serem fechadas. */
+  function notify(notice: Notice, duration = NOTICE_DURATION_MS) {
     dispatchToast(<NoticeToast notice={notice} />, {
       intent: notice.intent,
-      timeout: notice.intent === "success" ? NOTICE_DURATION_MS : -1,
+      timeout: notice.intent === "error" ? -1 : duration,
       pauseOnHover: true,
     });
   }
@@ -536,80 +860,167 @@ function App() {
     }
   }
 
-  /** Exporta a pasta `folderId` ou, com `null`, a biblioteca inteira. */
-  async function runExport(format: ExportFormat, folderId: number | null) {
+  /** Exporta os itens ou, sem itens, a biblioteca inteira. */
+  async function runExport(format: ExportFormat, items: ItemRef[]) {
     // A exportação lê o banco: as edições pendentes são gravadas antes.
     await store.flushAll();
+    const selected = prepare(items).filter((item) => item.id >= 0);
     try {
-      const summary = await (format === "json" ? api.exportJson(folderId) : api.exportTxt(folderId));
+      const summary = await (format === "json" ? api.exportJson(selected) : api.exportTxt(selected));
       if (summary) notify(exportNotice(summary));
     } catch (reason) {
       notify(exportFailure(errorMessage(reason)));
     }
   }
 
-  function confirmDelete(item: ItemRef) {
-    if (item.kind === "folder") {
-      const folder = folders.find((candidate) => candidate.id === item.id);
-      if (!folder) return;
-      const contents = folderContents(folders, snippets, folder.id);
-      setConfirmation({
-        title: `Excluir a pasta “${folder.name}”?`,
-        message: (
-          <>
-            {(contents.folders > 0 || contents.snippets > 0) && (
-              <>
-                Também serão excluídos:
-                <ul className={styles.deleteList}>
-                  {contents.folders > 0 && <li>{plural(contents.folders, "subpasta", "subpastas")}</li>}
-                  {contents.snippets > 0 && (
-                    <li>
-                      {plural(contents.snippets, "texto", "textos")}
-                      {contents.favorites > 0 &&
-                        `, incluindo ${plural(contents.favorites, "favorito", "favoritos")}`}
-                    </li>
-                  )}
-                </ul>
-              </>
-            )}
-            Esta ação não pode ser desfeita.
-          </>
-        ),
-        confirmLabel: "Excluir",
-        danger: true,
-        onConfirm: () => {
-          setConfirmation(null);
-          const removed = subtreeIds(folders, folder.id);
-          const inside = (folderId: number | null) => folderId !== null && removed.has(folderId);
-          for (const draft of store.getSnapshot().values()) {
-            if (inside(draft.folderId)) store.remove(draft.id);
-          }
-          if ((selectedFolder && removed.has(selectedFolder.id)) || (openSnippet && inside(openSnippet.folderId))) {
-            select(null);
-          }
-          attempt(() => api.deleteFolder(folder.id));
-        },
-      });
-      return;
+  /**
+   * Tira os itens da árvore: os textos novos ainda não gravados são descartados, e a seleção
+   * passa ao item seguinte. Devolve os itens gravados, que o backend deve remover.
+   */
+  function detach(items: ItemRef[]): ItemRef[] {
+    const removed = new Set(items.flatMap((item) => (item.kind === "folder" ? [...subtreeIds(folders, item.id)] : [])));
+    const inside = (folderId: number | null) => folderId !== null && removed.has(folderId);
+    const gone = (item: ItemRef) =>
+      includesItem(items, item) ||
+      (item.kind === "folder" && removed.has(item.id)) ||
+      inside(parentOf(item, folders, displaySnippets) ?? null);
+    for (const draft of store.getSnapshot().values()) {
+      if (inside(draft.folderId) || includesItem(items, { kind: "snippet", id: draft.id })) store.remove(draft.id);
     }
-    const snippet = displaySnippets.find((candidate) => candidate.id === item.id);
-    if (!snippet) return;
+    if (selectedItems.some(gone)) {
+      const visible = visibleItems(nodes, isOpen);
+      const first = visible.findIndex(gone);
+      const remaining = visible.filter((item) => !gone(item));
+      select(remaining[Math.min(Math.max(first, 0), remaining.length - 1)] ?? null);
+    }
+    return items.filter((item) => item.id >= 0);
+  }
+
+  /** Del: move para a lixeira, sem confirmação, com Desfazer na notificação. */
+  async function trashItems(items: ItemRef[]) {
+    if (items.length === 0) return;
+    await store.flushAll();
+    const top = prepare(items);
+    const sources = top.filter((item) => item.id >= 0).map((item) => parentOf(item, folders, snippets) ?? null);
+    const orders = groupOrders(folders, snippets, sources);
+    const saved = detach(top);
+    if (saved.length === 0) return;
+    await attempt(async () => {
+      await api.trashItems(saved);
+      const entry: UndoEntry = {
+        run: async () => {
+          await api.restoreItems(saved);
+          await restoreOrders(orders);
+        },
+      };
+      pushUndo(entry);
+      notify(
+        {
+          intent: "info",
+          icon: "trash",
+          title: `${plural(saved.length, "item movido", "itens movidos")} para a lixeira.`,
+          action: { label: "Desfazer", onClick: () => void undo(entry) },
+        },
+        TRASH_NOTICE_MS,
+      );
+    });
+  }
+
+  /** O que vai junto com os itens: subpastas e textos das pastas, e os textos. */
+  function contentsMessage(items: ItemRef[]) {
+    let subfolders = 0;
+    let texts = 0;
+    let favorites = 0;
+    for (const item of items) {
+      if (item.kind === "folder") {
+        const contents = folderContents(folders, snippets, item.id);
+        subfolders += contents.folders;
+        texts += contents.snippets;
+        favorites += contents.favorites;
+      }
+    }
+    if (subfolders === 0 && texts === 0) return null;
+    return (
+      <>
+        Também serão excluídos:
+        <ul className={styles.deleteList}>
+          {subfolders > 0 && <li>{plural(subfolders, "subpasta", "subpastas")}</li>}
+          {texts > 0 && (
+            <li>
+              {plural(texts, "texto", "textos")}
+              {favorites > 0 && `, incluindo ${plural(favorites, "favorito", "favoritos")}`}
+            </li>
+          )}
+        </ul>
+      </>
+    );
+  }
+
+  /** Shift+Del: exclui definitivamente, após confirmar. */
+  function confirmPermanentDelete(items: ItemRef[]) {
+    const top = prepare(items);
+    if (top.length === 0) return;
+    const [first] = top;
     setConfirmation({
-      title: `Excluir o texto “${snippet.title.trim() || "Sem título"}”?`,
-      message: "Esta ação não pode ser desfeita.",
-      confirmLabel: "Excluir",
+      title:
+        top.length > 1
+          ? `Excluir definitivamente ${top.length} itens?`
+          : `Excluir definitivamente ${first.kind === "folder" ? "a pasta" : "o texto"} “${nameOf(first)}”?`,
+      message: (
+        <>
+          {contentsMessage(top)}
+          Esta ação não pode ser desfeita. Para poder recuperar depois, use Excluir (Del), que move para a lixeira.
+        </>
+      ),
+      confirmLabel: "Excluir definitivamente",
       danger: true,
       onConfirm: () => {
         setConfirmation(null);
-        store.remove(snippet.id);
-        if (sameItem(selection, item)) select(null);
-        if (snippet.id >= 0) attempt(() => api.deleteSnippet(snippet.id));
+        const saved = detach(top);
+        if (saved.length > 0) attempt(() => api.deleteItems(saved));
+      },
+    });
+  }
+
+  function restoreFromTrash(items: ItemRef[]) {
+    attempt(() => api.restoreItems(items));
+  }
+
+  function confirmDeleteFromTrash(items: ItemRef[]) {
+    const names = trash.filter((item) => includesItem(items, item)).map((item) => item.name);
+    setConfirmation({
+      title: names.length === 1 ? `Excluir definitivamente “${names[0]}”?` : `Excluir definitivamente ${names.length} itens?`,
+      message: "Esta ação não pode ser desfeita.",
+      confirmLabel: "Excluir definitivamente",
+      danger: true,
+      onConfirm: () => {
+        setConfirmation(null);
+        attempt(() => api.deleteItems(items));
+      },
+    });
+  }
+
+  function confirmEmptyTrash() {
+    const trashedFolders = trash.filter((item) => item.kind === "folder");
+    const inside = trashedFolders.reduce((total, item) => total + item.snippets, 0);
+    const including =
+      trashedFolders.length > 0
+        ? `, incluindo ${plural(trashedFolders.length, "pasta", "pastas")}${inside > 0 ? ` com ${plural(inside, "texto", "textos")}` : ""}`
+        : "";
+    setConfirmation({
+      title: "Esvaziar a lixeira?",
+      message: `${trash.length === 1 ? "O item da lixeira será excluído" : `Os ${trash.length} itens da lixeira serão excluídos`} definitivamente${including}. Esta ação não pode ser desfeita.`,
+      confirmLabel: "Esvaziar lixeira",
+      danger: true,
+      onConfirm: () => {
+        setConfirmation(null);
+        attempt(() => api.emptyTrash());
       },
     });
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    if (confirmation || moving || !event.ctrlKey || event.altKey) return;
+    if (confirmation || moving || settingsOpen || !event.ctrlKey || event.altKey) return;
     const key = event.key.toLowerCase();
     if (key === "n") {
       event.preventDefault();
@@ -622,6 +1033,23 @@ function App() {
       else void store.flush(openSnippet.id);
     }
   }
+
+  /** Ctrl+C, Ctrl+X, Ctrl+V e Ctrl+Z sobre os itens; nos campos de texto, ficam com o próprio campo. */
+  function handleItemShortcut(event: globalThis.KeyboardEvent) {
+    if (confirmation || moving || settingsOpen || event.defaultPrevented) return;
+    if (!event.ctrlKey || event.altKey || event.shiftKey || isEditable(event.target as EventTarget)) return;
+    const key = event.key.toLowerCase();
+    if (!["c", "x", "v", "z"].includes(key)) return;
+    event.preventDefault();
+    if (key === "z") void undo();
+    else if (key === "v") void paste();
+    else mark(key === "x" ? "cut" : "copy", selectedItems);
+  }
+
+  // Na janela toda, para valerem também com o foco fora da árvore (por exemplo, após fechar um menu).
+  useEffect(() => {
+    itemShortcut.current = handleItemShortcut;
+  });
 
   function startResize(event: PointerEvent<HTMLDivElement>) {
     const divider = event.currentTarget;
@@ -643,13 +1071,38 @@ function App() {
 
   const path = folderPath(folders, targetFolder());
   const targetLabel = path.length > 0 ? `Em ${path.map((folder) => folder.name).join(" › ")}` : "Na raiz";
-  const movingFolder = moving?.kind === "folder" ? folders.find((folder) => folder.id === moving.id) : undefined;
-  const movingSnippet =
-    moving?.kind === "snippet" ? displaySnippets.find((snippet) => snippet.id === moving.id) : undefined;
+  const movingParents = new Set((moving ?? []).map((item) => parentOf(item, folders, displaySnippets) ?? null));
 
   let editor;
-  if (empty) {
+  if (trashOpen) {
+    editor = (
+      <TrashPanel
+        items={trash}
+        onRestore={restoreFromTrash}
+        onDelete={confirmDeleteFromTrash}
+        onEmpty={confirmEmptyTrash}
+      />
+    );
+  } else if (empty) {
     editor = <Welcome />;
+  } else if (selectedItems.length > 1) {
+    const items = inTreeOrder(selectedItems);
+    editor = (
+      <SelectionPanel
+        items={items.map((item) => {
+          const path = folderPath(folders, parentOf(item, folders, displaySnippets) ?? null);
+          return {
+            item,
+            name: nameOf(item),
+            path: path.map((folder) => folder.name).join(" › ") || "Raiz",
+            favorite: snippetsOf([item]).some((snippet) => snippet.favorite),
+          };
+        })}
+        favoriteLabel={favoriteLabel(items)}
+        onAction={(key) => runAction(items[0], key)}
+        onDelete={(permanent) => (permanent ? confirmPermanentDelete(items) : void trashItems(items))}
+      />
+    );
   } else if (selectedFolder) {
     editor = (
       <FolderEditor
@@ -674,6 +1127,7 @@ function App() {
         status={openDraft?.status ?? "saved"}
         error={openDraft?.error ?? null}
         favorite={openSnippet.favorite}
+        usage={usageLabel(openSnippet)}
         isNew={openSnippet.id < 0}
         titleRef={titleRef}
         contentRef={contentRef}
@@ -715,24 +1169,54 @@ function App() {
           onNewSnippet={() => newSnippet()}
           onNewFolder={() => newFolder()}
           onImport={(kind) => void runImport(kind)}
-          onExport={(format) => void runExport(format, null)}
+          onExport={(format) => void runExport(format, [])}
+          onSort={(kind) => sortGroup(null, kind)}
+          canSort={!filtering}
+          onExpandAll={() => setPreferences((current) => ({ ...current, collapsed: [] }))}
+          onCollapseAll={() => setPreferences((current) => ({ ...current, collapsed: folders.map((f) => f.id) }))}
+          trashCount={trash.length}
+          trashSelected={trashOpen}
+          onSelectTrash={() => {
+            select(null);
+            setTrashOpen(true);
+          }}
+          dragging={dragging !== null}
+          onDropOnTrash={() => {
+            const items = dragging;
+            setDragging(null);
+            if (items) void trashItems(items);
+          }}
         >
           <LibraryTree
             treeRef={treeRef}
             nodes={nodes}
             selection={selection}
+            selected={selectedItems}
+            cut={marked?.mode === "cut" ? marked.items : []}
             isOpen={isOpen}
             terms={searching ? searchTerms(searchTerm) : []}
             drafts={drafts}
             newFolderIn={newFolderIn}
             renamingFolder={renamingFolder}
+            canArrange={!filtering}
+            dragging={dragging}
+            canDropInto={canDropInto}
             actionsFor={actionsFor}
-            onSelect={select}
+            menuHeaderFor={menuHeaderFor}
+            onSelect={selectWith}
+            onSelectAll={selectAll}
+            onEscape={escape}
+            onDelete={(permanent) =>
+              permanent ? confirmPermanentDelete(selectedItems) : void trashItems(selectedItems)
+            }
             onToggle={toggleFolder}
             onAction={runAction}
             onSubmitName={submitName}
             onCancelName={cancelName}
             onOpenEditor={() => contentRef.current?.focus()}
+            onDragStart={startDrag}
+            onDragEnd={() => setDragging(null)}
+            onDrop={(target, copy) => void dropItems(target, copy)}
           />
         </TreePane>
         <div
@@ -764,17 +1248,19 @@ function App() {
         onRetry={(id) => void store.retry(id)}
         onOpenSettings={shortcut ? () => setSettingsOpen(true) : undefined}
       />
-      {moving && (movingFolder || movingSnippet) && (
+      {moving && moving.length > 0 && (
         <MoveDialog
-          name={movingFolder?.name ?? (movingSnippet?.title.trim() || "Sem título")}
-          rootLabel={movingFolder ? "Raiz" : "Sem pasta"}
-          options={
-            movingFolder
-              ? folderOptions(folders).filter((option) => !subtreeIds(folders, movingFolder.id).has(option.id))
-              : folderOptions(folders)
-          }
-          current={movingFolder ? movingFolder.parentId : (movingSnippet?.folderId ?? null)}
-          onMove={(folderId) => moveItem(moving, folderId)}
+          title={moving.length === 1 ? `Mover “${nameOf(moving[0])}”` : `Mover ${moving.length} itens`}
+          rootLabel={moving.some((item) => item.kind === "folder") ? "Raiz" : "Sem pasta"}
+          options={folderOptions(folders).filter(
+            (option) =>
+              !moving.some((item) => item.kind === "folder" && subtreeIds(folders, item.id).has(option.id)),
+          )}
+          current={movingParents.size === 1 ? [...movingParents][0] : undefined}
+          onMove={(folderId) => {
+            setMoving(null);
+            void moveItems(moving, folderId);
+          }}
           onCancel={() => setMoving(null)}
         />
       )}
