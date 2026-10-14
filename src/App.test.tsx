@@ -614,6 +614,63 @@ describe("configurações", () => {
     expect(toggle).toBeChecked();
   });
 
+  it("liga e desliga o histórico do clipboard, ligado por padrão", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    const toggle = dialog.getByRole("switch", { name: "Guardar o histórico do clipboard" });
+    await waitFor(() => expect(toggle).toBeChecked());
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(fake.historyState.monitoring).toBe(false);
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(fake.historyState.monitoring).toBe(true);
+  });
+
+  it("limpa o histórico só depois da confirmação", async () => {
+    const user = userEvent.setup();
+    fake.copyElsewhere({ title: "um" });
+    fake.copyElsewhere({ title: "dois" });
+    renderApp();
+    const dialog = await openSettings(user);
+    const clear = dialog.getByRole("button", { name: "Limpar histórico" });
+    await waitFor(() => expect(clear).toBeEnabled());
+
+    await user.click(clear);
+    expect(dialog.getByText(/Apagar os 2 itens do histórico\?/)).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Cancelar" }));
+    expect(fake.history).toHaveLength(2);
+
+    await user.click(dialog.getByRole("button", { name: "Limpar histórico" }));
+    await user.click(dialog.getByRole("button", { name: "Limpar" }));
+
+    expect(await dialog.findByText("Histórico limpo.")).toBeInTheDocument();
+    expect(fake.history).toHaveLength(0);
+    expect(dialog.getByRole("button", { name: "Limpar histórico" })).toBeDisabled();
+    // Limpar não desliga a opção.
+    expect(dialog.getByRole("switch", { name: "Guardar o histórico do clipboard" })).toBeChecked();
+  });
+
+  it("mostra o erro ao limpar o histórico", async () => {
+    const user = userEvent.setup();
+    fake.copyElsewhere({ title: "um" });
+    renderApp();
+    const dialog = await openSettings(user);
+    const clear = dialog.getByRole("button", { name: "Limpar histórico" });
+    await waitFor(() => expect(clear).toBeEnabled());
+    fake.historyState.failure = "banco indisponível";
+
+    await user.click(clear);
+    expect(dialog.getByText(/Apagar o item do histórico\?/)).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Limpar" }));
+
+    expect(await dialog.findByText("Não foi possível limpar o histórico: banco indisponível")).toBeInTheDocument();
+    expect(fake.history).toHaveLength(1);
+  });
+
   it("restaurar o atalho padrão não altera a navegação nas pastas", async () => {
     const user = userEvent.setup();
     fake.setNavigation("click");

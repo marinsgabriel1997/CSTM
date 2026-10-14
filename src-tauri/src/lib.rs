@@ -4,6 +4,8 @@ use tauri::{App, Manager, WebviewWindowBuilder};
 
 mod autostart;
 mod cascade;
+mod clipboard;
+mod clipboard_history;
 mod commands;
 mod db;
 mod paste;
@@ -62,6 +64,12 @@ pub fn run() {
             commands::hide_picker,
             commands::choose_snippet,
             commands::copy_snippet,
+            commands::list_clipboard_history,
+            commands::paste_clipboard_item,
+            commands::copy_clipboard_item,
+            commands::clear_clipboard_history,
+            commands::get_clipboard_monitoring,
+            commands::set_clipboard_monitoring,
             commands::get_picker_navigation,
             commands::set_picker_navigation,
             commands::layout_picker,
@@ -90,9 +98,11 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let conn = db::open(&data_dir.join("cstm.db"))?;
     picker::register_shortcut(app, &conn);
     let theme = db::settings::get_theme(&conn)?;
+    let clipboard_history = db::settings::get_clipboard_history(&conn)?;
     app.manage(Mutex::new(conn));
     app.manage(paste::PasteState::default());
     app.manage(picker::PickerGeometry::default());
+    clipboard_history::start(app.handle(), clipboard_history);
     tray::create(app)?;
     // As janelas têm `create: false` na configuração e só são criadas aqui, com
     // todo o estado registrado: criadas antes do setup, como faz o Tauri, podiam

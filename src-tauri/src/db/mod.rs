@@ -1,4 +1,5 @@
-//! Persistência SQLite: conexão, migrações e operações de pastas, textos e configurações.
+//! Persistência SQLite: conexão, migrações e operações de pastas, textos, configurações e
+//! histórico do clipboard.
 
 use std::fmt;
 use std::path::Path;
@@ -6,6 +7,7 @@ use std::path::Path;
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
 
+pub mod clipboard;
 pub mod folders;
 pub mod items;
 pub mod settings;
@@ -18,6 +20,7 @@ fn migrations() -> Migrations<'static> {
         M::up(include_str!("migrations/0001_initial.sql")),
         M::up(include_str!("migrations/0002_settings.sql")),
         M::up(include_str!("migrations/0003_trash.sql")),
+        M::up(include_str!("migrations/0004_clipboard_history.sql")),
     ])
 }
 

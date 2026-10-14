@@ -145,6 +145,9 @@
     border: 1px solid var(--stroke-strong);
     box-shadow: var(--shadow);
     padding: 24px;
+    /* Como no aplicativo, o conteúdo rola quando não cabe na altura da janela. */
+    max-height: calc(100% - 32px);
+    overflow-y: auto;
   }
   .dialog-head { display: flex; align-items: center; margin-bottom: 20px; }
   .dialog-head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
@@ -227,6 +230,11 @@
   .switch input:checked + .switch-track::after { left: 23px; background: var(--on-accent); }
   .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
   .switch-help { margin: 4px 0 0 50px; font-size: 12px; color: var(--text-2); }
+  .history-actions { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 50px; }
+  .history-actions .line { margin-top: 0; }
+  .confirm { margin: 10px 0 0 50px; }
+  .confirm .buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .button.danger { background: #c42b1c; color: #fff; border-color: transparent; }
 
   /* ---------- Menu da bandeja (estado próprio) ---------- */
   .tray-menu {
@@ -279,6 +287,9 @@
     altgr: { label: "Aviso Ctrl+Alt", note: "Aceito, com aviso sobre o AltGr." },
     alterado: { label: "Atalho alterado", note: "O novo atalho vale imediatamente." },
     bandeja: { label: "Pela bandeja", note: "O item Configurações mostra a janela de cadastro e abre o diálogo." },
+    limpar: { label: "Limpar histórico", note: "\"Limpar histórico\" pede confirmação ali mesmo, sem outro diálogo. Cancelar volta ao botão." },
+    limpo: { label: "Histórico limpo", note: "Os itens foram apagados; o botão fica desabilitado até haver itens de novo. A opção continua ligada." },
+    "historico-desligado": { label: "Histórico desligado", note: "Desligar para de guardar na hora, sem apagar o que já foi guardado; a pasta Histórico some do menu de colagem." },
   };
 
   let theme = "claro";
@@ -289,6 +300,8 @@
   let navMode = "hover"; // "hover" = Abrir ao passar o mouse (padrão); "click" = Clicar para abrir
   let themeMode = "system"; // "system" = Seguir o Windows (padrão); "light"; "dark"
   let autostartOn = false; // Iniciar com o Windows, desligado por padrão
+  let historyOn = true; // Guardar o histórico do clipboard, ligado por padrão
+  let historyCount = 37; // Itens guardados no histórico
 
   const $ = (id) => document.getElementById(id);
   const label = (keys) => keys.join("+");
@@ -358,6 +371,13 @@
           <div class="setting-sep"></div>
           <label class="switch"><input type="checkbox" role="switch" id="autostart" ${autostartOn ? "checked" : ""} /><span class="switch-track"></span>Iniciar com o Windows</label>
           <div class="switch-help">Abre na bandeja ao entrar no Windows, com o atalho já ativo.</div>
+          <div class="setting-sep"></div>
+          <label class="switch"><input type="checkbox" role="switch" id="history" ${historyOn ? "checked" : ""} /><span class="switch-track"></span>Guardar o histórico do clipboard</label>
+          <div class="switch-help">Guarda no computador os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e imagens) e os mostra na pasta Histórico do menu de colagem. O que gerenciadores de senha marcam como sensível não é guardado.</div>
+          ${state === "limpar"
+            ? `<div class="confirm bar warning">Apagar os ${historyCount} itens do histórico? Não é possível desfazer.
+                 <div class="buttons"><button class="button danger" id="confirm-clear">Limpar</button><button class="button" id="cancel-clear">Cancelar</button></div></div>`
+            : `<div class="history-actions"><button class="button" id="clear" ${historyCount === 0 ? "disabled" : ""}>Limpar histórico</button>${state === "limpo" ? `<span class="line success">Histórico limpo.</span>` : ""}</div>`}
           <div class="dialog-actions" style="justify-content: space-between">
             <button class="button" id="restore" ${isDefault || recording ? "disabled" : ""}>Restaurar padrão (Alt+Q)</button>
             <button class="button primary">Fechar</button>
@@ -376,6 +396,10 @@
       });
     });
     $("autostart").addEventListener("change", (event) => { autostartOn = event.target.checked; });
+    $("history").addEventListener("change", (event) => { historyOn = event.target.checked; });
+    $("clear")?.addEventListener("click", () => go("limpar"));
+    $("cancel-clear")?.addEventListener("click", () => go("atual"));
+    $("confirm-clear")?.addEventListener("click", () => { historyCount = 0; go("limpo"); });
     $("change")?.addEventListener("click", () => go("gravando"));
     $("cancel")?.addEventListener("click", () => go("atual"));
     $("restore").addEventListener("click", () => { shortcut = [...DEFAULT]; go("alterado"); });
@@ -423,6 +447,8 @@
     message = null;
     shortcut = next === "altgr" ? ["Ctrl", "Alt", "V"] : next === "alterado" ? ["Ctrl", "Shift", "Espaço"] : ["Alt", "Q"];
     if (next === "invalida") pending = [];
+    historyOn = next !== "historico-desligado";
+    historyCount = next === "limpo" ? 0 : 37;
     location.hash = `estado=${next}&tema=${theme}`;
     render();
   }

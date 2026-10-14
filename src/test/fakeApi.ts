@@ -3,6 +3,7 @@
 import type { ItemRef } from "../actions";
 import type {
   Api,
+  ClipboardItem,
   Folder,
   PickerColumn,
   PickerNavigation,
@@ -61,6 +62,13 @@ export function createFakeApi() {
   const themeListeners = new Set<(theme: ThemeChoice) => void>();
   /** Inicialização com o Windows, como no registro; `failure` simula a recusa do Windows. */
   const autostart: { enabled: boolean; failure: string | null } = { enabled: false, failure: null };
+  /** Histórico do clipboard, do mais recente para o mais antigo; `failure` simula um erro do backend. */
+  const history: ClipboardItem[] = [];
+  const historyState: { monitoring: boolean; failure: string | null } = { monitoring: true, failure: null };
+  const historyListeners = new Set<() => void>();
+  /** Itens do histórico colados e copiados pelo menu, na ordem. */
+  const historyPasted: number[] = [];
+  const historyCopied: number[] = [];
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
@@ -465,12 +473,66 @@ export function createFakeApi() {
       snippet.useCount += 1;
       snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
     },
+    listClipboardHistory: async () => history.map((item) => ({ ...item })),
+    pasteClipboardItem: async (id) => {
+      historyPasted.push(id);
+      toTop(id);
+    },
+    copyClipboardItem: async (id) => {
+      historyCopied.push(id);
+      toTop(id);
+    },
+    clearClipboardHistory: async () => {
+      if (historyState.failure) throw historyState.failure;
+      const count = history.length;
+      history.length = 0;
+      historyChanged();
+      return count;
+    },
+    getClipboardMonitoring: async () => historyState.monitoring,
+    setClipboardMonitoring: async (enabled) => {
+      if (historyState.failure) throw historyState.failure;
+      historyState.monitoring = enabled;
+      historyChanged();
+      return enabled;
+    },
+    onClipboardHistoryChanged: async (onChange) => subscribe(historyListeners, onChange),
     importTxtFiles: (folderId) => runTransfer({ command: "importTxtFiles", folderId }),
     importFolder: (folderId, includeRoot) => runTransfer({ command: "importFolder", folderId, includeRoot }),
     importJson: (folderId) => runTransfer({ command: "importJson", folderId }),
     exportJson: (items) => runTransfer({ command: "exportJson", items }),
     exportTxt: (items) => runTransfer({ command: "exportTxt", items }),
   };
+
+  /** Como no backend, o item usado sobe para o topo do histórico. */
+  function toTop(id: number) {
+    const index = history.findIndex((item) => item.id === id);
+    if (index < 0) throw "registro não encontrado";
+    history.unshift(...history.splice(index, 1));
+    historyChanged();
+  }
+
+  function historyChanged() {
+    historyListeners.forEach((listener) => listener());
+  }
+
+  /** Simula uma cópia em outro programa entrando no topo do histórico. */
+  function copyElsewhere(item: Partial<ClipboardItem> & Pick<ClipboardItem, "title">) {
+    const entry: ClipboardItem = {
+      id: nextId++,
+      kind: "text",
+      preview: item.title,
+      thumbnail: null,
+      width: null,
+      height: null,
+      // Meio-dia local: a data mostrada no menu é a mesma em qualquer fuso.
+      copiedAt: new Date(2026, 0, 1, 12, 0, clock++).toISOString(),
+      ...item,
+    };
+    history.unshift(entry);
+    historyChanged();
+    return entry;
+  }
 
   function subscribe<T>(listeners: Set<T>, listener: T) {
     listeners.add(listener);
@@ -507,6 +569,11 @@ export function createFakeApi() {
     delivered,
     copied,
     autostart,
+    history,
+    historyState,
+    historyPasted,
+    historyCopied,
+    copyElsewhere,
     layouts,
     picker,
     /** Define a navegação nas pastas como se tivesse sido escolhida nas Configurações. */

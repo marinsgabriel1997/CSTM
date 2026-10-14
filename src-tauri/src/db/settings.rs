@@ -20,6 +20,12 @@ pub const THEME_SYSTEM: &str = "system";
 pub const THEME_LIGHT: &str = "light";
 pub const THEME_DARK: &str = "dark";
 
+/// Se o histórico do clipboard está ligado: `on` ou `off`.
+pub const CLIPBOARD_HISTORY: &str = "clipboard_history";
+
+pub const ON: &str = "on";
+pub const OFF: &str = "off";
+
 /// Valor gravado para `key`, ou `None` se nunca foi definido.
 pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
@@ -55,6 +61,15 @@ pub fn get_theme(conn: &Connection) -> Result<String> {
         _ => THEME_SYSTEM,
     }
     .to_string())
+}
+
+/// Histórico do clipboard; ligado enquanto nada foi gravado.
+pub fn get_clipboard_history(conn: &Connection) -> Result<bool> {
+    Ok(get_setting(conn, CLIPBOARD_HISTORY)?.as_deref() != Some(OFF))
+}
+
+pub fn set_clipboard_history(conn: &Connection, enabled: bool) -> Result<()> {
+    set_setting(conn, CLIPBOARD_HISTORY, if enabled { ON } else { OFF })
 }
 
 #[cfg(test)]
@@ -121,5 +136,21 @@ mod tests {
 
         set_setting(&conn, THEME, "sepia").unwrap();
         assert_eq!(get_theme(&conn).unwrap(), "system");
+    }
+
+    #[test]
+    fn clipboard_history_defaults_to_on() {
+        let conn = open_in_memory().unwrap();
+        assert!(get_clipboard_history(&conn).unwrap());
+
+        set_clipboard_history(&conn, false).unwrap();
+        assert!(!get_clipboard_history(&conn).unwrap());
+        assert_eq!(
+            get_setting(&conn, CLIPBOARD_HISTORY).unwrap().as_deref(),
+            Some("off")
+        );
+
+        set_clipboard_history(&conn, true).unwrap();
+        assert!(get_clipboard_history(&conn).unwrap());
     }
 }

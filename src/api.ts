@@ -58,6 +58,22 @@ export interface Snippet {
   updatedAt: string;
 }
 
+/** Item do histórico do clipboard, como aparece no menu de colagem (sem os dados completos). */
+export interface ClipboardItem {
+  id: number;
+  kind: "text" | "image";
+  /** Primeira linha não vazia do texto, ou "Imagem L × A". */
+  title: string;
+  /** Dica: o começo do texto, ou o título da imagem. */
+  preview: string;
+  /** Miniatura da imagem como `data:` URL. */
+  thumbnail: string | null;
+  width: number | null;
+  height: number | null;
+  /** Última cópia ou uso. */
+  copiedAt: string;
+}
+
 /** Item na lixeira, com o lugar de onde saiu. */
 export interface TrashItem {
   kind: ItemRef["kind"];
@@ -196,6 +212,22 @@ export const api = {
   chooseSnippet: (id: number) => invoke<void>("choose_snippet", { id }),
   /** Fecha o menu e deixa o texto no clipboard, sem colar. Conta como uso. */
   copySnippet: (id: number) => invoke<void>("copy_snippet", { id }),
+
+  // Histórico do clipboard.
+  /** Itens do mais recente para o mais antigo. */
+  listClipboardHistory: () => invoke<ClipboardItem[]>("list_clipboard_history"),
+  /** Fecha o menu e cola o item (com todos os formatos) no programa anterior; o item sobe para o topo. */
+  pasteClipboardItem: (id: number) => invoke<void>("paste_clipboard_item", { id }),
+  /** Fecha o menu e deixa o item no clipboard, sem colar; o item sobe para o topo. */
+  copyClipboardItem: (id: number) => invoke<void>("copy_clipboard_item", { id }),
+  /** Apaga todos os itens e devolve quantos eram. */
+  clearClipboardHistory: () => invoke<number>("clear_clipboard_history"),
+  /** Se o histórico está ligado; ligado enquanto nada foi escolhido. */
+  getClipboardMonitoring: () => invoke<boolean>("get_clipboard_monitoring"),
+  /** Liga ou desliga o histórico na hora, sem apagar os itens; devolve o estado gravado. */
+  setClipboardMonitoring: (enabled: boolean) => invoke<boolean>("set_clipboard_monitoring", { enabled }),
+  /** Avisa quando o histórico muda. Devolve a função que remove o aviso. */
+  onClipboardHistoryChanged: async (onChange: () => void) => listen("clipboard-history-changed", () => onChange()),
 };
 
 export type Api = typeof api;

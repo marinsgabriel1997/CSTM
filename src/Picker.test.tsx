@@ -1,5 +1,5 @@
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -299,6 +299,110 @@ describe("copiar", () => {
     await user.keyboard("{Control>}c{/Control}");
 
     expect(await screen.findByText("não foi possível copiar o texto")).toBeInTheDocument();
+  });
+});
+
+describe("histórico do clipboard", () => {
+  /** Histórico com um texto e uma imagem, a imagem copiada por último. */
+  function seedHistory() {
+    fake.copyElsewhere({ title: "Reunião às 15h", preview: "Reunião às 15h\nLevar o relatório." });
+    fake.copyElsewhere({
+      kind: "image",
+      title: "Imagem 1920 × 1080",
+      preview: "Imagem 1920 × 1080",
+      thumbnail: "data:image/png;base64,iVBORw0KGgo=",
+      width: 1920,
+      height: 1080,
+    });
+  }
+
+  it("a pasta Histórico vem antes de Mais usados e Favoritos e lista o mais recente primeiro", async () => {
+    const user = userEvent.setup();
+    await seed();
+    await fake.api.chooseSnippet(fake.snippets[0].id);
+    seedHistory();
+    renderPicker();
+
+    await list().findByRole("option", { name: "Histórico" });
+    expect(optionNames().slice(0, 3)).toEqual(["=> Histórico", "Mais usados", "Favoritos"]);
+
+    await user.keyboard("{Enter}");
+    await list().findByRole("option", { name: /Imagem 1920 × 1080/ });
+    expect(optionNames()).toEqual(["=> Imagem 1920 × 108001/01", "Reunião às 15h01/01"]);
+    const image = list().getByRole("option", { name: /Imagem/ });
+    expect(image.querySelector("img")).toHaveAttribute("src", "data:image/png;base64,iVBORw0KGgo=");
+    expect(list().getByRole("option", { name: /Reunião/ })).toHaveAttribute(
+      "title",
+      "Reunião às 15h\nLevar o relatório.",
+    );
+    // A busca não inclui o histórico.
+    await user.type(search(), "reunião");
+    expect(await screen.findByText("Nenhum texto encontrado.")).toBeInTheDocument();
+  });
+
+  it("Enter cola o item e o leva ao topo; Copiar e Ctrl+C copiam sem colar", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    const [image, text] = fake.history;
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await list().findByRole("option", { name: /Reunião/ });
+
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(fake.historyPasted).toEqual([text.id]);
+    expect(fake.history.map((item) => item.id)).toEqual([text.id, image.id]);
+    expect(fake.delivered).toEqual([]);
+
+    // A seleção acompanha o item, que agora está no topo.
+    await waitFor(() => expect(optionNames()[0]).toMatch(/^=> Reunião/));
+    await user.keyboard("{Control>}c{/Control}");
+    expect(fake.historyCopied).toEqual([text.id]);
+
+    const imageRow = list().getByRole("option", { name: /Imagem/ });
+    await hover(user, imageRow);
+    await user.click(within(imageRow).getByRole("button", { name: "Copiar Imagem 1920 × 1080" }));
+    expect(fake.historyCopied).toEqual([text.id, image.id]);
+    expect(fake.copied).toEqual([]);
+  });
+
+  it("some com o histórico vazio ou desligado", async () => {
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    renderPicker();
+    await list().findByRole("option", { name: "Telefone" });
+    expect(optionNames()).toEqual(["=> Telefone"]);
+
+    cleanup();
+    seedHistory();
+    fake.historyState.monitoring = false;
+    renderPicker();
+    await list().findByRole("option", { name: "Telefone" });
+    expect(optionNames()).toEqual(["=> Telefone"]);
+  });
+
+  it("uma cópia feita com o menu aberto aparece no Histórico", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await list().findByRole("option", { name: /Reunião/ });
+
+    act(() => void fake.copyElsewhere({ title: "Novo item" }));
+
+    expect(await list().findByRole("option", { name: /Novo item/ })).toBeInTheDocument();
+    expect(optionNames()).toHaveLength(3);
+  });
+
+  it("abre em cascata como as outras pastas virtuais", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    seedHistory();
+    renderPicker();
+
+    await hover(user, await list().findByRole("option", { name: "Histórico" }));
+
+    const column = await screen.findByRole("listbox", { name: "Histórico" });
+    await user.click(within(column).getByRole("option", { name: /Reunião/ }));
+    expect(fake.historyPasted).toEqual([fake.history[0].id]);
   });
 });
 

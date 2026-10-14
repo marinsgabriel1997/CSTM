@@ -204,6 +204,12 @@
   .row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   .row .meta { color: var(--text-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
   .row .chevron { color: var(--text-3); }
+  /* Miniatura de uma imagem do histórico, no lugar do ícone. */
+  .row .thumb {
+    width: 24px; height: 20px; flex: none; border-radius: 3px;
+    border: 1px solid var(--stroke-strong);
+    background: linear-gradient(135deg, #7fb3e6 0 45%, #f3c26b 45% 70%, #4f8a4f 70%);
+  }
   /* Botão Copiar: só na linha de texto selecionada. */
   .row .copy {
     display: none; flex: none; width: 24px; height: 24px; margin-right: -4px; place-items: center;
@@ -344,12 +350,29 @@
       items: () => snippets.filter((s) => s.favorite).sort((a, b) => a.title.localeCompare(b.title)),
     },
   };
+  // Histórico do clipboard: itens copiados em qualquer programa, do mais recente para o mais
+  // antigo. O título de um texto é a primeira linha não vazia; uma imagem mostra a miniatura.
+  const history = [
+    { id: "h1", title: "Reunião confirmada para quinta às 15h, sala 2.", content: "Reunião confirmada para quinta às 15h, sala 2.
+Levar o relatório impresso.", when: "14:32" },
+    { id: "h2", title: "Imagem 1920 × 1080", content: "Imagem 1920 × 1080", image: true, when: "14:10" },
+    { id: "h3", title: "Proposta comercial — resumo", content: "Proposta comercial — resumo
+(com formatação do Word: negrito, listas e tabela)", when: "11:05" },
+    { id: "h4", title: "https://github.com/marinsgabriel1997/CSTM", content: "https://github.com/marinsgabriel1997/CSTM", when: "ontem" },
+  ];
+  // Com a opção desligada nas Configurações, a pasta some do menu.
+  const historyOn = () => mode !== "sem-historico";
+  VIRTUAL.historico = { name: "Histórico", icon: "🕘", items: () => (historyOn() ? history : []) };
+  // O Histórico vem antes de Mais usados e Favoritos.
+  const VIRTUAL_ORDER = ["historico", "mais-usados", "favoritos"];
   const isVirtual = (id) => typeof id === "string";
 
   const STATES = {
-    raiz: { label: "Raiz", note: "Estado ao abrir: as pastas Mais usados e Favoritos no topo, depois o conteúdo da raiz, com a busca focada. Cada uma some quando está vazia." },
+    raiz: { label: "Raiz", note: "Estado ao abrir: as pastas Histórico, Mais usados e Favoritos no topo, depois o conteúdo da raiz, com a busca focada. Cada uma some quando está vazia; o Histórico também some com a opção desligada nas Configurações." },
+    historico: { label: "Histórico", note: "Os itens copiados em qualquer programa, do mais recente para o mais antigo, com a hora da cópia à direita (ou a data, se não foi hoje). Texto: a primeira linha; imagem: miniatura e tamanho. Enter ou clique cola (com a formatação, se havia; a imagem como imagem); Copiar ou Ctrl+C deixa no clipboard. O item usado sobe para o topo. A busca não inclui o histórico." },
     "mais-usados": { label: "Mais usados", note: "Os 10 textos mais colados, do mais usado para o menos usado; a pasta de cada um aparece à direita, como na busca." },
     favoritos: { label: "Favoritos", note: "Os textos favoritos, por título, com a pasta de cada um à direita." },
+    "sem-historico": { label: "Histórico desligado", note: "Com \"Guardar o histórico do clipboard\" desligado nas Configurações (ou sem nenhum item guardado), a pasta Histórico não aparece." },
     pasta: { label: "Dentro de uma pasta", note: "← ou Backspace (com a busca vazia) volta; clicar na linha de volta também." },
     busca: { label: "Busca", note: "A busca vale para toda a biblioteca; a pasta de cada resultado aparece à direita." },
     "sem-resultados": { label: "Busca sem resultados", note: "" },
@@ -394,6 +417,11 @@
       return search(query).map((s) => ({ kind: "snippet", item: s, meta: s.folder && nameOf(s.folder), tip: s.folder ? pathOf(s.folder) : "" }));
     }
     const result = [];
+    if (folder === "historico") {
+      result.push({ kind: "back", label: pathOf(folder) });
+      result.push(...history.map((h) => ({ kind: "snippet", item: h, meta: h.when, tip: "", thumb: h.image })));
+      return result;
+    }
     if (isVirtual(folder)) {
       result.push({ kind: "back", label: pathOf(folder) });
       result.push(...VIRTUAL[folder].items().map((s) => ({ kind: "snippet", item: s, meta: s.folder && nameOf(s.folder), tip: s.folder ? pathOf(s.folder) : "" })));
@@ -404,7 +432,8 @@
       ...snippets.filter((s) => s.folder === folder).map((s) => ({ kind: "snippet", item: s })),
     ];
     if (folder === null) {
-      for (const [id, virtual] of Object.entries(VIRTUAL)) {
+      for (const id of VIRTUAL_ORDER) {
+        const virtual = VIRTUAL[id];
         if (virtual.items().length) result.push({ kind: "folder", item: { id, name: virtual.name }, icon: virtual.icon });
       }
       result.push(...contents);
@@ -461,7 +490,7 @@
     el.setAttribute("role", "option");
     el.setAttribute("aria-selected", index === selected);
     const isFolder = row.kind === "folder";
-    el.innerHTML = `<span class="icon">${row.icon ?? (isFolder ? "📁" : "📄")}</span><span class="label"></span>` +
+    el.innerHTML = (row.thumb ? `<span class="thumb"></span>` : `<span class="icon">${row.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
       (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
     el.querySelector(".label").textContent = isFolder ? row.item.name : row.item.title;
     if (row.meta) el.querySelector(".meta").textContent = row.meta;
@@ -579,7 +608,7 @@
   function setState(state) {
     mode = state;
     open = true;
-    folder = state === "pasta" ? 2 : state === "mais-usados" || state === "favoritos" ? state : null;
+    folder = state === "pasta" ? 2 : state === "mais-usados" || state === "favoritos" || state === "historico" ? state : null;
     query = state === "busca" ? "resp" : state === "sem-resultados" ? "orçamento" : "";
     $("search").value = query;
     selected = 0;
@@ -644,6 +673,7 @@
       ...Array.from({ length: 30 }, (_, i) => ({ id: 200 + i, folder: 6, title: `Documento ${i + 1}`, content: `Texto do documento ${i + 1}.`, favorite: false, uses: 0 })),
     ];
     const VIRT = {
+      historico: { name: "Histórico", icon: "🕘", history: true, items: () => (historyOn() ? history : []) },
       "mais-usados": { name: "Mais usados", icon: "🔥", items: () => cSnippets.filter((s) => s.uses > 0).sort((a, b) => b.uses - a.uses).slice(0, 10) },
       favoritos: { name: "Favoritos", icon: "⭐", items: () => cSnippets.filter((s) => s.favorite).sort((a, b) => a.title.localeCompare(b.title)) },
     };
@@ -664,6 +694,7 @@
           ...cSnippets.filter((s) => s.folder === null).map((s) => snip(s)),
         ];
       }
+      if (key === "historico") return history.map((h) => ({ kind: "snippet", key: h.id, title: h.title, content: h.content, meta: h.when, tip: "", thumb: h.image }));
       if (typeof key === "string") return VIRT[key].items().map((s) => snip(s, true));
       return [
         ...cFolders.filter((f) => f.parent === key).map((f) => fold1(f.id, f.name)),
@@ -714,7 +745,7 @@
         el.className = "row";
         el.setAttribute("role", "option");
         const isFolder = entry.kind === "folder";
-        el.innerHTML = `<span class="icon">${entry.icon ?? (isFolder ? "📁" : "📄")}</span><span class="label"></span>` +
+        el.innerHTML = (entry.thumb ? `<span class="thumb"></span>` : `<span class="icon">${entry.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
           (entry.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
         el.querySelector(".label").textContent = entry.title;
         if (entry.meta) el.querySelector(".meta").textContent = entry.meta;

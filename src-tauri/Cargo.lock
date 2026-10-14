@@ -651,8 +651,9 @@ dependencies = [
 
 [[package]]
 name = "cstm"
-version = "0.12.0"
+version = "0.13.0"
 dependencies = [
+ "image",
  "rusqlite",
  "rusqlite_migration",
  "serde",

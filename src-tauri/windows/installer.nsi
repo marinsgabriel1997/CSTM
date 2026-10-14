@@ -421,6 +421,11 @@ Var AppStartMenuFolder
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
+; Link do repositório na página final (CSTM: bundle.homepage).
+!if "${HOMEPAGE}" != ""
+  !define MUI_FINISHPAGE_LINK "CSTM no GitHub"
+  !define MUI_FINISHPAGE_LINK_LOCATION "${HOMEPAGE}"
+!endif
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
 

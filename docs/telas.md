@@ -317,7 +317,8 @@ Raiz (estado ao abrir):
 +--------------------------------------+
 | [ Buscar...                        ] |
 +--------------------------------------+
-| => Mais usados                     > |
+| => Histórico                       > |
+|    Mais usados                     > |
 |    Favoritos                       > |
 |    Trabalho                        > |
 |    Pessoal                         > |
@@ -325,6 +326,22 @@ Raiz (estado ao abrir):
 |    Link da agenda                    |
 +--------------------------------------+
 | Enter colar  > abrir      Esc fechar |
++--------------------------------------+
+```
+
+Dentro do Histórico:
+
+```text
++--------------------------------------+
+| [ Buscar...                        ] |
++--------------------------------------+
+| <  Histórico                         |
+| => Reunião confirmada para qu… 14:32 |
+|    [img] Imagem 1920 × 1080    14:10 |
+|    Proposta comercial — resumo 11:05 |
+|    https://github.com/marins…  ontem |
++--------------------------------------+
+| Enter colar  < voltar     Esc fechar |
 +--------------------------------------+
 ```
 
@@ -378,12 +395,13 @@ Busca:
 - Abre pelo atalho global `Alt+Q` junto ao cursor do mouse, inteiramente dentro da área útil do monitor em que o cursor está.
 - Coluna de 340 × 440 (no modo cascata, outras colunas abrem ao lado; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema escolhido nas Configurações (por padrão, o do Windows), como o cadastro.
 - Campo de busca no topo, com foco automático, lista no meio (com rolagem) e uma linha de dicas de teclado no rodapé.
-- Na raiz, sem cabeçalhos de seção: as pastas **Mais usados** e **Favoritos**, com ícones próprios e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. Mais usados e Favoritos não existem no cadastro: são calculadas a cada abertura e somem quando vazias.
+- Na raiz, sem cabeçalhos de seção: as pastas **Histórico**, **Mais usados** e **Favoritos**, com ícones próprios (relógio, chama e estrela) e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. As três não existem no cadastro: são calculadas a cada abertura e somem quando vazias; o Histórico também some com a opção "Guardar o histórico do clipboard" desligada (Tela 3).
+- **Histórico:** os itens copiados em qualquer programa (no máximo 100), do mais recente para o mais antigo, com a hora da cópia à direita, em cinza (de outro dia, "ontem" ou a data `dd/mm`). Um texto mostra a primeira linha não vazia, e a dica mostra o conteúdo (encurtado se for longo). Uma imagem mostra uma miniatura no lugar do ícone e "Imagem L × A" (em pixels), com a mesma frase na dica. A formatação HTML/RTF de um texto não aparece no menu, mas vai junto ao colar.
 - **Mais usados:** os 10 textos com mais usos (ao menos um), do mais para o menos usado; empates pelo uso mais recente. **Favoritos:** os textos favoritos, por título. Dentro das duas, cada texto mostra à direita a pasta em que está, como na busca. Um texto pode aparecer nelas e na sua pasta.
 - Dentro de uma pasta: uma linha de volta com o caminho (`<  Trabalho > E-mails`) seguida das subpastas e dos textos da pasta, nessa ordem e na ordem manual de cada grupo.
 - Pastas têm `>` à direita. Textos mostram só o título; o conteúdo aparece como dica (tooltip) ao passar o mouse.
-- A linha de texto selecionada (pelo mouse ou pelo teclado) mostra à direita um botão pequeno **Copiar**, com o ícone de duas folhas sobrepostas e a dica "Copiar (Ctrl+C)". Pastas, Mais usados, Favoritos e a linha de volta não têm o botão.
-- Com texto na busca, a lista é substituída pelos resultados (na ordem de relevância do backend: primeiro os textos com todos os termos no título, do título mais relevante, em geral o mais curto, ao menos; depois os que só batem no conteúdo), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
+- A linha de texto selecionada (pelo mouse ou pelo teclado) mostra à direita um botão pequeno **Copiar**, com o ícone de duas folhas sobrepostas e a dica "Copiar (Ctrl+C)". Os itens do Histórico também têm o botão. Pastas, Histórico, Mais usados, Favoritos e a linha de volta não têm.
+- Com texto na busca, a lista é substituída pelos resultados (só dos textos cadastrados; o Histórico fica de fora da busca) (na ordem de relevância do backend: primeiro os textos com todos os termos no título, do título mais relevante, em geral o mais curto, ao menos; depois os que só batem no conteúdo), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
 
 ### Comportamento
 
@@ -391,14 +409,16 @@ Busca:
 | --- | --- |
 | `↑` / `↓`; `Home` / `End` com a busca vazia | Move a seleção (o foco fica no campo de busca); a primeira linha selecionável começa selecionada |
 | `Enter` ou clique num texto | Fecha o menu e cola o texto no programa anterior |
-| Botão Copiar, ou `Ctrl+C` com um texto selecionado | Fecha o menu e deixa o texto no clipboard, sem colar e sem restaurar o conteúdo anterior; o foco volta ao programa anterior. Conta como uso, como a colagem. Com um trecho da busca selecionado, `Ctrl+C` copia o trecho, como em qualquer campo |
+| `Enter` ou clique num item do Histórico | Fecha o menu e cola o item no programa anterior: o texto com a formatação, se havia (o programa escolhe o formato que aceita), ou a imagem. Depois, o texto que estava no clipboard volta, como na colagem de um texto cadastrado. O item sobe para o topo do Histórico |
+| Botão Copiar, ou `Ctrl+C` com um texto selecionado | Fecha o menu e deixa o texto no clipboard, sem colar e sem restaurar o conteúdo anterior; o foco volta ao programa anterior. Conta como uso, como a colagem. Com um trecho da busca selecionado, `Ctrl+C` copia o trecho, como em qualquer campo. Num item do Histórico, deixa o item no clipboard (com todos os formatos) e o sobe para o topo |
 | `Enter`, `→` ou clique numa pasta | Abre a pasta |
 | `←` ou `Backspace` com a busca vazia, ou clique na linha de volta | Volta para a pasta acima |
 | Digitar | Busca; a seleção volta para o primeiro resultado |
 | `Esc`, clique fora ou `Alt+Q` | Fecha o menu sem colar |
 | Passar o mouse | Move a seleção para a linha sob o cursor |
 
-- Cada abertura começa na raiz, com a busca vazia, e recarrega os dados (refletindo as edições do cadastro).
+- Cada abertura começa na raiz, com a busca vazia, e recarrega os dados (refletindo as edições do cadastro e as cópias novas do Histórico).
+- Colar ou copiar pelo CSTM não cria itens novos no Histórico.
 - `→` e `←` só navegam pastas quando o cursor do campo de busca não teria para onde ir (busca vazia); com texto na busca, movem o cursor normalmente.
 
 ### Navegação nas pastas
@@ -433,8 +453,8 @@ Cascata, com Trabalho aberto:
 
 Regras:
 
-1. **Coluna principal:** igual à do modo clique: 340 × 440, busca no topo, pastas virtuais (Mais usados e Favoritos), pastas e textos da raiz. Não tem linha de volta, porque as pastas abrem ao lado. Ela não se move na tela quando colunas se abrem ou fecham. As subcolunas não têm campo de busca nem rodapé.
-2. **Abertura:** passar o mouse sobre uma pasta abre a coluna dela na hora, sem atraso; clicar também abre. Vale para pastas reais e para Mais usados e Favoritos, em qualquer coluna.
+1. **Coluna principal:** igual à do modo clique: 340 × 440, busca no topo, pastas virtuais (Histórico, Mais usados e Favoritos), pastas e textos da raiz. Não tem linha de volta, porque as pastas abrem ao lado. Ela não se move na tela quando colunas se abrem ou fecham. As subcolunas não têm campo de busca nem rodapé.
+2. **Abertura:** passar o mouse sobre uma pasta abre a coluna dela na hora, sem atraso; clicar também abre. Vale para pastas reais e para Histórico, Mais usados e Favoritos, em qualquer coluna.
 3. **Troca e fechamento:** passar para outra pasta substitui as colunas abertas a partir dali. Passar sobre um texto fecha as colunas mais profundas que a coluna dele. Voltar à pasta que já está aberta não faz nada. Como não há atraso, atravessar outra pasta na diagonal até a coluna aberta troca as colunas; o movimento horizontal evita isso. A pasta que originou uma coluna fica realçada.
 4. **Teclado:** `↑` / `↓` movem a seleção na coluna atual (e fecham as colunas à direita dela); `→` ou `Enter` numa pasta abre a coluna e entra nela, com o primeiro item selecionado; `←` fecha a coluna atual e volta à anterior, mantendo a pasta selecionada; `Enter` num texto cola e `Ctrl+C` copia, como no modo clique; `Esc` fecha o menu, como hoje. `→` e `←` só navegam com a busca vazia. A seleção do mouse e a do teclado são a mesma.
 5. **Busca:** com texto na busca, as subcolunas se fecham e os resultados continuam numa lista única, sem cascata (como no modo clique).
@@ -449,7 +469,7 @@ Os cenários de posição (normal, borda direita, borda inferior e coluna grande
 
 | Estado | Exibição |
 | --- | --- |
-| Biblioteca vazia | "Nenhum texto cadastrado." e o botão "Abrir cadastro" |
+| Biblioteca vazia (e sem itens no Histórico) | "Nenhum texto cadastrado." e o botão "Abrir cadastro" |
 | Pasta vazia | "Pasta vazia." abaixo da linha de volta (na cascata, na coluna da pasta) |
 | Busca sem resultados | "Nenhum texto encontrado." |
 | Falha ao carregar | Mensagem de erro do backend no lugar da lista |
@@ -496,9 +516,28 @@ Com todas as opções (cada uma separada da anterior por uma linha):
 | [ o] Iniciar com o Windows                     |
 |      Abre na bandeja ao entrar no Windows,     |
 |      com o atalho já ativo.                    |
+| ---------------------------------------------- |
+| [o ] Guardar o histórico do clipboard          |
+|      Guarda no computador os últimos 100 itens |
+|      copiados em qualquer programa (textos,    |
+|      com a formatação, e imagens) e os mostra  |
+|      na pasta Histórico do menu de colagem. O  |
+|      que gerenciadores de senha marcam como    |
+|      sensível não é guardado.                  |
+|      [ Limpar histórico ]                      |
 |                                                |
 | [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
 +------------------------------------------------+
+```
+
+Confirmando a limpeza do histórico (no lugar do botão):
+
+```text
+| [o ] Guardar o histórico do clipboard          |
+|      ...                                       |
+|      Apagar os 37 itens do histórico? Não é    |
+|      possível desfazer.                        |
+|      [ Limpar ]  [ Cancelar ]                  |
 ```
 
 Gravando um novo atalho:
@@ -519,10 +558,11 @@ Gravando um novo atalho:
 
 ### Estrutura
 
-- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Tem quatro configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o tema e a inicialização com o Windows. Se não couberem na altura da janela, o conteúdo do diálogo rola.
+- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Tem cinco configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o tema, a inicialização com o Windows e o histórico do clipboard. Se não couberem na altura da janela, o conteúdo do diálogo rola.
 - **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho, sem mexer nas demais opções. Os modos estão descritos em Tela 2, Navegação nas pastas.
 - **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
 - **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
+- **Histórico do clipboard:** interruptor "Guardar o histórico do clipboard", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.
 - O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
 - "Restaurar padrão (Alt+Q)" fica à esquerda, desabilitado quando o atalho já é o padrão ou durante a gravação; "Fechar" à direita.
 

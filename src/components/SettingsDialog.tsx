@@ -66,6 +66,15 @@ const useStyles = makeStyles({
   // O Switch tem margem própria; alinha o controle à esquerda, como os títulos.
   switch: { marginLeft: `calc(-1 * ${tokens.spacingHorizontalS})` },
   switchHelp: { color: tokens.colorNeutralForeground2, marginTop: `calc(-1 * ${tokens.spacingVerticalM})` },
+  // Alinhados ao texto do interruptor, como a explicação.
+  historyActions: { display: "flex", alignItems: "center", gap: tokens.spacingHorizontalS },
+  confirm: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalS },
+  confirmButtons: { display: "flex", gap: tokens.spacingHorizontalS },
+  danger: {
+    backgroundColor: tokens.colorPaletteRedBackground3,
+    color: tokens.colorNeutralForegroundOnBrand,
+    ":hover": { backgroundColor: tokens.colorPaletteRedForeground1, color: tokens.colorNeutralForegroundOnBrand },
+  },
   actions: { justifyContent: "space-between" },
 });
 
@@ -78,7 +87,7 @@ interface SettingsDialogProps {
 
 /**
  * Diálogo de configurações: o atalho do menu de colagem, a navegação nas pastas dele, o
- * tema e a inicialização com o Windows.
+ * tema, a inicialização com o Windows e o histórico do clipboard.
  */
 function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogProps) {
   const styles = useStyles();
@@ -97,6 +106,12 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
   const [themeError, setThemeError] = useState<string | null>(null);
   const [autostart, setAutostart] = useState<boolean | null>(null);
   const [autostartError, setAutostartError] = useState<string | null>(null);
+  // Histórico do clipboard: opção e quantidade de itens; `null` até carregar.
+  const [monitoring, setMonitoring] = useState<boolean | null>(null);
+  const [historyCount, setHistoryCount] = useState<number | null>(null);
+  const [confirmingClear, setConfirmingClear] = useState(false);
+  const [cleared, setCleared] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   // Espelho de `recording` para os avisos de janela e o fechamento do diálogo.
   const recordingRef = useRef(false);
@@ -140,8 +155,27 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
       (reason) =>
         current && setAutostartError(`Não foi possível ler a inicialização com o Windows: ${errorMessage(reason)}`),
     );
+    api.getClipboardMonitoring().then(
+      (value) => current && setMonitoring(value),
+      (reason) => current && setHistoryError(`Não foi possível ler o histórico do clipboard: ${errorMessage(reason)}`),
+    );
+    const countHistory = () =>
+      api.listClipboardHistory().then(
+        (items) => current && setHistoryCount(items.length),
+        () => undefined,
+      );
+    void countHistory();
+    // Cópias feitas com as Configurações abertas mudam a quantidade.
+    let unlisten: (() => void) | undefined;
+    api
+      .onClipboardHistoryChanged(() => void countHistory())
+      .then(
+        (remove) => (current ? (unlisten = remove) : remove()),
+        () => undefined,
+      );
     return () => {
       current = false;
+      unlisten?.();
     };
   }, []);
 
@@ -171,6 +205,28 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
       setAutostart(await api.setAutostart(enabled));
     } catch (reason) {
       setAutostartError(`Não foi possível alterar a inicialização com o Windows: ${errorMessage(reason)}`);
+    }
+  }
+
+  // Desligar não apaga os itens já guardados.
+  async function changeMonitoring(enabled: boolean) {
+    setHistoryError(null);
+    try {
+      setMonitoring(await api.setClipboardMonitoring(enabled));
+    } catch (reason) {
+      setHistoryError(`Não foi possível alterar o histórico do clipboard: ${errorMessage(reason)}`);
+    }
+  }
+
+  async function clearHistory() {
+    setHistoryError(null);
+    setConfirmingClear(false);
+    try {
+      await api.clearClipboardHistory();
+      setHistoryCount(0);
+      setCleared(true);
+    } catch (reason) {
+      setHistoryError(`Não foi possível limpar o histórico: ${errorMessage(reason)}`);
     }
   }
 
@@ -361,6 +417,51 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
             {autostartError && (
               <MessageBar intent="error">
                 <MessageBarBody>{autostartError}</MessageBarBody>
+              </MessageBar>
+            )}
+            <Divider className={styles.section} />
+            <Switch
+              className={styles.switch}
+              label="Guardar o histórico do clipboard"
+              checked={monitoring ?? false}
+              disabled={monitoring === null && !historyError}
+              onChange={(_, data) => void changeMonitoring(data.checked)}
+            />
+            <Caption1 className={styles.switchHelp}>
+              Guarda no computador os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e
+              imagens) e os mostra na pasta Histórico do menu de colagem. O que gerenciadores de senha marcam como
+              sensível não é guardado.
+            </Caption1>
+            {confirmingClear ? (
+              <MessageBar intent="warning" layout="multiline">
+                <MessageBarBody className={styles.confirm}>
+                  Apagar {historyCount === 1 ? "o item" : `os ${historyCount} itens`} do histórico? Não é possível
+                  desfazer.
+                  <div className={styles.confirmButtons}>
+                    <Button className={styles.danger} onClick={() => void clearHistory()}>
+                      Limpar
+                    </Button>
+                    <Button onClick={() => setConfirmingClear(false)}>Cancelar</Button>
+                  </div>
+                </MessageBarBody>
+              </MessageBar>
+            ) : (
+              <div className={styles.historyActions}>
+                <Button
+                  disabled={!historyCount}
+                  onClick={() => {
+                    setCleared(false);
+                    setConfirmingClear(true);
+                  }}
+                >
+                  Limpar histórico
+                </Button>
+                {cleared && <Caption1 className={styles.success}>Histórico limpo.</Caption1>}
+              </div>
+            )}
+            {historyError && (
+              <MessageBar intent="error">
+                <MessageBarBody>{historyError}</MessageBarBody>
               </MessageBar>
             )}
           </DialogContent>

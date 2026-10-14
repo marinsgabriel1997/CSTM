@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-10-14
+
+### Added
+
+- Histórico do clipboard: o CSTM guarda os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e imagens) e os mostra na nova pasta Histórico, no topo do menu de colagem. Escolher um item cola no programa anterior; o botão Copiar (ou `Ctrl+C`) o deixa no clipboard. O histórico continua lá depois de reiniciar, não repete itens e ignora o que gerenciadores de senha marcam como sensível e o que o próprio CSTM cola.
+- Nas Configurações, a opção "Guardar o histórico do clipboard" (ligada por padrão) e o botão "Limpar histórico", com confirmação.
+- O instalador mostra o link "CSTM no GitHub" na página final, e "Aplicativos instalados" do Windows passa a mostrar o link do projeto.
+
 ## [0.12.0] - 2026-10-14
 
 ### Added

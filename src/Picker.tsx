@@ -6,12 +6,21 @@ import {
   DocumentText20Regular,
   Fire20Regular,
   Folder20Regular,
+  History20Regular,
   Search16Regular,
   Star20Regular,
 } from "@fluentui/react-icons";
 import { type CSSProperties, type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { api, errorMessage, type Folder, type PickerColumn, type PickerNavigation, type Snippet } from "./api";
+import {
+  api,
+  type ClipboardItem,
+  errorMessage,
+  type Folder,
+  type PickerColumn,
+  type PickerNavigation,
+  type Snippet,
+} from "./api";
 import { folderPath, siblingsOf, snippetsIn } from "./tree";
 
 const useStyles = makeStyles({
@@ -90,6 +99,17 @@ const useStyles = makeStyles({
   icon: { flex: "none", color: tokens.colorNeutralForeground2 },
   folderIcon: { color: tokens.colorPaletteMarigoldForeground1 },
   mostUsedIcon: { color: tokens.colorPaletteDarkOrangeForeground1 },
+  historyIcon: { color: tokens.colorCompoundBrandForeground1 },
+  // Miniatura de uma imagem do histórico, no lugar do ícone.
+  thumbnail: {
+    flex: "none",
+    width: "24px",
+    height: "20px",
+    objectFit: "contain",
+    borderRadius: tokens.borderRadiusSmall,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: tokens.colorNeutralBackground3,
+  },
   label: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" },
   meta: {
     maxWidth: "120px",
@@ -132,15 +152,17 @@ interface Library {
   snippets: Snippet[];
   favorites: Snippet[];
   navigation: PickerNavigation;
+  /** Histórico do clipboard; vazio com a opção desligada. */
+  history: ClipboardItem[];
 }
 
 /** Pastas que só existem no menu, calculadas a cada abertura. */
-type Virtual = "most-used" | "favorites";
+type Virtual = "history" | "most-used" | "favorites";
 
 /** Quantos textos a pasta Mais usados mostra. */
 const MOST_USED_LIMIT = 10;
 
-const VIRTUAL_NAMES: Record<Virtual, string> = { "most-used": "Mais usados", favorites: "Favoritos" };
+const VIRTUAL_NAMES: Record<Virtual, string> = { history: "Histórico", "most-used": "Mais usados", favorites: "Favoritos" };
 
 /** Pasta aberta no menu: a raiz (`null`), uma pasta do cadastro ou uma pasta virtual. */
 type Place = number | Virtual | null;
@@ -148,7 +170,26 @@ type Place = number | Virtual | null;
 type Row =
   | { kind: "folder"; key: string; folder: Folder }
   | { kind: "virtual"; key: string; virtual: Virtual }
-  | { kind: "snippet"; key: string; snippet: Snippet; folderName?: string; tip: string };
+  | { kind: "snippet"; key: string; snippet: Snippet; folderName?: string; tip: string }
+  | { kind: "clip"; key: string; item: ClipboardItem };
+
+/** Linhas que colam ao serem escolhidas: textos cadastrados e itens do histórico. */
+type ItemRow = Extract<Row, { kind: "snippet" | "clip" }>;
+
+const isItem = (row: Row | undefined): row is ItemRow => row?.kind === "snippet" || row?.kind === "clip";
+
+const itemTitle = (row: ItemRow) => (row.kind === "snippet" ? row.snippet.title : row.item.title);
+
+/** Hora da cópia; de outro dia, "ontem" ou a data. */
+function copiedLabel(iso: string, now = new Date()): string {
+  const copied = new Date(iso);
+  const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const pad = (value: number) => String(value).padStart(2, "0");
+  const days = Math.round((day(now) - day(copied)) / 86_400_000);
+  if (days === 0) return `${pad(copied.getHours())}:${pad(copied.getMinutes())}`;
+  if (days === 1) return "ontem";
+  return `${pad(copied.getDate())}/${pad(copied.getMonth() + 1)}`;
+}
 
 /** Subcoluna aberta na cascata, com o que o backend precisa para posicioná-la. */
 interface OpenColumn {
@@ -205,7 +246,8 @@ function snippetWithFolder(folders: Folder[], snippet: Snippet, prefix: string):
 /** Linhas de uma pasta: as pastas virtuais, as pastas e os textos da raiz, ou o conteúdo dela. */
 function contentRows(library: Library | null, place: Place): Row[] {
   if (!library) return [];
-  const { folders, snippets, favorites } = library;
+  const { folders, snippets, favorites, history } = library;
+  if (place === "history") return history.map((item): Row => ({ kind: "clip", key: `clip-${item.id}`, item }));
   if (place === "most-used") return mostUsed(snippets).map((snippet) => snippetWithFolder(folders, snippet, "most-used"));
   if (place === "favorites") return favorites.map((snippet) => snippetWithFolder(folders, snippet, "favorite"));
   const contents: Row[] = [
@@ -217,6 +259,7 @@ function contentRows(library: Library | null, place: Place): Row[] {
   if (place !== null) return contents;
   // Na raiz, as pastas virtuais vêm primeiro e somem quando vazias.
   const virtuals: Row[] = [];
+  if (history.length > 0) virtuals.push({ kind: "virtual", key: folderKey("history"), virtual: "history" });
   if (mostUsed(snippets).length > 0) virtuals.push({ kind: "virtual", key: folderKey("most-used"), virtual: "most-used" });
   if (favorites.length > 0) virtuals.push({ kind: "virtual", key: folderKey("favorites"), virtual: "favorites" });
   return [...virtuals, ...contents];
@@ -242,7 +285,7 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
       role="option"
       aria-selected={selected}
       className={mergeClasses(styles.row, selected ? styles.selected : opener && styles.opener)}
-      title={row.kind === "snippet" ? row.tip : undefined}
+      title={row.kind === "snippet" ? row.tip : row.kind === "clip" ? row.item.preview : undefined}
       onMouseMove={onHover}
       // Mantém o foco no campo de busca ao clicar numa linha.
       onMouseDown={(event) => event.preventDefault()}
@@ -250,8 +293,12 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
     >
       {row.kind === "folder" ? (
         <Folder20Regular className={mergeClasses(styles.icon, styles.folderIcon)} />
+      ) : row.kind === "clip" && row.item.thumbnail ? (
+        <img className={styles.thumbnail} src={row.item.thumbnail} alt="" />
       ) : row.kind === "virtual" ? (
-        row.virtual === "most-used" ? (
+        row.virtual === "history" ? (
+          <History20Regular className={mergeClasses(styles.icon, styles.historyIcon)} />
+        ) : row.virtual === "most-used" ? (
           <Fire20Regular className={mergeClasses(styles.icon, styles.mostUsedIcon)} />
         ) : (
           <Star20Regular className={mergeClasses(styles.icon, styles.folderIcon)} />
@@ -261,16 +308,21 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
       )}
       {/* O Text do Fluent quebra linhas por padrão, anulando o nowrap da linha de altura fixa. */}
       <Text wrap={false} className={styles.label}>
-        {row.kind === "folder" ? row.folder.name : row.kind === "virtual" ? VIRTUAL_NAMES[row.virtual] : row.snippet.title}
+        {row.kind === "folder" ? row.folder.name : row.kind === "virtual" ? VIRTUAL_NAMES[row.virtual] : itemTitle(row)}
       </Text>
       {row.kind === "snippet" && row.folderName && <Caption1 wrap={false} className={styles.meta}>{row.folderName}</Caption1>}
-      {row.kind === "snippet" && selected && (
+      {row.kind === "clip" && (
+        <Caption1 wrap={false} className={styles.meta}>
+          {copiedLabel(row.item.copiedAt)}
+        </Caption1>
+      )}
+      {isItem(row) && selected && (
         <Button
           className={styles.copy}
           size="small"
           appearance="subtle"
           icon={<Copy16Regular />}
-          aria-label={`Copiar ${row.snippet.title}`}
+          aria-label={`Copiar ${itemTitle(row)}`}
           title="Copiar (Ctrl+C)"
           // O foco fica no campo de busca, como nas linhas.
           tabIndex={-1}
@@ -280,9 +332,15 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
           }}
         />
       )}
-      {row.kind !== "snippet" && <ChevronRight16Regular className={styles.chevron} />}
+      {!isItem(row) && <ChevronRight16Regular className={styles.chevron} />}
     </div>
   );
+}
+
+/** Histórico mostrado no menu: nenhum item com a opção desligada. */
+async function loadHistory(): Promise<ClipboardItem[]> {
+  const [monitoring, history] = await Promise.all([api.getClipboardMonitoring(), api.listClipboardHistory()]);
+  return monitoring ? history : [];
 }
 
 const cardStyle = (column: PickerColumn): CSSProperties => ({
@@ -320,7 +378,7 @@ function useAsyncControl() {
 }
 
 /**
- * Menu de colagem: busca, favoritos e pastas, para escolher um texto pelo teclado ou mouse.
+ * Menu de colagem: busca, histórico do clipboard, favoritos e pastas, para escolher um texto pelo teclado ou mouse.
  * As pastas abrem em colunas ao lado (cascata) ou substituem a lista, conforme a configuração.
  */
 function Picker() {
@@ -374,8 +432,15 @@ function Picker() {
 
   useEffect(() => {
     let current = true;
-    Promise.all([api.listFolders(), api.listAllSnippets(), api.listFavorites(), api.getPickerNavigation()]).then(
-      ([folders, snippets, favorites, navigation]) => current && setLibrary({ folders, snippets, favorites, navigation }),
+    Promise.all([
+      api.listFolders(),
+      api.listAllSnippets(),
+      api.listFavorites(),
+      api.getPickerNavigation(),
+      loadHistory(),
+    ]).then(
+      ([folders, snippets, favorites, navigation, history]) =>
+        current && setLibrary({ folders, snippets, favorites, navigation, history }),
       (reason) => current && setError(errorMessage(reason)),
     );
     inputRef.current?.focus();
@@ -392,6 +457,27 @@ function Picker() {
       cancelAnimationFrame(frame);
     };
   }, [version]);
+
+  // Uma cópia feita com o menu aberto atualiza o Histórico.
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    let disposed = false;
+    api
+      .onClipboardHistoryChanged(() => {
+        loadHistory().then(
+          (history) => !disposed && setLibrary((previous) => previous && { ...previous, history }),
+          () => undefined,
+        );
+      })
+      .then(
+        (remove) => (disposed ? remove() : (unlisten = remove)),
+        () => undefined,
+      );
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, []);
 
   useEffect(() => {
     if (!term) return;
@@ -427,7 +513,9 @@ function Picker() {
   };
   const rows = rowsOf(0);
   const active = activeRowOf(activeColumn);
-  const empty = library !== null && library.folders.length === 0 && library.snippets.length === 0;
+  // Sem textos cadastrados, o histórico ainda aparece.
+  const empty =
+    library !== null && library.folders.length === 0 && library.snippets.length === 0 && library.history.length === 0;
   const searching = term !== "" && results?.term !== term;
 
   function select(column: number, key: string | null) {
@@ -515,6 +603,8 @@ function Picker() {
   function choose(column: number, row: Row) {
     if (row.kind === "snippet") {
       api.chooseSnippet(row.snippet.id).catch((reason) => setError(errorMessage(reason)));
+    } else if (row.kind === "clip") {
+      api.pasteClipboardItem(row.item.id).catch((reason) => setError(errorMessage(reason)));
     } else if (cascade) {
       void enterFolder(column, row);
     } else {
@@ -522,14 +612,19 @@ function Picker() {
     }
   }
 
-  /** Fecha o menu deixando o texto no clipboard, sem colar. */
+  /** Fecha o menu deixando o texto (ou o item do histórico) no clipboard, sem colar. */
   function copy(row: Row) {
-    if (row.kind !== "snippet") return;
-    api.copySnippet(row.snippet.id).catch((reason) => setError(errorMessage(reason)));
+    const copied =
+      row.kind === "snippet"
+        ? api.copySnippet(row.snippet.id)
+        : row.kind === "clip"
+          ? api.copyClipboardItem(row.item.id)
+          : null;
+    copied?.catch((reason) => setError(errorMessage(reason)));
   }
 
   function clickRow(column: number, row: Row) {
-    if (row.kind === "snippet" || !cascade) {
+    if (isItem(row) || !cascade) {
       choose(column, row);
       return;
     }
@@ -548,7 +643,7 @@ function Picker() {
     if (activeColumn !== column) setActiveColumn(column);
     if (selection[column] !== row.key) select(column, row.key);
     if (column === 0 && term) return;
-    if (row.kind === "snippet") {
+    if (isItem(row)) {
       closeAfter(column);
     } else if (subs[column]?.place !== placeOfRow(row)) {
       // Sem atraso: a coluna abre assim que o mouse passa sobre a pasta.
@@ -610,8 +705,7 @@ function Picker() {
       case "C": {
         // Com um trecho da busca selecionado, Ctrl+C copia o trecho, como em qualquer campo.
         const input = event.currentTarget;
-        if (!event.ctrlKey || event.altKey || row?.kind !== "snippet" || input.selectionStart !== input.selectionEnd)
-          return;
+        if (!event.ctrlKey || event.altKey || !isItem(row) || input.selectionStart !== input.selectionEnd) return;
         copy(row);
         break;
       }
@@ -660,7 +754,7 @@ function Picker() {
         id={rowId(column, row.key)}
         row={row}
         selected={column === activeColumn && row === activeRowOf(column)}
-        opener={cascade && row.kind !== "snippet" && subs[column]?.place === placeOfRow(row)}
+        opener={cascade && !isItem(row) && subs[column]?.place === placeOfRow(row)}
         onHover={(event) => hoverRow(column, row, event)}
         onClick={() => clickRow(column, row)}
         onCopy={() => copy(row)}
@@ -724,7 +818,7 @@ function Picker() {
             ? !body &&
               !term &&
               active &&
-              active.kind !== "snippet" && (
+              !isItem(active) && (
                 <Caption1>
                   <kbd className={styles.key}>→</kbd> abrir pasta
                 </Caption1>

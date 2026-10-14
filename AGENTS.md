@@ -3,7 +3,7 @@
 ## Contexto e escopo
 
 - CSTM é um aplicativo desktop para cadastrar, organizar e colar textos reutilizáveis por meio de um menu flutuante e atalho global.
-- O MVP tem como alvo Windows. Histórico de clipboard, expansão por abreviação, transformações de texto, variáveis e suporte a Linux/macOS estão fora do escopo documentado.
+- O MVP tem como alvo Windows. Expansão por abreviação, transformações de texto, variáveis e suporte a Linux/macOS estão fora do escopo documentado. O histórico do clipboard (plano 077) guarda textos, formatação HTML/RTF e imagens; o cadastro continua só com textos.
 - A stack atual é React 19, TypeScript 6, Vite 8, Fluent UI React v9, Tauri 2 e Rust edição 2024. A interface usa componentes, tokens e `makeStyles` do Fluent UI.
 - `src/` contém o frontend; `src-tauri/` contém o backend e a configuração desktop; `docs/mvp.md` descreve o escopo e a arquitetura pretendidos.
 - Não tratar funcionalidades, dependências ou módulos previstos no MVP como já implementados.

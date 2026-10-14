@@ -1,12 +1,13 @@
-//! Colagem do texto escolhido no programa que estava ativo quando o menu abriu: reativa
-//! essa janela, troca o clipboard pelo texto, simula `Ctrl+V` e devolve o texto anterior.
-//! A cópia faz o mesmo sem o `Ctrl+V`, deixando o texto no clipboard.
+//! Colagem do item escolhido (um texto cadastrado ou um item do histórico) no programa que
+//! estava ativo quando o menu abriu: reativa essa janela, troca o clipboard pelo item,
+//! simula `Ctrl+V` e devolve o texto anterior. A cópia faz o mesmo sem o `Ctrl+V`,
+//! deixando o item no clipboard.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use tauri::{AppHandle, Manager};
-use tauri_plugin_clipboard_manager::ClipboardExt;
 
+use crate::clipboard::{self, Content, TextContent};
 use crate::picker;
 
 /// Estado da colagem, gerenciado pelo Tauri.
@@ -37,15 +38,9 @@ fn lock_target(app: &AppHandle) -> MutexGuard<'_, Option<isize>> {
         .unwrap_or_else(PoisonError::into_inner)
 }
 
-fn write(app: &AppHandle, content: &str) -> Result<(), String> {
-    app.clipboard()
-        .write_text(content)
-        .map_err(|error| format!("não foi possível copiar o texto: {error}"))
-}
-
-/// Cola o texto na janela guardada e fecha o menu. Se a janela não puder ser reativada,
-/// o texto apenas fica no clipboard, para ser colado manualmente. Retorna se colou.
-pub fn paste(app: &AppHandle, content: &str) -> Result<bool, String> {
+/// Cola o item na janela guardada e fecha o menu. Se a janela não puder ser reativada,
+/// o item apenas fica no clipboard, para ser colado manualmente. Retorna se colou.
+pub fn paste(app: &AppHandle, content: &Content) -> Result<bool, String> {
     let state = app.state::<PasteState>();
     let _running = state
         .inner()
@@ -58,12 +53,13 @@ pub fn paste(app: &AppHandle, content: &str) -> Result<bool, String> {
     let focused = target.is_some_and(platform::activate);
     picker::hide(app);
     if !focused {
-        write(app, content)?;
+        clipboard::write(app, content)?;
         return Ok(false);
     }
 
-    let previous = app.clipboard().read_text().ok();
-    write(app, content)?;
+    // Só o texto anterior volta depois da colagem; outros formatos se perdem (p60).
+    let previous = clipboard::read_text(app);
+    clipboard::write(app, content)?;
     let written = platform::clipboard_sequence();
     platform::wait_for_modifiers_release();
     if !platform::send_ctrl_v() {
@@ -72,14 +68,14 @@ pub fn paste(app: &AppHandle, content: &str) -> Result<bool, String> {
     std::thread::sleep(platform::RESTORE_DELAY);
     if let Some(text) = text_to_restore(previous, written, platform::clipboard_sequence()) {
         // A colagem já aconteceu; uma falha aqui só deixa o texto colado no clipboard.
-        let _ = app.clipboard().write_text(text);
+        let _ = clipboard::write(app, &Content::Text(TextContent::plain(text)));
     }
     Ok(true)
 }
 
-/// Deixa o texto no clipboard, sem colar e sem restaurar o anterior; o menu fecha e o
+/// Deixa o item no clipboard, sem colar e sem restaurar o anterior; o menu fecha e o
 /// foco volta à janela guardada, se ela ainda existir.
-pub fn copy(app: &AppHandle, content: &str) -> Result<(), String> {
+pub fn copy(app: &AppHandle, content: &Content) -> Result<(), String> {
     let state = app.state::<PasteState>();
     // Espera uma colagem em andamento terminar de restaurar o clipboard.
     let _running = state
@@ -93,7 +89,7 @@ pub fn copy(app: &AppHandle, content: &str) -> Result<(), String> {
         platform::activate(window);
     }
     picker::hide(app);
-    write(app, content)
+    clipboard::write(app, content)
 }
 
 #[cfg(windows)]

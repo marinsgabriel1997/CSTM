@@ -1,6 +1,6 @@
 //! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste`,
-//! `transfer`, `tray`, `theme` e `autostart`; os erros chegam ao frontend como mensagens
-//! prontas para exibição.
+//! `transfer`, `tray`, `theme`, `autostart` e `clipboard_history`; os erros chegam ao
+//! frontend como mensagens prontas para exibição.
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -11,6 +11,9 @@ use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
 
 use crate::autostart;
 use crate::cascade::{PlacedColumn, Subcolumn};
+use crate::clipboard::{Content, TextContent};
+use crate::clipboard_history;
+use crate::db::clipboard::{self as history, HistoryItem};
 use crate::db::folders::{self, Folder};
 use crate::db::items::{self, ItemRef, TrashItem};
 use crate::db::settings;
@@ -228,7 +231,7 @@ pub fn picker_ready(app: AppHandle) {
 #[tauri::command]
 pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
     let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
-    if paste::paste(&app, &snippet.content)? {
+    if paste::paste(&app, &Content::Text(TextContent::plain(snippet.content)))? {
         // O texto já foi colado; uma falha no contador não deve aparecer como erro.
         let _ = snippets::record_use(&lock(&state), id);
     }
@@ -239,10 +242,60 @@ pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandRe
 #[tauri::command]
 pub async fn copy_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
     let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
-    paste::copy(&app, &snippet.content)?;
+    paste::copy(&app, &Content::Text(TextContent::plain(snippet.content)))?;
     // Copiar pelo menu é um uso do texto, como colar; uma falha no contador não é erro.
     let _ = snippets::record_use(&lock(&state), id);
     Ok(())
+}
+
+#[tauri::command]
+pub fn list_clipboard_history(state: Db) -> CommandResult<Vec<HistoryItem>> {
+    respond(history::list(&lock(&state)))
+}
+
+/// O item usado sobe para o topo do histórico; uma falha nisso não é erro.
+fn touch_history_item(app: &AppHandle, state: &Db, id: i64) {
+    if history::touch(&lock(state), id).is_ok() {
+        clipboard_history::notify(app);
+    }
+}
+
+// Assíncronos como `choose_snippet` e `copy_snippet`.
+#[tauri::command]
+pub async fn paste_clipboard_item(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
+    let content = respond(history::get(&lock(&state), id))?;
+    paste::paste(&app, &content)?;
+    touch_history_item(&app, &state, id);
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn copy_clipboard_item(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
+    let content = respond(history::get(&lock(&state), id))?;
+    paste::copy(&app, &content)?;
+    touch_history_item(&app, &state, id);
+    Ok(())
+}
+
+/// Apaga o histórico e devolve quantos itens havia.
+#[tauri::command]
+pub fn clear_clipboard_history(app: AppHandle, state: Db) -> CommandResult<usize> {
+    let cleared = respond(history::clear(&lock(&state)))?;
+    clipboard_history::notify(&app);
+    Ok(cleared)
+}
+
+#[tauri::command]
+pub fn get_clipboard_monitoring(state: Db) -> CommandResult<bool> {
+    respond(settings::get_clipboard_history(&lock(&state)))
+}
+
+#[tauri::command]
+pub fn set_clipboard_monitoring(app: AppHandle, state: Db, enabled: bool) -> CommandResult<bool> {
+    respond(settings::set_clipboard_history(&lock(&state), enabled))?;
+    clipboard_history::set_enabled(enabled);
+    clipboard_history::notify(&app);
+    Ok(enabled)
 }
 
 #[tauri::command]
