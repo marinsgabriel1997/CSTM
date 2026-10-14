@@ -89,7 +89,7 @@ fn init(conn: &mut Connection) -> Result<()> {
 }
 
 /// Expressão SQL do instante atual no formato gravado em `created_at`/`updated_at`.
-const NOW: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
+pub(crate) const NOW: &str = "strftime('%Y-%m-%dT%H:%M:%fZ', 'now')";
 
 /// Retorna `value` sem os espaços das bordas, ou erro se ficar vazio.
 fn required<'a>(value: &'a str, field: &'static str) -> Result<&'a str> {

@@ -25,7 +25,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 +--------------------------------------------------------------------------------+
 | CSTM                                                                           |
 +-------------------------------+------------------------------------------------+
-| [ Buscar...      ] [+ Novo v] |  Trabalho > E-mails                    *  ...  |
+| [ Buscar... ] [+ Novo v] [...]|  Trabalho > E-mails                    *  ...  |
 | ( Favoritos )                 |                                                |
 |                               |  Resposta padrão                               |
 | v Trabalho                    |  --------------------------------------------  |
@@ -49,8 +49,9 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | --- | --- |
 | Árvore | Única, com pastas e textos. Pastas primeiro, depois textos, cada grupo na sua ordem manual. Textos sem pasta ficam na raiz. Ícones distintos para pasta (aberta/fechada) e texto; estrela à direita dos favoritos. |
 | Seleção | Item selecionado com fundo e marca de destaque à esquerda. Clicar na seta abre/fecha a pasta; clicar no item o seleciona. |
-| Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Renomear (F2), Mover para… (Ctrl+M), Mover para cima (Alt+↑), Mover para baixo (Alt+↓), Adicionar/Remover dos favoritos (só textos), Excluir (Del). |
+| Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Renomear (F2), Mover para… (Ctrl+M), Mover para cima (Alt+↑), Mover para baixo (Alt+↓), Adicionar/Remover dos favoritos (só textos), Exportar (só pastas; submenu, ver Importação e exportação), Excluir (Del). |
 | Criação | Botão único `+ Novo` com menu: Novo texto (Ctrl+N) e Nova pasta (Ctrl+Shift+N). O destino é a pasta selecionada, ou a pasta do texto selecionado, ou a raiz; o menu informa o destino. Itens novos entram no fim do grupo. |
+| Importar e exportar | Botão `...` ao lado do `+ Novo`, com os submenus Importar e Exportar tudo (ver Importação e exportação). |
 | Nova pasta | Entra na árvore com o nome em edição; Enter grava, Esc cancela. |
 | Editor de texto | Caminho da pasta no topo (cada parte seleciona a pasta na árvore), estrela e `...` à direita. Título grande editável direto, linha fina, conteúdo editável direto. Sem rótulos nem caixas. |
 | Editor de pasta | Selecionar uma pasta mostra o nome como título (renomear editando), a contagem de textos e subpastas e os atalhos "Novo texto aqui" e "Nova subpasta". |
@@ -82,6 +83,75 @@ Regras:
 4. Erro não descarta nada: o conteúdo fica no editor, o item é marcado e a gravação é tentada de novo pelo botão ou na próxima edição.
 5. Uma gravação por texto de cada vez; edições feitas durante a gravação disparam outra ao terminar.
 6. Rascunhos inválidos e com erro ficam em memória enquanto o aplicativo estiver aberto; fechar a janela apenas a oculta. Encerrar o aplicativo ("Sair" na bandeja) com pendências pede confirmação.
+
+### Importação e exportação
+
+Botão `...` ao lado do `+ Novo`:
+
+```text
+[...]
+  Importar       >   Arquivos .txt...
+  Exportar tudo  >   Pasta...
+                     Conteúdo de uma pasta...
+                     Backup JSON...
+                     ------------------------
+                     Em Trabalho > E-mails
+
+[...]
+  Importar       >
+  Exportar tudo  >   Backup JSON...
+                     Pastas e arquivos .txt...
+```
+
+Menu de contexto de uma pasta:
+
+```text
+  Renomear                F2
+  Mover para...       Ctrl+M
+  ------------------------
+  Mover para cima      Alt+Up
+  Mover para baixo   Alt+Down
+  ------------------------
+  Exportar       >   Backup JSON...
+                     Pastas e arquivos .txt...
+  ------------------------
+  Excluir                Del
+```
+
+Notificações de resultado (canto inferior direito, acima da barra inferior; a mais nova embaixo):
+
+```text
+                          +----------------------------------------+
+                          | (v) 12 textos e 3 pastas importados [X]|
+                          |     em Trabalho > E-mails.             |
+                          |     2 arquivos ignorados:              |
+                          |     - notas antigas.txt: não está em   |
+                          |       UTF-8                            |
+                          |     - logo.png: não é um arquivo .txt  |
+                          +----------------------------------------+
+                          | (v) 9 textos e 4 pastas exportados. [X]|
+                          |     C:\Users\gabriel\Documents\CSTM    |
+                          +----------------------------------------+
+| (v) Todas as alterações salvas                  9 textos · 4 pastas |
+```
+
+| Opção | Seletor do Windows | Resultado |
+| --- | --- | --- |
+| Importar → Arquivos .txt… | abrir arquivos `.txt` (vários) | Um texto por arquivo no destino; título é o nome do arquivo sem `.txt` |
+| Importar → Pasta… | escolher pasta | Cria a própria pasta no destino, com subpastas e textos |
+| Importar → Conteúdo de uma pasta… | escolher pasta | Coloca as subpastas e os textos da pasta direto no destino |
+| Importar → Backup JSON… | abrir arquivo `.json` | Recria pastas e textos no destino, com favoritos, ordem, contador de uso e datas |
+| Exportar tudo / Exportar → Backup JSON… | salvar arquivo (`CSTM.json` ou `<pasta>.json`) | Um arquivo com tudo; substituir um arquivo existente é confirmado pelo seletor |
+| Exportar tudo / Exportar → Pastas e arquivos .txt… | escolher pasta | Cria uma pasta nova (`CSTM` ou o nome da pasta, com `(2)` se já existir) com um `.txt` por texto; favoritos, ordem e uso não vão junto |
+
+Regras:
+
+1. O destino da importação é o mesmo do `+ Novo` (pasta selecionada, pasta do texto selecionado ou raiz) e aparece no rodapé do submenu Importar.
+2. A importação só cria: nada é mesclado nem sobrescrito, mesmo com nomes repetidos; os itens entram no fim do grupo. Se algo falhar, nada é importado.
+3. Na leitura dos `.txt`, somente UTF-8 (com ou sem BOM), com as quebras de linha convertidas para LF. Arquivos que não são `.txt`, vazios, fora de UTF-8 ou que não puderem ser lidos são ignorados, assim como links e junções, e listados na notificação (os 10 primeiros e a contagem dos demais).
+4. Backup JSON inválido, de outro programa ou de versão mais nova não importa nada; a notificação de erro explica o motivo.
+5. Antes de exportar, as alterações pendentes do editor são gravadas. A exportação em `.txt` nunca sobrescreve arquivos.
+6. Cancelar o seletor não faz nada. Cada resultado vira uma notificação (Toast do Fluent UI) que entra deslizando pela direita; várias se empilham, a mais nova embaixo. A de sucesso some após 4 segundos, com o tempo pausado enquanto o mouse está sobre ela; a de erro fica até ser fechada. O `X` fecha qualquer uma.
 
 ### Preferências de interface
 

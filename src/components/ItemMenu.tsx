@@ -12,8 +12,11 @@ import {
 } from "@fluentui/react-components";
 import {
   ArrowDown20Regular,
+  ArrowExportUp20Regular,
   ArrowUp20Regular,
+  Braces20Regular,
   Delete20Regular,
+  DocumentMultiple20Regular,
   FolderArrowRight20Regular,
   MoreHorizontal20Regular,
   Rename20Regular,
@@ -29,11 +32,22 @@ const ICONS: Record<ActionKey, ReactElement> = {
   up: <ArrowUp20Regular />,
   down: <ArrowDown20Regular />,
   favorite: <Star20Regular />,
+  exportJson: <Braces20Regular />,
+  exportTxt: <DocumentMultiple20Regular />,
   delete: <Delete20Regular />,
 };
 
 // Grupos separados por divisórias, na ordem do menu.
-const GROUPS: ActionKey[][] = [["rename", "move"], ["up", "down"], ["favorite"], ["delete"]];
+const GROUPS: ActionKey[][] = [
+  ["rename", "move"],
+  ["up", "down"],
+  ["favorite"],
+  ["exportJson", "exportTxt"],
+  ["delete"],
+];
+
+/** Grupos mostrados como submenu, pelo primeiro item, com o rótulo de quem os abre. */
+const SUBMENUS: Partial<Record<ActionKey, string>> = { exportJson: "Exportar" };
 
 const useStyles = makeStyles({
   danger: {
@@ -52,25 +66,40 @@ function ItemMenuList({ actions, onAction }: ItemMenuListProps) {
   const groups = GROUPS.map((keys) => actions.filter((action) => keys.includes(action.key))).filter(
     (group) => group.length > 0,
   );
+  const item = (action: ItemAction) => (
+    <MenuItem
+      key={action.key}
+      icon={ICONS[action.key]}
+      secondaryContent={SHORTCUTS[action.key]}
+      disabled={action.disabled}
+      className={action.key === "delete" ? styles.danger : undefined}
+      onClick={() => onAction(action.key)}
+    >
+      {action.label}
+    </MenuItem>
+  );
   return (
     <MenuList>
-      {groups.map((group, index) => (
-        <Fragment key={group[0].key}>
-          {index > 0 && <MenuDivider />}
-          {group.map((action) => (
-            <MenuItem
-              key={action.key}
-              icon={ICONS[action.key]}
-              secondaryContent={SHORTCUTS[action.key]}
-              disabled={action.disabled}
-              className={action.key === "delete" ? styles.danger : undefined}
-              onClick={() => onAction(action.key)}
-            >
-              {action.label}
-            </MenuItem>
-          ))}
-        </Fragment>
-      ))}
+      {groups.map((group, index) => {
+        const submenu = SUBMENUS[group[0].key];
+        return (
+          <Fragment key={group[0].key}>
+            {index > 0 && <MenuDivider />}
+            {submenu ? (
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <MenuItem icon={<ArrowExportUp20Regular />}>{submenu}</MenuItem>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>{group.map(item)}</MenuList>
+                </MenuPopover>
+              </Menu>
+            ) : (
+              group.map(item)
+            )}
+          </Fragment>
+        );
+      })}
     </MenuList>
   );
 }

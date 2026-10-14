@@ -1,15 +1,18 @@
-//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste` e `tray`;
-//! os erros chegam ao frontend como mensagens prontas para exibição.
+//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste`,
+//! `transfer` e `tray`; os erros chegam ao frontend como mensagens prontas para exibição.
 
+use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use rusqlite::Connection;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
 
 use crate::db::folders::{self, Folder};
 use crate::db::snippets::{self, Snippet};
 use crate::paste;
 use crate::picker::{self, ShortcutStatus};
+use crate::transfer::{self, Summary};
 use crate::tray;
 
 type Db<'a> = State<'a, Mutex<Connection>>;
@@ -185,6 +188,133 @@ pub async fn suspend_shortcut(app: AppHandle) -> ShortcutStatus {
 #[tauri::command]
 pub async fn resume_shortcut(app: AppHandle) -> ShortcutStatus {
     picker::resume_shortcut(&app)
+}
+
+// Os comandos de importação e exportação são assíncronos: os seletores do Windows
+// bloqueiam até a escolha e não podem rodar na thread principal. O banco só é
+// travado depois da escolha. `None` significa que o seletor foi cancelado.
+
+fn transferred(result: transfer::Result<Summary>) -> CommandResult<Option<Summary>> {
+    result.map(Some).map_err(|error| error.to_string())
+}
+
+/// Seletor nativo sobre a janela de cadastro.
+fn dialog(app: &AppHandle) -> FileDialogBuilder<tauri::Wry> {
+    let builder = app.dialog().file();
+    match app.get_webview_window("main") {
+        Some(window) => builder.set_parent(&window),
+        None => builder,
+    }
+}
+
+fn path(file: FilePath) -> CommandResult<PathBuf> {
+    file.into_path()
+        .map_err(|error| format!("caminho inválido: {error}"))
+}
+
+#[tauri::command]
+pub async fn import_txt_files(
+    app: AppHandle,
+    state: Db<'_>,
+    folder_id: Option<i64>,
+) -> CommandResult<Option<Summary>> {
+    let Some(files) = dialog(&app)
+        .set_title("Importar arquivos .txt")
+        .add_filter("Arquivos de texto", &["txt"])
+        .blocking_pick_files()
+    else {
+        return Ok(None);
+    };
+    let paths = files
+        .into_iter()
+        .map(path)
+        .collect::<CommandResult<Vec<_>>>()?;
+    transferred(transfer::import_txt_files(
+        &mut lock(&state),
+        folder_id,
+        &paths,
+    ))
+}
+
+#[tauri::command]
+pub async fn import_folder(
+    app: AppHandle,
+    state: Db<'_>,
+    folder_id: Option<i64>,
+    include_root: bool,
+) -> CommandResult<Option<Summary>> {
+    let title = if include_root {
+        "Importar pasta"
+    } else {
+        "Importar conteúdo de uma pasta"
+    };
+    let Some(dir) = dialog(&app).set_title(title).blocking_pick_folder() else {
+        return Ok(None);
+    };
+    transferred(transfer::import_folder(
+        &mut lock(&state),
+        folder_id,
+        &path(dir)?,
+        include_root,
+    ))
+}
+
+#[tauri::command]
+pub async fn import_json(
+    app: AppHandle,
+    state: Db<'_>,
+    folder_id: Option<i64>,
+) -> CommandResult<Option<Summary>> {
+    let Some(file) = dialog(&app)
+        .set_title("Importar backup JSON")
+        .add_filter("Backup JSON", &["json"])
+        .blocking_pick_file()
+    else {
+        return Ok(None);
+    };
+    transferred(transfer::import_json(
+        &mut lock(&state),
+        folder_id,
+        &path(file)?,
+    ))
+}
+
+#[tauri::command]
+pub async fn export_json(
+    app: AppHandle,
+    state: Db<'_>,
+    folder_id: Option<i64>,
+) -> CommandResult<Option<Summary>> {
+    let name = transfer::json_file_name(&lock(&state), folder_id).map_err(|e| e.to_string())?;
+    // O seletor de salvar pede a confirmação para substituir um arquivo existente.
+    let Some(file) = dialog(&app)
+        .set_title("Exportar backup JSON")
+        .add_filter("Backup JSON", &["json"])
+        .set_file_name(name)
+        .blocking_save_file()
+    else {
+        return Ok(None);
+    };
+    transferred(transfer::export_json(
+        &lock(&state),
+        folder_id,
+        &path(file)?,
+    ))
+}
+
+#[tauri::command]
+pub async fn export_txt(
+    app: AppHandle,
+    state: Db<'_>,
+    folder_id: Option<i64>,
+) -> CommandResult<Option<Summary>> {
+    let Some(dir) = dialog(&app)
+        .set_title("Exportar como pastas e arquivos .txt")
+        .blocking_pick_folder()
+    else {
+        return Ok(None);
+    };
+    transferred(transfer::export_txt(&lock(&state), folder_id, &path(dir)?))
 }
 
 #[cfg(test)]

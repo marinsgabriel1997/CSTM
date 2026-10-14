@@ -18,14 +18,24 @@ import {
 } from "@fluentui/react-components";
 import {
   Add20Regular,
+  ArrowExportUp20Regular,
+  ArrowImport20Regular,
+  Braces20Regular,
   ChevronDown12Regular,
   DocumentAdd20Regular,
+  DocumentMultiple20Regular,
   DocumentMultiple24Regular,
+  DocumentText20Regular,
+  Folder20Regular,
   FolderAdd20Regular,
+  FolderOpen20Regular,
+  MoreHorizontal20Regular,
   Star16Filled,
   Star16Regular,
 } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
+
+import type { ExportFormat, ImportKind } from "../transfer";
 
 const useStyles = makeStyles({
   pane: {
@@ -100,6 +110,9 @@ interface TreePaneProps {
   targetLabel: string;
   onNewSnippet: () => void;
   onNewFolder: () => void;
+  onImport: (kind: ImportKind) => void;
+  /** Exporta a biblioteca inteira. */
+  onExport: (format: ExportFormat) => void;
   children: ReactNode;
 }
 
@@ -114,6 +127,8 @@ function TreePane({
   targetLabel,
   onNewSnippet,
   onNewFolder,
+  onImport,
+  onExport,
   children,
 }: TreePaneProps) {
   const styles = useStyles();
@@ -145,6 +160,53 @@ function TreePane({
               </MenuItem>
               <MenuDivider />
               <MenuGroupHeader>{targetLabel}</MenuGroupHeader>
+            </MenuList>
+          </MenuPopover>
+        </Menu>
+        <Menu>
+          <MenuTrigger disableButtonEnhancement>
+            <Button appearance="subtle" aria-label="Importar e exportar" icon={<MoreHorizontal20Regular />} />
+          </MenuTrigger>
+          <MenuPopover>
+            <MenuList>
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <MenuItem icon={<ArrowImport20Regular />}>Importar</MenuItem>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>
+                    <MenuItem icon={<DocumentText20Regular />} onClick={() => onImport("txt")}>
+                      Arquivos .txt…
+                    </MenuItem>
+                    <MenuItem icon={<Folder20Regular />} onClick={() => onImport("folder")}>
+                      Pasta…
+                    </MenuItem>
+                    <MenuItem icon={<FolderOpen20Regular />} onClick={() => onImport("folderContents")}>
+                      Conteúdo de uma pasta…
+                    </MenuItem>
+                    <MenuItem icon={<Braces20Regular />} onClick={() => onImport("json")}>
+                      Backup JSON…
+                    </MenuItem>
+                    <MenuDivider />
+                    <MenuGroupHeader>{targetLabel}</MenuGroupHeader>
+                  </MenuList>
+                </MenuPopover>
+              </Menu>
+              <Menu>
+                <MenuTrigger disableButtonEnhancement>
+                  <MenuItem icon={<ArrowExportUp20Regular />}>Exportar tudo</MenuItem>
+                </MenuTrigger>
+                <MenuPopover>
+                  <MenuList>
+                    <MenuItem icon={<Braces20Regular />} onClick={() => onExport("json")}>
+                      Backup JSON…
+                    </MenuItem>
+                    <MenuItem icon={<DocumentMultiple20Regular />} onClick={() => onExport("txt")}>
+                      Pastas e arquivos .txt…
+                    </MenuItem>
+                  </MenuList>
+                </MenuPopover>
+              </Menu>
             </MenuList>
           </MenuPopover>
         </Menu>

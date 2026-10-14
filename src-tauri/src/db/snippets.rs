@@ -198,6 +198,34 @@ pub fn record_use(conn: &Connection, id: i64) -> Result<()> {
     )?)
 }
 
+/// Uso e datas de um texto restaurado de um backup.
+pub struct Restored<'a> {
+    pub favorite: bool,
+    pub use_count: i64,
+    pub last_used_at: Option<&'a str>,
+    /// `None` mantém o instante da criação.
+    pub created_at: Option<&'a str>,
+    /// `None` mantém o instante da criação.
+    pub updated_at: Option<&'a str>,
+}
+
+/// Grava no texto o favorito, o uso e as datas de um backup.
+pub fn restore(conn: &Connection, id: i64, restored: &Restored) -> Result<()> {
+    ensure_changed(conn.execute(
+        "UPDATE snippets SET favorite = ?1, use_count = ?2, last_used_at = ?3,
+             created_at = COALESCE(?4, created_at), updated_at = COALESCE(?5, updated_at)
+         WHERE id = ?6",
+        (
+            restored.favorite,
+            restored.use_count,
+            restored.last_used_at,
+            restored.created_at,
+            restored.updated_at,
+            id,
+        ),
+    )?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

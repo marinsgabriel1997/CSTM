@@ -33,6 +33,12 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
 - Tela de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
 
+### 5. Importação e exportação
+
+- Importar arquivos `.txt` (um texto por arquivo, com o nome do arquivo como título), uma pasta do disco (criando a própria pasta ou só o seu conteúdo) ou um backup JSON, no destino selecionado no cadastro. A importação só cria itens novos e é feita por inteiro ou não é feita.
+- Exportar a biblioteca inteira ou uma pasta como pastas com arquivos `.txt` (sem sobrescrever nada) ou como backup JSON completo (com ordem, favoritos, contador de uso e datas).
+- Os `.txt` são lidos e gravados em UTF-8; arquivos em outras codificações são ignorados e informados.
+
 ## Fora do escopo do MVP
 
 - Histórico do clipboard.

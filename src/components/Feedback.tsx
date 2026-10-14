@@ -10,10 +10,16 @@ import {
   MessageBar,
   MessageBarActions,
   MessageBarBody,
+  Toast,
+  ToastBody,
+  ToastTitle,
+  ToastTrigger,
   tokens,
 } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
+
+import type { TransferNotice } from "../transfer";
 
 const useStyles = makeStyles({
   danger: {
@@ -29,6 +35,7 @@ const useStyles = makeStyles({
       color: tokens.colorNeutralForegroundOnBrand,
     },
   },
+  list: { margin: `${tokens.spacingVerticalXXS} 0 0`, paddingLeft: tokens.spacingHorizontalL },
 });
 
 export interface Confirmation {
@@ -106,5 +113,40 @@ export function ErrorMessage({ message, intent = "error", action, onClose }: Err
         </MessageBarActions>
       </MessageBar>
     </div>
+  );
+}
+
+/** Conteúdo da notificação de resultado de importação ou exportação. */
+export function NoticeToast({ notice }: { notice: TransferNotice }) {
+  const styles = useStyles();
+  return (
+    <Toast>
+      <ToastTitle
+        action={
+          <ToastTrigger>
+            <Button
+              appearance="transparent"
+              size="small"
+              aria-label="Fechar notificação"
+              icon={<DismissRegular />}
+            />
+          </ToastTrigger>
+        }
+      >
+        {notice.title}
+      </ToastTitle>
+      {(notice.details || notice.items) && (
+        <ToastBody>
+          {notice.details}
+          {notice.items && (
+            <ul className={styles.list}>
+              {notice.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </ToastBody>
+      )}
+    </Toast>
   );
 }

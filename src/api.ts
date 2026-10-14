@@ -32,6 +32,19 @@ export interface Snippet {
   updatedAt: string;
 }
 
+/** Motivo de um arquivo não ter sido importado. */
+export type SkipReason = "notTxt" | "empty" | "notUtf8" | "link" | "unreadable";
+
+/** Resultado de uma importação ou exportação. */
+export interface TransferSummary {
+  folders: number;
+  snippets: number;
+  /** Arquivos não importados, com o caminho relativo à pasta escolhida. */
+  skipped: { path: string; reason: SkipReason }[];
+  /** Pasta ou arquivo criado pela exportação. */
+  path: string | null;
+}
+
 /** Posição de destino que coloca o item no fim da pasta (o backend limita ao fim). */
 export const END = Number.MAX_SAFE_INTEGER;
 
@@ -83,6 +96,17 @@ export const api = {
   /** Desativa o atalho enquanto uma nova combinação é gravada. */
   suspendShortcut: () => invoke<ShortcutStatus>("suspend_shortcut"),
   resumeShortcut: () => invoke<ShortcutStatus>("resume_shortcut"),
+
+  // Importação e exportação: cada uma abre o seletor do Windows e resolve com `null`
+  // se ele for cancelado. `folderId` é o destino da importação ou a pasta exportada
+  // (`null` = raiz ou biblioteca inteira).
+  importTxtFiles: (folderId: number | null) => invoke<TransferSummary | null>("import_txt_files", { folderId }),
+  /** Com `includeRoot`, cria a própria pasta escolhida; sem ele, importa só o seu conteúdo. */
+  importFolder: (folderId: number | null, includeRoot: boolean) =>
+    invoke<TransferSummary | null>("import_folder", { folderId, includeRoot }),
+  importJson: (folderId: number | null) => invoke<TransferSummary | null>("import_json", { folderId }),
+  exportJson: (folderId: number | null) => invoke<TransferSummary | null>("export_json", { folderId }),
+  exportTxt: (folderId: number | null) => invoke<TransferSummary | null>("export_txt", { folderId }),
 
   // Menu de colagem (janela `picker`).
   /** Avisa a cada abertura do menu. Devolve a função que remove o aviso. */

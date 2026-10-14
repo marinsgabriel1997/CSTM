@@ -6,6 +6,7 @@ mod commands;
 mod db;
 mod paste;
 mod picker;
+mod transfer;
 mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -18,6 +19,7 @@ pub fn run() {
         }))
         .plugin(picker::shortcut_plugin())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
@@ -52,6 +54,11 @@ pub fn run() {
             commands::set_shortcut,
             commands::suspend_shortcut,
             commands::resume_shortcut,
+            commands::import_txt_files,
+            commands::import_folder,
+            commands::import_json,
+            commands::export_json,
+            commands::export_txt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

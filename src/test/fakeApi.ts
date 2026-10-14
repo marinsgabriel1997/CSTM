@@ -1,6 +1,6 @@
 // Implementação em memória de `api` para os testes, imitando os contratos do
 // backend usados pela interface: validação, ordenação manual e busca por prefixo.
-import type { Api, Folder, ShortcutStatus, Snippet } from "../api";
+import type { Api, Folder, ShortcutStatus, Snippet, TransferSummary } from "../api";
 import { DEFAULT_SHORTCUT } from "../shortcut";
 
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
@@ -19,6 +19,12 @@ function bySortOrder<T extends { id: number; sortOrder: number }>(a: T, b: T): n
   return a.sortOrder - b.sortOrder || a.id - b.id;
 }
 
+export interface TransferCall {
+  command: "importTxtFiles" | "importFolder" | "importJson" | "exportJson" | "exportTxt";
+  folderId: number | null;
+  includeRoot?: boolean;
+}
+
 export function createFakeApi() {
   const folders: Folder[] = [];
   const snippets: Snippet[] = [];
@@ -33,6 +39,17 @@ export function createFakeApi() {
   const takenShortcuts = new Set<string>();
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
+  /** Importações e exportações pedidas, na ordem. */
+  const transfers: TransferCall[] = [];
+  // Simula o seletor e o backend; por padrão, o seletor é cancelado.
+  const transfer: { handle: (call: TransferCall) => TransferSummary | null | Promise<TransferSummary | null> } = {
+    handle: () => null,
+  };
+
+  async function runTransfer(call: TransferCall) {
+    transfers.push(call);
+    return transfer.handle(call);
+  }
 
   function findFolder(id: number): Folder {
     const folder = folders.find((f) => f.id === id);
@@ -185,6 +202,11 @@ export function createFakeApi() {
     chooseSnippet: async (id) => {
       delivered.push(findSnippet(id).content);
     },
+    importTxtFiles: (folderId) => runTransfer({ command: "importTxtFiles", folderId }),
+    importFolder: (folderId, includeRoot) => runTransfer({ command: "importFolder", folderId, includeRoot }),
+    importJson: (folderId) => runTransfer({ command: "importJson", folderId }),
+    exportJson: (folderId) => runTransfer({ command: "exportJson", folderId }),
+    exportTxt: (folderId) => runTransfer({ command: "exportTxt", folderId }),
   };
 
   function subscribe(listeners: Set<() => void>, listener: () => void) {
@@ -219,6 +241,8 @@ export function createFakeApi() {
     folders,
     snippets,
     delivered,
+    transfers,
+    transfer,
     shortcut,
     takenShortcuts,
     requestClose,

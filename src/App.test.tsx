@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "./api";
-import App from "./App";
+import App, { NOTICE_DURATION_MS } from "./App";
 import { createFakeApi } from "./test/fakeApi";
 
 let fake: ReturnType<typeof createFakeApi>;
@@ -613,5 +613,170 @@ describe("configurações", () => {
     act(() => fake.requestSettings());
 
     expect(await screen.findByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+  });
+});
+
+describe("importação e exportação", () => {
+  const summary = { folders: 0, snippets: 0, skipped: [], path: null };
+
+  async function chooseTransfer(user: User, submenu: "Importar" | "Exportar tudo", option: string) {
+    await user.click(await screen.findByRole("button", { name: "Importar e exportar" }));
+    await user.click(await screen.findByRole("menuitem", { name: submenu }));
+    await user.click(await screen.findByRole("menuitem", { name: option }));
+  }
+
+  /** Notificação cujo título é `title`. */
+  async function findToast(title: string) {
+    const titleElement = await screen.findByText(title);
+    const toast = titleElement.closest("[role=listitem]");
+    if (!(toast instanceof HTMLElement)) throw new Error(`"${title}" não está numa notificação`);
+    return toast;
+  }
+
+  /** Temporizador da notificação: o Fluent o conta por uma animação CSS, que o jsdom não executa. */
+  function timer(toast: HTMLElement) {
+    return toast.querySelector<HTMLElement>("[data-timer-status]");
+  }
+
+  /** Encerra a animação do temporizador. No jsdom, o React escuta o nome com prefixo. */
+  function endTimer(element: HTMLElement) {
+    act(() => {
+      for (const name of ["animationend", "webkitAnimationEnd"]) element.dispatchEvent(new Event(name, { bubbles: true }));
+    });
+  }
+
+  it("importa uma pasta no destino selecionado e lista os arquivos ignorados", async () => {
+    const user = userEvent.setup();
+    const work = await fake.api.createFolder(null, "Trabalho");
+    fake.transfer.handle = async (call) => {
+      const folder = await fake.api.createFolder(call.folderId, "Clientes");
+      await fake.api.createSnippet(folder.id, "Contrato", "Segue o contrato.");
+      return { ...summary, folders: 1, snippets: 1, skipped: [{ path: "logo.png", reason: "notTxt" }] };
+    };
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Trabalho" }));
+    await chooseTransfer(user, "Importar", "Pasta…");
+
+    expect(fake.transfers).toEqual([{ command: "importFolder", folderId: work.id, includeRoot: true }]);
+    const toast = await findToast("1 texto e 1 pasta importados em Trabalho.");
+    expect(toast).toHaveTextContent("1 arquivo ignorado:");
+    expect(within(toast).getByText("logo.png: não é um arquivo .txt")).toBeInTheDocument();
+    await waitFor(() => expect(treeRows()).toEqual(["Trabalho", "  Clientes", "    Contrato"]));
+
+    await user.click(within(toast).getByRole("button", { name: "Fechar notificação" }));
+    await waitFor(() => expect(screen.queryByText("1 texto e 1 pasta importados em Trabalho.")).not.toBeInTheDocument());
+  });
+
+  it("a notificação de sucesso some após 4 segundos; a de erro fica até ser fechada", async () => {
+    const user = userEvent.setup();
+    fake.transfer.handle = () => ({ ...summary, snippets: 1 });
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    await chooseTransfer(user, "Importar", "Arquivos .txt…");
+    const success = await findToast("1 texto importado na raiz.");
+    expect(timer(success)?.style.animationDuration).toBe(`${NOTICE_DURATION_MS}ms`);
+    endTimer(timer(success)!);
+    await waitFor(() => expect(screen.queryByText("1 texto importado na raiz.")).not.toBeInTheDocument());
+
+    fake.transfer.handle = () => {
+      throw "o arquivo não é um backup do CSTM";
+    };
+    await chooseTransfer(user, "Importar", "Backup JSON…");
+    const failure = await findToast("Não foi possível importar.");
+    expect(timer(failure)).toBeNull();
+  });
+
+  it("empilha as notificações e importa o conteúdo de uma pasta, arquivos .txt e backups na raiz", async () => {
+    const user = userEvent.setup();
+    fake.transfer.handle = () => ({ ...summary, snippets: 2 });
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    await chooseTransfer(user, "Importar", "Conteúdo de uma pasta…");
+    await chooseTransfer(user, "Importar", "Arquivos .txt…");
+    await chooseTransfer(user, "Importar", "Backup JSON…");
+
+    expect(fake.transfers).toEqual([
+      { command: "importFolder", folderId: null, includeRoot: false },
+      { command: "importTxtFiles", folderId: null },
+      { command: "importJson", folderId: null },
+    ]);
+    await waitFor(() => expect(screen.getAllByText("2 textos importados na raiz.")).toHaveLength(3));
+  });
+
+  it("cancelar o seletor não mostra notificação", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    await chooseTransfer(user, "Importar", "Arquivos .txt…");
+
+    expect(fake.transfers).toHaveLength(1);
+    expect(document.querySelector(".fui-Toast")).toBeNull();
+  });
+
+  it("informa o erro da importação e que nada foi importado", async () => {
+    const user = userEvent.setup();
+    fake.transfer.handle = () => {
+      throw "o arquivo não é um backup do CSTM";
+    };
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    await chooseTransfer(user, "Importar", "Backup JSON…");
+
+    const toast = await findToast("Não foi possível importar.");
+    expect(toast).toHaveTextContent("O arquivo não é um backup do CSTM. Nada foi importado.");
+  });
+
+  it("grava as alterações pendentes antes de exportar tudo", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Assinatura", "Att.");
+    let exported = "";
+    fake.transfer.handle = () => {
+      exported = fake.snippets[0].content;
+      return { ...summary, snippets: 1, path: "C:\\Users\\gabriel\\CSTM.json" };
+    };
+    renderApp();
+
+    await user.click(await tree().findByRole("treeitem", { name: "Assinatura" }));
+    await user.type(screen.getByRole("textbox", { name: "Conteúdo" }), ",");
+    await chooseTransfer(user, "Exportar tudo", "Backup JSON…");
+
+    expect(fake.transfers).toEqual([{ command: "exportJson", folderId: null }]);
+    expect(exported).toBe("Att.,");
+    expect(await findToast("1 texto exportado.")).toHaveTextContent("C:\\Users\\gabriel\\CSTM.json");
+  });
+
+  it("exporta uma pasta pelo menu de contexto", async () => {
+    const user = userEvent.setup();
+    const work = await fake.api.createFolder(null, "Trabalho");
+    fake.transfer.handle = () => ({ ...summary, folders: 2, snippets: 3, path: "D:\\Trabalho" });
+    renderApp();
+    await tree().findByRole("treeitem", { name: "Trabalho" });
+
+    const menu = await openContextMenu("Trabalho");
+    await user.click(menu.getByRole("menuitem", { name: "Exportar" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Pastas e arquivos .txt…" }));
+
+    expect(fake.transfers).toEqual([{ command: "exportTxt", folderId: work.id }]);
+    expect(await findToast("3 textos e 2 pastas exportados.")).toHaveTextContent("D:\\Trabalho");
+  });
+
+  it("informa o erro da exportação", async () => {
+    const user = userEvent.setup();
+    fake.transfer.handle = () => {
+      throw "não foi possível acessar D:\\: acesso negado";
+    };
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    await chooseTransfer(user, "Exportar tudo", "Pastas e arquivos .txt…");
+
+    expect(await findToast("Não foi possível exportar.")).toHaveTextContent(
+      "Não foi possível acessar D:\\: acesso negado.",
+    );
   });
 });

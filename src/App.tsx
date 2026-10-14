@@ -1,4 +1,4 @@
-import { makeStyles, tokens } from "@fluentui/react-components";
+import { makeStyles, Toaster, tokens, useId, useToastController } from "@fluentui/react-components";
 import {
   useEffect,
   useMemo,
@@ -12,7 +12,7 @@ import {
 import { sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
 import { api, END, errorMessage, type Folder, type ShortcutStatus, type Snippet } from "./api";
 import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
-import { ConfirmDialog, ErrorMessage, type Confirmation } from "./components/Feedback";
+import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
 import LibraryTree from "./components/LibraryTree";
 import MoveDialog from "./components/MoveDialog";
 import SettingsDialog from "./components/SettingsDialog";
@@ -22,6 +22,15 @@ import { DraftStore } from "./drafts";
 import { clampTreeWidth, loadPreferences, savePreferences, TREE_WIDTH } from "./preferences";
 import { searchTerms } from "./search";
 import { shortcutLabel } from "./shortcut";
+import {
+  exportFailure,
+  exportNotice,
+  importFailure,
+  importNotice,
+  type ExportFormat,
+  type ImportKind,
+  type TransferNotice,
+} from "./transfer";
 import {
   buildTree,
   filterTree,
@@ -35,6 +44,10 @@ import {
 } from "./tree";
 
 const SEARCH_DELAY_MS = 200;
+/** Tempo de exibição da notificação de importação ou exportação concluída. */
+export const NOTICE_DURATION_MS = 4000;
+/** Distância das notificações à borda: acima da barra inferior. */
+const TOASTER_OFFSET = { horizontal: 16, vertical: 40 };
 const DIVIDER_KEY_STEP = 16;
 
 const useStyles = makeStyles({
@@ -147,6 +160,8 @@ function App() {
   const [shortcut, setShortcut] = useState<ShortcutStatus | null>(null);
   const [shortcutWarningDismissed, setShortcutWarningDismissed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const toasterId = useId("notices");
+  const { dispatchToast } = useToastController(toasterId);
   const treeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -407,6 +422,8 @@ function App() {
         { key: "move", label: "Mover para…" },
         { key: "up", label: "Mover para cima", disabled: index <= 0 },
         { key: "down", label: "Mover para baixo", disabled: index >= siblings.length - 1 },
+        { key: "exportJson", label: "Backup JSON…" },
+        { key: "exportTxt", label: "Pastas e arquivos .txt…" },
         { key: "delete", label: "Excluir" },
       ];
     }
@@ -450,6 +467,10 @@ function App() {
       case "favorite":
         toggleFavorite(item.id);
         break;
+      case "exportJson":
+      case "exportTxt":
+        void runExport(key === "exportJson" ? "json" : "txt", item.id);
+        break;
       case "delete":
         confirmDelete(item);
         break;
@@ -484,6 +505,47 @@ function App() {
   function toggleFavorite(id: number) {
     const snippet = snippets.find((candidate) => candidate.id === id);
     if (snippet) attempt(() => api.setFavorite(id, !snippet.favorite));
+  }
+
+  /** Notificação no canto inferior direito; as de sucesso somem sozinhas, as de erro ficam até serem fechadas. */
+  function notify(notice: TransferNotice) {
+    dispatchToast(<NoticeToast notice={notice} />, {
+      intent: notice.intent,
+      timeout: notice.intent === "success" ? NOTICE_DURATION_MS : -1,
+      pauseOnHover: true,
+    });
+  }
+
+  async function runImport(kind: ImportKind) {
+    const folderId = targetFolder();
+    const path = folderPath(folders, folderId).map((folder) => folder.name);
+    try {
+      const summary = await (kind === "txt"
+        ? api.importTxtFiles(folderId)
+        : kind === "json"
+          ? api.importJson(folderId)
+          : api.importFolder(folderId, kind === "folder"));
+      if (!summary) return;
+      clearFilters();
+      reveal(folderId);
+      notify(importNotice(summary, path.length > 0 ? path.join(" › ") : null));
+    } catch (reason) {
+      notify(importFailure(errorMessage(reason)));
+    } finally {
+      reload();
+    }
+  }
+
+  /** Exporta a pasta `folderId` ou, com `null`, a biblioteca inteira. */
+  async function runExport(format: ExportFormat, folderId: number | null) {
+    // A exportação lê o banco: as edições pendentes são gravadas antes.
+    await store.flushAll();
+    try {
+      const summary = await (format === "json" ? api.exportJson(folderId) : api.exportTxt(folderId));
+      if (summary) notify(exportNotice(summary));
+    } catch (reason) {
+      notify(exportFailure(errorMessage(reason)));
+    }
   }
 
   function confirmDelete(item: ItemRef) {
@@ -652,6 +714,8 @@ function App() {
           targetLabel={targetLabel}
           onNewSnippet={() => newSnippet()}
           onNewFolder={() => newFolder()}
+          onImport={(kind) => void runImport(kind)}
+          onExport={(format) => void runExport(format, null)}
         >
           <LibraryTree
             treeRef={treeRef}
@@ -725,6 +789,7 @@ function App() {
           onClose={() => setSettingsOpen(false)}
         />
       )}
+      <Toaster toasterId={toasterId} position="bottom-end" offset={TOASTER_OFFSET} />
       {(error || shortcutWarning) && (
         <div className={styles.messages}>
           {error && <ErrorMessage message={error} onClose={() => setError(null)} />}

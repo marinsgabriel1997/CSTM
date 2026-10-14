@@ -4,7 +4,7 @@ export interface ItemRef {
   id: number;
 }
 
-export type ActionKey = "rename" | "move" | "up" | "down" | "favorite" | "delete";
+export type ActionKey = "rename" | "move" | "up" | "down" | "favorite" | "exportJson" | "exportTxt" | "delete";
 
 export interface ItemAction {
   key: ActionKey;

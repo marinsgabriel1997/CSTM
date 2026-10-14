@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-14
+
+### Added
+
+- Importação pelo botão `...` ao lado de "Novo": arquivos `.txt` viram textos com o nome do arquivo como título; uma pasta do disco é importada com as subpastas, criando a própria pasta ou trazendo só o seu conteúdo; um backup JSON recria pastas e textos com ordem, favoritos, contador de uso e datas. Os itens entram na pasta selecionada e nunca substituem os existentes. Arquivos que não são `.txt`, vazios ou fora de UTF-8 são ignorados e listados na notificação de resultado; um backup inválido não importa nada.
+- Exportação da biblioteca inteira (botão `...`) ou de uma pasta (menu de contexto) como backup JSON completo ou como pastas com um arquivo `.txt` por texto. A exportação em `.txt` cria uma pasta nova e nunca sobrescreve arquivos; nomes inválidos no Windows são ajustados. As alterações pendentes são gravadas antes de exportar.
+- Notificações no canto inferior direito, que entram e saem deslizando e se empilham, para o resultado de importações e exportações. As de sucesso somem após 4 segundos; as de erro ficam até serem fechadas.
+
 ## [0.7.0] - 2026-10-13
 
 ### Added
