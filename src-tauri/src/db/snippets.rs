@@ -100,19 +100,24 @@ pub fn list_favorites(conn: &Connection) -> Result<Vec<Snippet>> {
 }
 
 /// Busca em título e conteúdo; todos os termos são exigidos e cada um corresponde
-/// por prefixo. Resultados mais relevantes primeiro, com peso maior para o título.
+/// por prefixo. Primeiro vêm os textos com todos os termos no título, do título mais
+/// relevante (em geral o mais curto) ao menos; depois, os demais pela relevância no
+/// conteúdo. Pesos no `bm25` sozinhos não bastam: um termo repetido no conteúdo
+/// superava um título que o continha.
 pub fn search_snippets(conn: &Connection, query: &str) -> Result<Vec<Snippet>> {
     let Some(query) = fts_query(query) else {
         return Ok(Vec::new());
     };
+    let title_query = format!("title : ({query})");
     query_list(
         conn,
         &format!(
             "SELECT {COLUMNS} FROM snippets_fts JOIN snippets ON snippets.id = snippets_fts.rowid
              WHERE snippets_fts MATCH ?1 AND {LIVE_SNIPPET}
-             ORDER BY bm25(snippets_fts, 10.0, 1.0), snippets.id"
+             ORDER BY snippets.id IN (SELECT rowid FROM snippets_fts WHERE snippets_fts MATCH ?2) DESC,
+                      bm25(snippets_fts, 1.0, 0.0), bm25(snippets_fts, 0.0, 1.0), snippets.id"
         ),
-        [query],
+        (query, title_query),
     )
 }
 
@@ -430,6 +435,49 @@ mod tests {
         create_snippet(&conn, None, "Reunião", "Segue o link").unwrap();
 
         assert_eq!(search_titles(&conn, "reuniao"), ["Reunião", "Convite"]);
+    }
+
+    #[test]
+    fn search_puts_title_matches_before_repeated_content_matches() {
+        let conn = open_in_memory().unwrap();
+        let long_content = "Prezados, segue o documento para conferência. ".repeat(20);
+        create_snippet(
+            &conn,
+            None,
+            "Coleta individual",
+            &"Assinatura pendente. ".repeat(5),
+        )
+        .unwrap();
+        create_snippet(
+            &conn,
+            None,
+            "Termo enviado para assinatura individual",
+            &long_content,
+        )
+        .unwrap();
+        create_snippet(&conn, None, "20 - Assinatura", &long_content).unwrap();
+
+        assert_eq!(
+            search_titles(&conn, "assinatura"),
+            [
+                "20 - Assinatura",
+                "Termo enviado para assinatura individual",
+                "Coleta individual",
+            ]
+        );
+    }
+
+    #[test]
+    fn search_requires_all_terms_in_the_title_to_rank_it_first() {
+        let conn = open_in_memory().unwrap();
+        let long_content = "Link da sala e pauta em anexo. ".repeat(20);
+        create_snippet(&conn, None, "Reunião", "Projeto: projeto novo").unwrap();
+        create_snippet(&conn, None, "Projeto da reunião semanal", &long_content).unwrap();
+
+        assert_eq!(
+            search_titles(&conn, "reuniao projeto"),
+            ["Projeto da reunião semanal", "Reunião"]
+        );
     }
 
     #[test]

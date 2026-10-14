@@ -16,6 +16,11 @@ Na árvore do cadastro valem os atalhos de um gerenciador de arquivos: Ctrl+cliq
 
 `npm run tauri -- build` gera o instalador em `src-tauri/target/release/bundle/nsis/CSTM_<versão>_x64-setup.exe`. Ele instala o CSTM somente para o usuário atual, em `%LOCALAPPDATA%\CSTM`, sem pedir administrador, e cria o atalho no Menu Iniciar. Se o WebView2 não estiver presente, o instalador o baixa.
 
+Cada build sobrescreve esse arquivo, por isso os instaladores são guardados em `releases/` (fora do Git), copiados sem nunca substituir um arquivo existente:
+
+- `releases/CSTM_<versão>_x64-setup.exe`: versões homologadas, uma por versão, copiadas após o aceite e o commit da versão;
+- `releases/teste/CSTM_<versão>-teste-<plano>-<AAAAMMDD-HHMM>_x64-setup.exe`: builds de teste, identificados pelo plano e pela data e hora do build.
+
 O instalador não tem assinatura digital, por isso o SmartScreen do Windows avisa ao executá-lo: use "Mais informações" e "Executar assim mesmo".
 
 Reinstalar por cima preserva os dados em `%APPDATA%\com.gabriel.cstm`. Ao desinstalar, os dados também são mantidos, a menos que a opção de apagar os dados do aplicativo seja marcada. Para desinstalar, use Configurações > Aplicativos ou execute o instalador da mesma versão e escolha "Desinstalar CSTM".

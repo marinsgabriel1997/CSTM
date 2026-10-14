@@ -253,6 +253,21 @@ describe("busca", () => {
     expect(fake.delivered).toEqual(["Pode deixar."]);
   });
 
+  it("mantém título e pasta em uma linha, para não invadir as linhas vizinhas", async () => {
+    const user = userEvent.setup();
+    const folder = await fake.api.createFolder(null, "Sistemas de Apoio");
+    await fake.api.createSnippet(folder.id, "Plataforma Bry - Erro assinatura de coleta", "Texto");
+    renderPicker();
+    await list().findByRole("option", { name: "Sistemas de Apoio" });
+
+    await user.keyboard("assinatura");
+
+    const option = await list().findByRole("option", { name: /Plataforma Bry/ });
+    for (const text of ["Plataforma Bry - Erro assinatura de coleta", "Sistemas de Apoio"]) {
+      expect(getComputedStyle(within(option).getByText(text)).whiteSpace).toBe("nowrap");
+    }
+  });
+
   it("informa quando nada é encontrado e não navega pastas com texto na busca", async () => {
     const user = userEvent.setup();
     await seed();

@@ -381,7 +381,7 @@ Busca:
 - **Mais usados:** os 10 textos com mais usos (ao menos um), do mais para o menos usado; empates pelo uso mais recente. **Favoritos:** os textos favoritos, por título. Dentro das duas, cada texto mostra à direita a pasta em que está, como na busca. Um texto pode aparecer nelas e na sua pasta.
 - Dentro de uma pasta: uma linha de volta com o caminho (`<  Trabalho > E-mails`) seguida das subpastas e dos textos da pasta, nessa ordem e na ordem manual de cada grupo.
 - Pastas têm `>` à direita. Textos mostram só o título; o conteúdo aparece como dica (tooltip) ao passar o mouse.
-- Com texto na busca, a lista é substituída pelos resultados (na ordem de relevância do backend), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
+- Com texto na busca, a lista é substituída pelos resultados (na ordem de relevância do backend: primeiro os textos com todos os termos no título, do título mais relevante, em geral o mais curto, ao menos; depois os que só batem no conteúdo), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
 
 ### Comportamento
 

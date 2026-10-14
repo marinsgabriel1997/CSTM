@@ -254,10 +254,11 @@ function PickerRow({ id, row, selected, opener, onHover, onClick }: PickerRowPro
       ) : (
         <DocumentText20Regular className={styles.icon} />
       )}
-      <Text className={styles.label}>
+      {/* O Text do Fluent quebra linhas por padrão, anulando o nowrap da linha de altura fixa. */}
+      <Text wrap={false} className={styles.label}>
         {row.kind === "folder" ? row.folder.name : row.kind === "virtual" ? VIRTUAL_NAMES[row.virtual] : row.snippet.title}
       </Text>
-      {row.kind === "snippet" && row.folderName && <Caption1 className={styles.meta}>{row.folderName}</Caption1>}
+      {row.kind === "snippet" && row.folderName && <Caption1 wrap={false} className={styles.meta}>{row.folderName}</Caption1>}
       {row.kind !== "snippet" && <ChevronRight16Regular className={styles.chevron} />}
     </div>
   );

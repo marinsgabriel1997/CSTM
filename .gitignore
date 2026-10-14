@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Instaladores gerados (homologados e de teste)
+releases/

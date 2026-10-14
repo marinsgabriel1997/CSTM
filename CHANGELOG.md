@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-10-14
+
+### Fixed
+
+- Na busca do menu de colagem, os textos com todos os termos no título aparecem antes dos que só os têm no conteúdo, com o título mais curto e direto primeiro; antes, um texto que repetia o termo no conteúdo podia ficar acima de um texto com o termo no título.
+- No menu de colagem, títulos e pastas longos ficam em uma linha, cortados com reticências; antes, quebravam em duas linhas e invadiam as linhas vizinhas.
+
 ## [0.11.0] - 2026-10-14
 
 ### Added
