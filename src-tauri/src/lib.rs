@@ -21,9 +21,9 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let conn = db::open(&data_dir.join("cstm.db"))?;
+            picker::register_shortcut(app, &conn);
             app.manage(Mutex::new(conn));
             tray::create(app)?;
-            picker::register_shortcut(app);
             Ok(())
         })
         .on_window_event(picker::on_window_event)
@@ -46,7 +46,10 @@ pub fn run() {
             commands::exit_app,
             commands::hide_picker,
             commands::choose_snippet,
-            commands::shortcut_error,
+            commands::get_shortcut,
+            commands::set_shortcut,
+            commands::suspend_shortcut,
+            commands::resume_shortcut,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

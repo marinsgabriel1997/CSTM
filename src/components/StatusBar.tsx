@@ -1,8 +1,9 @@
-import { Caption1, Link, makeStyles, mergeClasses, Spinner, tokens } from "@fluentui/react-components";
+import { Button, Caption1, Link, makeStyles, mergeClasses, Spinner, tokens } from "@fluentui/react-components";
 import {
   CheckmarkCircle16Regular,
   ErrorCircle16Regular,
   Info16Regular,
+  Settings16Regular,
   Warning16Regular,
 } from "@fluentui/react-icons";
 import type { ReactNode } from "react";
@@ -16,9 +17,17 @@ const useStyles = makeStyles({
     gap: tokens.spacingHorizontalS,
     minWidth: 0,
     paddingLeft: tokens.spacingHorizontalM,
-    paddingRight: tokens.spacingHorizontalM,
+    paddingRight: tokens.spacingHorizontalXS,
     borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
     color: tokens.colorNeutralForeground2,
+  },
+  status: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    gap: tokens.spacingHorizontalS,
+    minWidth: 0,
+    paddingRight: tokens.spacingHorizontalXS,
   },
   state: {
     display: "flex",
@@ -43,14 +52,16 @@ interface StatusBarProps {
   snippetCount: number;
   folderCount: number;
   onRetry: (id: number) => void;
+  /** Abre as configurações; sem ela, o botão não aparece. */
+  onOpenSettings?: () => void;
 }
 
 function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-/** Estado do salvamento (à esquerda) e totais da biblioteca (à direita). */
-function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry }: StatusBarProps) {
+/** Estado do salvamento (à esquerda), totais da biblioteca e acesso às configurações (à direita). */
+function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry, onOpenSettings }: StatusBarProps) {
   const styles = useStyles();
   const open = drafts.find((draft) => draft.id === openId);
   const failed = drafts.find((draft) => draft.status === "error");
@@ -110,11 +121,23 @@ function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry
   }
 
   return (
-    <footer className={styles.bar} role="status" aria-label="Estado do salvamento">
-      {state}
-      <Caption1 className={styles.totals}>
-        {plural(snippetCount, "texto", "textos")} · {plural(folderCount, "pasta", "pastas")}
-      </Caption1>
+    <footer className={styles.bar}>
+      <div className={styles.status} role="status" aria-label="Estado do salvamento">
+        {state}
+        <Caption1 className={styles.totals}>
+          {plural(snippetCount, "texto", "textos")} · {plural(folderCount, "pasta", "pastas")}
+        </Caption1>
+      </div>
+      {onOpenSettings && (
+        <Button
+          appearance="subtle"
+          size="small"
+          aria-label="Configurações"
+          title="Configurações"
+          icon={<Settings16Regular />}
+          onClick={onOpenSettings}
+        />
+      )}
     </footer>
   );
 }

@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>CSTM — Protótipo das configurações</title>
+<!--
+  Protótipo estático do diálogo de configurações (docs/telas.md).
+  Não faz parte do aplicativo: abre direto no navegador, sem build.
+  O gravador de atalho funciona no navegador (combinações reservadas pelo navegador
+  ou pelo Windows podem não chegar à página). Estados selecionáveis na barra superior
+  ou pela URL: configuracoes.html#estado=gravando&tema=escuro
+-->
+<style>
+  :root {
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+
+  .theme-light {
+    --base: #eef0f3;
+    --layer: #ffffff;
+    --stroke: rgba(0, 0, 0, 0.08);
+    --stroke-strong: rgba(0, 0, 0, 0.14);
+    --text: #1a1a1a;
+    --text-2: #5d5d5d;
+    --text-3: #8b8b8b;
+    --hover: rgba(0, 0, 0, 0.04);
+    --accent: #005fb8;
+    --on-accent: #ffffff;
+    --danger: #c42b1c;
+    --danger-bg: #fde7e9;
+    --warning: #8a5300;
+    --warning-bg: #fff4ce;
+    --success: #0f7b0f;
+    --overlay: rgba(0, 0, 0, 0.3);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 0 1px rgba(0, 0, 0, 0.2);
+    --control: #ffffff;
+    --keycap: #f3f3f3;
+  }
+
+  .theme-dark {
+    --base: #1c1c1c;
+    --layer: #2b2b2b;
+    --stroke: rgba(255, 255, 255, 0.07);
+    --stroke-strong: rgba(255, 255, 255, 0.12);
+    --text: #ffffff;
+    --text-2: #c8c8c8;
+    --text-3: #9a9a9a;
+    --hover: rgba(255, 255, 255, 0.05);
+    --accent: #60cdff;
+    --on-accent: #000000;
+    --danger: #ff99a4;
+    --danger-bg: #442726;
+    --warning: #fce100;
+    --warning-bg: #433519;
+    --success: #6ccb5f;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.6);
+    --control: #2d2d2d;
+    --keycap: #3a3a3a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 24px 40px;
+    font-family: var(--font);
+    font-size: 14px;
+    background: #d9dce1;
+    color: #1a1a1a;
+  }
+
+  /* ---------- Painel do protótipo ---------- */
+  .proto-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 10px;
+  }
+  .proto-bar button {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border: 1px solid #b9bdc4;
+    border-radius: 999px;
+    background: #f4f5f7;
+    cursor: pointer;
+  }
+  .proto-bar button.on { background: #1f2937; color: #fff; border-color: #1f2937; }
+  .proto-bar .sep { width: 1px; height: 20px; background: #b9bdc4; margin: 0 6px; }
+  .proto-note { max-width: 900px; margin: 0 auto 14px; font-size: 13px; color: #374151; min-height: 20px; }
+
+  /* ---------- Janela de cadastro ao fundo ---------- */
+  .window {
+    position: relative;
+    width: 900px;
+    height: 560px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: 32px 1fr 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--base);
+    color: var(--text);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+  .titlebar { display: flex; align-items: center; padding-left: 12px; font-size: 12px; color: var(--text-2); }
+  .content { display: grid; grid-template-columns: 290px 1fr; }
+  .tree { border-right: 1px solid var(--stroke); padding: 12px; color: var(--text-3); font-size: 13px; }
+  .editor { background: var(--layer); padding: 24px; color: var(--text-3); font-size: 13px; }
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 6px 0 12px;
+    font-size: 12px;
+    color: var(--text-2);
+    border-top: 1px solid var(--stroke);
+  }
+  .statusbar .totals { margin-left: auto; color: var(--text-3); }
+  .icon-button {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .icon-button:hover, .icon-button.pressed { background: var(--hover); color: var(--text); }
+
+  /* ---------- Diálogo ---------- */
+  .overlay { position: absolute; inset: 0; background: var(--overlay); display: grid; place-items: center; }
+  .dialog {
+    width: 480px;
+    border-radius: 8px;
+    background: var(--layer);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .dialog-head { display: flex; align-items: center; margin-bottom: 20px; }
+  .dialog-head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .dialog-head .icon-button { margin-left: auto; }
+  .setting-title { font-weight: 600; }
+  .setting-help { margin-top: 2px; font-size: 12.5px; color: var(--text-2); }
+  .shortcut-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .shortcut-field {
+    flex: 1;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    border-bottom: 1px solid var(--text-3);
+    background: var(--control);
+  }
+  .shortcut-field { outline: none; }
+  .shortcut-field.recording { border-bottom: 2px solid var(--accent); }
+  .shortcut-field .placeholder { color: var(--text-3); }
+  kbd {
+    font: inherit;
+    font-size: 13px;
+    min-width: 26px;
+    padding: 2px 7px;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    border-bottom-width: 2px;
+    background: var(--keycap);
+  }
+  .plus { color: var(--text-3); font-size: 12px; }
+  .button {
+    font: inherit;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    background: var(--control);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .button:disabled { opacity: 0.45; cursor: default; }
+  .line { margin-top: 8px; font-size: 12.5px; }
+  .line.hint { color: var(--text-2); }
+  .line.success { color: var(--success); }
+  .bar { margin-top: 12px; padding: 8px 12px; border-radius: 4px; font-size: 13px; line-height: 1.4; }
+  .bar.error { background: var(--danger-bg); color: var(--text); border-left: 3px solid var(--danger); }
+  .bar.warning { background: var(--warning-bg); color: var(--text); border-left: 3px solid var(--warning); }
+  .dialog-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+
+  /* ---------- Menu da bandeja (estado próprio) ---------- */
+  .tray-menu {
+    position: absolute;
+    right: 24px;
+    bottom: 40px;
+    width: 200px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--layer);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: var(--shadow);
+    font-size: 13px;
+  }
+  .tray-menu div { padding: 6px 10px; border-radius: 4px; }
+  .tray-menu .on { background: var(--hover); }
+  .tray-menu hr { border: none; border-top: 1px solid var(--stroke); margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" id="states"></div>
+<div class="proto-note" id="note"></div>
+
+<div class="window" id="window">
+  <div class="titlebar">CSTM</div>
+  <div class="content">
+    <div class="tree">Árvore de pastas e textos</div>
+    <div class="editor">Editor</div>
+  </div>
+  <div class="statusbar">
+    <span>✓ Todas as alterações salvas</span>
+    <span class="totals">9 textos · 4 pastas</span>
+    <button class="icon-button" id="gear" title="Configurações" aria-label="Configurações">⚙</button>
+  </div>
+  <div id="layer"></div>
+</div>
+
+<script>
+  const DEFAULT = ["Alt", "Q"];
+  const MODIFIERS = { Control: "Ctrl", Alt: "Alt", Shift: "Shift" };
+  // Combinações que o "Windows" do protótipo recusa, para demonstrar o erro de registro.
+  const TAKEN = ["Ctrl+Shift+V"];
+
+  const STATES = {
+    atual: { label: "Atalho atual", note: "Estado ao abrir. \"Restaurar padrão\" fica desabilitado quando o atalho já é o padrão." },
+    gravando: { label: "Gravando", note: "O atalho atual fica suspenso enquanto grava. Pressione uma combinação; Esc cancela." },
+    invalida: { label: "Combinação inválida", note: "A regra aparece e o campo continua aguardando." },
+    erro: { label: "Atalho em uso", note: "O Windows recusou a combinação; o atalho anterior continua valendo." },
+    altgr: { label: "Aviso Ctrl+Alt", note: "Aceito, com aviso sobre o AltGr." },
+    alterado: { label: "Atalho alterado", note: "O novo atalho vale imediatamente." },
+    bandeja: { label: "Pela bandeja", note: "O item Configurações mostra a janela de cadastro e abre o diálogo." },
+  };
+
+  let theme = "claro";
+  let state = "atual";
+  let shortcut = ["Ctrl", "Shift", "Espaço"];
+  let pending = [];
+  let message = null;
+
+  const $ = (id) => document.getElementById(id);
+  const label = (keys) => keys.join("+");
+  const keycaps = (keys) => keys.map((key) => `<kbd>${key}</kbd>`).join(`<span class="plus">+</span>`);
+
+  function keyName(event) {
+    const code = event.code;
+    if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+    if (/^Digit\d$/.test(code)) return code.slice(5);
+    if (/^F([1-9]|1[0-2])$/.test(code)) return code;
+    if (code === "Space") return "Espaço";
+    return null;
+  }
+
+  function render() {
+    document.body.className = theme === "escuro" ? "theme-dark" : "theme-light";
+    $("window").className = `window ${document.body.className}`;
+    renderBar();
+    const recording = state === "gravando" || state === "invalida";
+    $("gear").classList.toggle("pressed", state !== "bandeja");
+
+    if (state === "bandeja") {
+      $("layer").innerHTML = `<div class="tray-menu"><div>Abrir cadastro</div><div class="on">Configurações</div><hr /><div>Sair</div></div>`;
+      return;
+    }
+
+    const field = recording
+      ? pending.length
+        ? keycaps([...pending, "…"])
+        : `<span class="placeholder">Pressione o novo atalho…</span>`
+      : keycaps(shortcut);
+    const isDefault = label(shortcut) === label(DEFAULT);
+    let lines = "";
+    if (state === "invalida") lines = `<div class="line hint">Use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço.</div>`;
+    if (state === "gravando") lines = `<div class="line hint">Esc cancela e mantém o atalho atual.</div>`;
+    if (state === "alterado" || state === "altgr") lines = `<div class="line success">Atalho alterado.</div>`;
+    if (state === "erro") lines = `<div class="bar error">Não foi possível usar ${message ?? "Ctrl+Shift+V"}: outro programa pode estar usando esse atalho. O atalho ${label(shortcut)} continua valendo.</div>`;
+    if (state === "altgr") lines += `<div class="bar warning">Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no teclado ABNT2).</div>`;
+
+    $("layer").innerHTML = `
+      <div class="overlay">
+        <div class="dialog" role="dialog" aria-label="Configurações">
+          <div class="dialog-head"><h2>Configurações</h2><button class="icon-button" aria-label="Fechar">✕</button></div>
+          <div class="setting-title">Atalho do menu de colagem</div>
+          <div class="setting-help">Abre o menu de colagem em qualquer programa.</div>
+          <div class="shortcut-row">
+            <div class="shortcut-field ${recording ? "recording" : ""}" id="field" tabindex="0" aria-label="Atalho">${field}</div>
+            ${recording
+              ? `<button class="button" id="cancel">Cancelar</button>`
+              : `<button class="button" id="change">Alterar</button>`}
+          </div>
+          ${lines}
+          <div class="dialog-actions" style="justify-content: space-between">
+            <button class="button" id="restore" ${isDefault || recording ? "disabled" : ""}>Restaurar padrão (Alt+Q)</button>
+            <button class="button primary">Fechar</button>
+          </div>
+        </div>
+      </div>`;
+    $("change")?.addEventListener("click", () => go("gravando"));
+    $("cancel")?.addEventListener("click", () => go("atual"));
+    $("restore").addEventListener("click", () => { shortcut = [...DEFAULT]; go("alterado"); });
+    if (recording) $("field").focus();
+  }
+
+  function go(next) {
+    state = next;
+    pending = [];
+    render();
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (state !== "gravando" && state !== "invalida") return;
+    event.preventDefault();
+    if (event.key === "Escape") return go("atual");
+    if (MODIFIERS[event.key]) {
+      pending = ["Control", "Alt", "Shift"].filter((key) => event.getModifierState(key)).map((key) => MODIFIERS[key]);
+      return render();
+    }
+    const key = keyName(event);
+    const modifiers = [event.ctrlKey && "Ctrl", event.altKey && "Alt", event.shiftKey && "Shift"].filter(Boolean);
+    if (!key || !(event.ctrlKey || event.altKey) || event.metaKey) return go("invalida");
+    const chosen = [...modifiers, key];
+    if (TAKEN.includes(label(chosen))) {
+      message = label(chosen);
+      return go("erro");
+    }
+    shortcut = chosen;
+    go(event.ctrlKey && event.altKey ? "altgr" : "alterado");
+  });
+
+  document.addEventListener("keyup", (event) => {
+    if ((state === "gravando" || state === "invalida") && MODIFIERS[event.key]) {
+      pending = ["Control", "Alt", "Shift"].filter((key) => event.getModifierState(key)).map((key) => MODIFIERS[key]);
+      render();
+    }
+  });
+
+  $("gear").addEventListener("click", () => go("atual"));
+
+  function setState(next) {
+    state = next;
+    pending = [];
+    message = null;
+    shortcut = next === "altgr" ? ["Ctrl", "Alt", "V"] : next === "alterado" ? ["Ctrl", "Shift", "Espaço"] : ["Alt", "Q"];
+    if (next === "invalida") pending = [];
+    location.hash = `estado=${next}&tema=${theme}`;
+    render();
+  }
+
+  function renderBar() {
+    const bar = $("states");
+    bar.innerHTML = "";
+    for (const [key, item] of Object.entries(STATES)) {
+      const button = document.createElement("button");
+      button.textContent = item.label;
+      button.className = key === state ? "on" : "";
+      button.onclick = () => setState(key);
+      bar.appendChild(button);
+    }
+    bar.insertAdjacentHTML("beforeend", `<span class="sep"></span>`);
+    for (const name of ["claro", "escuro"]) {
+      const button = document.createElement("button");
+      button.textContent = name === "claro" ? "Tema claro" : "Tema escuro";
+      button.className = name === theme ? "on" : "";
+      button.onclick = () => {
+        theme = name;
+        location.hash = `estado=${state}&tema=${theme}`;
+        render();
+      };
+      bar.appendChild(button);
+    }
+    $("note").textContent = `${STATES[state].note} Experimente gravar: Ctrl+Shift+V simula um atalho em uso.`;
+  }
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  theme = params.get("tema") === "escuro" ? "escuro" : "claro";
+  setState(STATES[params.get("estado")] ? params.get("estado") : "atual");
+</script>
+</body>
+</html>

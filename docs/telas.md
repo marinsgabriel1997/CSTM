@@ -95,7 +95,8 @@ O aplicativo fica na bandeja do sistema, com a dica "CSTM".
 | --- | --- |
 | Fechar a janela (X ou Alt+F4) | Oculta a janela e grava as pendências, sem confirmação; os rascunhos que não puderem ser gravados ficam em memória |
 | Clique esquerdo no ícone | Abre o cadastro: restaura, mostra e foca a janela |
-| Clique direito no ícone | Menu: **Abrir cadastro**, separador, **Sair** |
+| Clique direito no ícone | Menu: **Abrir cadastro**, **Configurações**, separador, **Sair** |
+| Configurações | Mostra a janela de cadastro e abre o diálogo de configurações |
 | Sair | Grava as pendências e encerra; se algo não puder ser gravado, mostra a janela e pede confirmação ("Sair sem salvar?") |
 | Executar o aplicativo de novo | Não cria outra instância; traz a janela existente |
 
@@ -186,3 +187,73 @@ Busca:
 | Pasta vazia | "Pasta vazia." abaixo da linha de volta |
 | Busca sem resultados | "Nenhum texto encontrado." |
 | Falha ao carregar | Mensagem de erro do backend no lugar da lista |
+
+## Tela 3 — Configurações (diálogo na janela `main`)
+
+Protótipo visual navegável: [`docs/prototipo/configuracoes.html`](prototipo/configuracoes.html) (abre direto no navegador; estados e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
+
+Atalho atual:
+
+```text
++------------------------------------------------+
+| Configurações                              [X] |
+|                                                |
+| Atalho do menu de colagem                      |
+| Abre o menu de colagem em qualquer programa.   |
+|                                                |
+| [ Alt + Q                        ] [ Alterar ] |
+|                                                |
+| [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
++------------------------------------------------+
+```
+
+Gravando um novo atalho:
+
+```text
++------------------------------------------------+
+| Configurações                              [X] |
+|                                                |
+| Atalho do menu de colagem                      |
+| Abre o menu de colagem em qualquer programa.   |
+|                                                |
+| [ Pressione o novo atalho...    ] [Cancelar]   |
+| Esc cancela e mantém o atalho atual.           |
+|                                                |
+| [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
++------------------------------------------------+
+```
+
+### Estrutura
+
+- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Por enquanto, tem uma única configuração: o atalho do menu de colagem.
+- O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
+- "Restaurar padrão (Alt+Q)" fica à esquerda, desabilitado quando o atalho já é o padrão ou durante a gravação; "Fechar" à direita.
+
+### Como abrir
+
+| Origem | Ação |
+| --- | --- |
+| Barra inferior do cadastro | Botão de engrenagem à direita dos totais |
+| Menu da bandeja | Item **Configurações**: mostra a janela e abre o diálogo |
+| Aviso de atalho indisponível | Ação **Alterar atalho** |
+
+### Comportamento
+
+| Ação | Resultado |
+| --- | --- |
+| Alterar | O campo passa a aguardar a combinação ("Pressione o novo atalho…") e o botão vira "Cancelar"; o atalho atual fica suspenso, para poder ser pressionado também |
+| Pressionar modificadores | O campo mostra os modificadores pressionados (`Ctrl` + `…`) |
+| Combinação válida | Vira o novo atalho imediatamente; aparece "Atalho alterado." |
+| Combinação inválida | Mostra a regra ("Use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço.") e continua aguardando |
+| `Esc`, "Cancelar", fechar o diálogo ou ocultar a janela | Encerra a gravação e reativa o atalho atual |
+| Restaurar padrão | Volta para `Alt+Q` |
+
+Regras das combinações: `Ctrl` ou `Alt` obrigatório, `Shift` opcional, sem `Win`; tecla principal entre letras, números, `F1`–`F12` e `Espaço`. A tecla é a física (independe do layout do teclado).
+
+### Estados
+
+| Estado | Exibição |
+| --- | --- |
+| Atalho em uso por outro programa | Faixa de erro: "Não foi possível usar Ctrl+Shift+V: outro programa pode estar usando esse atalho. O atalho Alt+Q continua valendo." |
+| Combinação com `Ctrl+Alt` | Aceita, com faixa de aviso: "Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no teclado ABNT2)." |
+| Atalho atual indisponível ao iniciar | O aviso do cadastro informa o atalho configurado e oferece "Alterar atalho" |

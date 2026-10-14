@@ -82,10 +82,12 @@ interface ErrorMessageProps {
   message: string;
   /** Erro (padrão) ou aviso, quando algo não impede o uso do aplicativo. */
   intent?: "error" | "warning";
+  /** Ação oferecida junto da mensagem. */
+  action?: { label: string; onClick: () => void };
   onClose: () => void;
 }
 
-export function ErrorMessage({ message, intent = "error", onClose }: ErrorMessageProps) {
+export function ErrorMessage({ message, intent = "error", action, onClose }: ErrorMessageProps) {
   return (
     <div role="alert">
       <MessageBar intent={intent}>
@@ -99,7 +101,9 @@ export function ErrorMessage({ message, intent = "error", onClose }: ErrorMessag
               onClick={onClose}
             />
           }
-        />
+        >
+          {action && <Button onClick={action.onClick}>{action.label}</Button>}
+        </MessageBarActions>
       </MessageBar>
     </div>
   );

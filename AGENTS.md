@@ -53,7 +53,7 @@
 - Respeitar os contratos aprovados para pastas, snippets, busca, ordenação, favoritos e persistência SQLite.
 - Preservar a intenção do fluxo de colagem: guardar a janela ativa, selecionar o texto, ocultar o menu, restaurar foco, colar e restaurar o texto anterior do clipboard.
 - Considerar as limitações documentadas de UIPI, entrada simulada e perda de formatos não textuais do clipboard ao definir comportamento e critérios de aceite.
-- O atalho padrão é `Alt+Q` e o menu abre junto ao cursor do mouse (decisões do p50); alterá-los exige nova aprovação.
+- O atalho padrão é `Alt+Q`, configurável pelo usuário na tela de configurações (p55), e o menu abre junto ao cursor do mouse (p50); mudar esses comportamentos exige nova aprovação.
 - Resolver no planejamento a decisão ainda aberta sobre o intervalo de restauração do clipboard.
 - Não adicionar funcionalidades paralelas, substituir a arquitetura ou reescrever módulos inteiros quando uma alteração limitada resolver a tarefa.
 

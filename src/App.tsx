@@ -10,16 +10,18 @@ import {
 } from "react";
 
 import { sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
-import { api, END, errorMessage, type Folder, type Snippet } from "./api";
+import { api, END, errorMessage, type Folder, type ShortcutStatus, type Snippet } from "./api";
 import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, type Confirmation } from "./components/Feedback";
 import LibraryTree from "./components/LibraryTree";
 import MoveDialog from "./components/MoveDialog";
+import SettingsDialog from "./components/SettingsDialog";
 import StatusBar from "./components/StatusBar";
 import TreePane from "./components/TreePane";
 import { DraftStore } from "./drafts";
 import { clampTreeWidth, loadPreferences, savePreferences, TREE_WIDTH } from "./preferences";
 import { searchTerms } from "./search";
+import { shortcutLabel } from "./shortcut";
 import {
   buildTree,
   filterTree,
@@ -141,8 +143,10 @@ function App() {
   const [moving, setMoving] = useState<ItemRef | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Falha ao registrar o atalho do menu de colagem, informada uma vez ao abrir.
-  const [shortcutWarning, setShortcutWarning] = useState<string | null>(null);
+  // Atalho do menu de colagem; `null` até carregar (ou fora do Tauri).
+  const [shortcut, setShortcut] = useState<ShortcutStatus | null>(null);
+  const [shortcutWarningDismissed, setShortcutWarningDismissed] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const treeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -167,8 +171,8 @@ function App() {
 
   useEffect(() => {
     let current = true;
-    api.shortcutError().then(
-      (message) => current && setShortcutWarning(message),
+    api.getShortcut().then(
+      (status) => current && setShortcut(status),
       // Fora do Tauri (frontend no navegador) não há atalho global.
       () => undefined,
     );
@@ -228,6 +232,8 @@ function App() {
     [store],
   );
 
+  useEffect(() => listenWindow(api.onSettingsRequested, () => setSettingsOpen(true)), []);
+
   // "Sair" na bandeja grava o que estiver pendente e pede confirmação se algo não puder ser gravado.
   useEffect(
     () =>
@@ -257,6 +263,12 @@ function App() {
     if (focusRequest.current === "title") titleRef.current?.focus();
     focusRequest.current = null;
   });
+
+  // O atalho fica sem registro também durante a gravação de um novo, com o diálogo aberto.
+  const shortcutWarning =
+    shortcut && !shortcut.registered && !shortcutWarningDismissed && !settingsOpen
+      ? `O atalho ${shortcutLabel(shortcut.shortcut)} não pôde ser registrado; outro programa pode estar usando-o.`
+      : null;
 
   // Textos como aparecem na tela: com as edições ainda não gravadas e os textos novos.
   const displaySnippets = useMemo(() => {
@@ -686,6 +698,7 @@ function App() {
         snippetCount={snippets.length}
         folderCount={folders.length}
         onRetry={(id) => void store.retry(id)}
+        onOpenSettings={shortcut ? () => setSettingsOpen(true) : undefined}
       />
       {moving && (movingFolder || movingSnippet) && (
         <MoveDialog
@@ -702,11 +715,26 @@ function App() {
         />
       )}
       <ConfirmDialog confirmation={confirmation} onCancel={() => setConfirmation(null)} />
+      {settingsOpen && shortcut && (
+        <SettingsDialog
+          shortcut={shortcut}
+          onShortcutChange={(status) => {
+            setShortcut(status);
+            setShortcutWarningDismissed(false);
+          }}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
       {(error || shortcutWarning) && (
         <div className={styles.messages}>
           {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
           {shortcutWarning && (
-            <ErrorMessage intent="warning" message={shortcutWarning} onClose={() => setShortcutWarning(null)} />
+            <ErrorMessage
+              intent="warning"
+              message={shortcutWarning}
+              action={{ label: "Alterar atalho", onClick: () => setSettingsOpen(true) }}
+              onClose={() => setShortcutWarningDismissed(true)}
+            />
           )}
         </div>
       )}

@@ -1,6 +1,7 @@
 // Implementação em memória de `api` para os testes, imitando os contratos do
 // backend usados pela interface: validação, ordenação manual e busca por prefixo.
-import type { Api, Folder, Snippet } from "../api";
+import type { Api, Folder, ShortcutStatus, Snippet } from "../api";
+import { DEFAULT_SHORTCUT } from "../shortcut";
 
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
@@ -26,6 +27,10 @@ export function createFakeApi() {
   const closeListeners = new Set<() => void>();
   const quitListeners = new Set<() => void>();
   const pickerListeners = new Set<() => void>();
+  const settingsListeners = new Set<() => void>();
+  const shortcut: ShortcutStatus = { shortcut: DEFAULT_SHORTCUT, registered: true };
+  /** Atalhos que o "Windows" recusa, como se outro programa os usasse. */
+  const takenShortcuts = new Set<string>();
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
 
@@ -160,7 +165,21 @@ export function createFakeApi() {
     hideWindow: async () => {},
     showWindow: async () => {},
     exitApp: async () => {},
-    shortcutError: async () => null,
+    onSettingsRequested: async (onOpen) => subscribe(settingsListeners, onOpen),
+    getShortcut: async () => ({ ...shortcut }),
+    setShortcut: async (value) => {
+      if (takenShortcuts.has(value)) throw "o atalho não pôde ser registrado: HotKey already registered";
+      Object.assign(shortcut, { shortcut: value, registered: true });
+      return { ...shortcut };
+    },
+    suspendShortcut: async () => {
+      shortcut.registered = false;
+      return { ...shortcut };
+    },
+    resumeShortcut: async () => {
+      shortcut.registered = !takenShortcuts.has(shortcut.shortcut);
+      return { ...shortcut };
+    },
     onPickerOpened: async (onOpen) => subscribe(pickerListeners, onOpen),
     hidePicker: async () => {},
     chooseSnippet: async (id) => {
@@ -190,5 +209,21 @@ export function createFakeApi() {
     pickerListeners.forEach((listener) => listener());
   }
 
-  return { api, folders, snippets, delivered, requestClose, requestQuit, openPicker };
+  /** Simula o item "Configurações" da bandeja. */
+  function requestSettings() {
+    settingsListeners.forEach((listener) => listener());
+  }
+
+  return {
+    api,
+    folders,
+    snippets,
+    delivered,
+    shortcut,
+    takenShortcuts,
+    requestClose,
+    requestQuit,
+    openPicker,
+    requestSettings,
+  };
 }

@@ -1,5 +1,9 @@
 //! Menu de colagem: janela `picker` aberta pelo atalho global junto ao cursor do mouse.
 
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
+use rusqlite::Connection;
+use serde::Serialize;
 use tauri::plugin::TauriPlugin;
 use tauri::{
     App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, Window, WindowEvent,
@@ -8,8 +12,11 @@ use tauri::{
 use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
+use crate::db::settings;
+
 const PICKER_WINDOW: &str = "picker";
-const SHORTCUT: &str = "Alt+Q";
+/// Atalho padrão, no formato do `tauri-plugin-global-shortcut` (tecla física).
+pub const DEFAULT_SHORTCUT: &str = "Alt+KeyQ";
 /// Tamanho lógico do menu, o mesmo declarado em `tauri.conf.json`.
 const WIDTH: f64 = 340.0;
 const HEIGHT: f64 = 440.0;
@@ -17,8 +24,15 @@ const HEIGHT: f64 = 440.0;
 /// Evento enviado ao menu a cada abertura, para que volte à raiz e recarregue os dados.
 const PICKER_OPENED: &str = "picker-opened";
 
-/// Mensagem exibida no cadastro quando o atalho não pôde ser registrado.
-pub struct ShortcutError(pub Option<String>);
+/// Atalho configurado e se ele está registrado no momento. Fica sem registro quando o
+/// Windows o recusa ao iniciar ou enquanto o cadastro grava uma nova combinação.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ShortcutStatus {
+    pub shortcut: String,
+    pub registered: bool,
+}
+
+type ShortcutLock = Mutex<ShortcutStatus>;
 
 /// Retângulo em pixels físicos, como a área útil de um monitor.
 #[derive(Debug, Clone, Copy)]
@@ -60,15 +74,137 @@ pub fn shortcut_plugin() -> TauriPlugin<Wry> {
         .build()
 }
 
-/// Registra o atalho; a falha (por exemplo, atalho já usado por outro programa) não
-/// impede o aplicativo de abrir e fica disponível para o cadastro exibir.
-pub fn register_shortcut(app: &App) {
-    let error = app.global_shortcut().register(SHORTCUT).err().map(|error| {
-        format!(
-            "O atalho {SHORTCUT} não pôde ser registrado; outro programa pode estar usando-o. ({error})"
-        )
-    });
-    app.manage(ShortcutError(error));
+/// Normaliza uma combinação como `Ctrl+Shift+KeyV`: `Ctrl` ou `Alt` obrigatório, `Shift`
+/// opcional, sem `Win`; tecla principal entre letras, números, `F1`–`F12` e espaço.
+pub fn normalize_shortcut(text: &str) -> Result<String, String> {
+    let invalid = || {
+        "combinação inválida: use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço"
+            .to_string()
+    };
+    let mut parts: Vec<&str> = text.split('+').map(str::trim).collect();
+    let key = parts
+        .pop()
+        .filter(|key| is_allowed_key(key))
+        .ok_or_else(invalid)?;
+    let (mut ctrl, mut alt, mut shift) = (false, false, false);
+    for part in parts {
+        let flag = match part.to_ascii_lowercase().as_str() {
+            "ctrl" | "control" => &mut ctrl,
+            "alt" => &mut alt,
+            "shift" => &mut shift,
+            _ => return Err(invalid()),
+        };
+        if *flag {
+            return Err(invalid());
+        }
+        *flag = true;
+    }
+    if !ctrl && !alt {
+        return Err(invalid());
+    }
+    let mut normalized: Vec<&str> = [(ctrl, "Ctrl"), (alt, "Alt"), (shift, "Shift")]
+        .into_iter()
+        .filter_map(|(on, name)| on.then_some(name))
+        .collect();
+    normalized.push(key);
+    Ok(normalized.join("+"))
+}
+
+fn is_allowed_key(key: &str) -> bool {
+    let single = |prefix: &str, valid: fn(char) -> bool| {
+        key.strip_prefix(prefix)
+            .is_some_and(|rest| rest.len() == 1 && rest.chars().all(valid))
+    };
+    let function = key
+        .strip_prefix('F')
+        .filter(|number| !number.starts_with('0'))
+        .and_then(|number| number.parse::<u8>().ok())
+        .is_some_and(|number| (1..=12).contains(&number));
+    key == "Space"
+        || single("Key", |c| c.is_ascii_uppercase())
+        || single("Digit", |c| c.is_ascii_digit())
+        || function
+}
+
+/// Registra o atalho salvo (ou o padrão); a falha (por exemplo, atalho já usado por outro
+/// programa) não impede o aplicativo de abrir e fica disponível para o cadastro exibir.
+pub fn register_shortcut(app: &App, conn: &Connection) {
+    let shortcut = settings::get_setting(conn, settings::SHORTCUT)
+        .ok()
+        .flatten()
+        .and_then(|saved| normalize_shortcut(&saved).ok())
+        .unwrap_or_else(|| DEFAULT_SHORTCUT.to_string());
+    let registered = app.global_shortcut().register(shortcut.as_str()).is_ok();
+    app.manage::<ShortcutLock>(Mutex::new(ShortcutStatus {
+        shortcut,
+        registered,
+    }));
+}
+
+fn lock_shortcut(app: &AppHandle) -> MutexGuard<'_, ShortcutStatus> {
+    app.state::<ShortcutLock>()
+        .inner()
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+}
+
+pub fn shortcut_status(app: &AppHandle) -> ShortcutStatus {
+    lock_shortcut(app).clone()
+}
+
+/// Troca o atalho: registra o novo, grava e só então libera o anterior. Em qualquer
+/// falha, o atalho anterior continua valendo.
+pub fn change_shortcut(
+    app: &AppHandle,
+    conn: &Connection,
+    text: &str,
+) -> Result<ShortcutStatus, String> {
+    let shortcut = normalize_shortcut(text)?;
+    let mut status = lock_shortcut(app);
+    let manager = app.global_shortcut();
+    let unchanged = shortcut == status.shortcut && status.registered;
+    if !unchanged {
+        manager
+            .register(shortcut.as_str())
+            .map_err(|error| format!("o atalho não pôde ser registrado: {error}"))?;
+    }
+    if let Err(error) = settings::set_setting(conn, settings::SHORTCUT, &shortcut) {
+        if !unchanged {
+            let _ = manager.unregister(shortcut.as_str());
+        }
+        return Err(error.to_string());
+    }
+    if !unchanged && status.registered {
+        let _ = manager.unregister(status.shortcut.as_str());
+    }
+    *status = ShortcutStatus {
+        shortcut,
+        registered: true,
+    };
+    Ok(status.clone())
+}
+
+/// Desativa o atalho enquanto o cadastro grava uma combinação, para que ele também
+/// possa ser pressionado.
+pub fn suspend_shortcut(app: &AppHandle) -> ShortcutStatus {
+    let mut status = lock_shortcut(app);
+    if status.registered {
+        let _ = app.global_shortcut().unregister(status.shortcut.as_str());
+        status.registered = false;
+    }
+    status.clone()
+}
+
+/// Reativa o atalho configurado, se ele não estiver registrado.
+pub fn resume_shortcut(app: &AppHandle) -> ShortcutStatus {
+    let mut status = lock_shortcut(app);
+    if !status.registered {
+        status.registered = app
+            .global_shortcut()
+            .register(status.shortcut.as_str())
+            .is_ok();
+    }
+    status.clone()
 }
 
 fn toggle(app: &AppHandle) {
@@ -191,6 +327,49 @@ mod tests {
         };
         assert_eq!(place((-100, 50), SIZE, left), (-440, 50));
         assert_eq!(place((-1280, 900), SIZE, left), (-1280, 460));
+    }
+
+    #[test]
+    fn normalizes_accepted_combinations() {
+        assert_eq!(normalize_shortcut("Alt+KeyQ").unwrap(), "Alt+KeyQ");
+        assert_eq!(
+            normalize_shortcut("shift+control+Space").unwrap(),
+            "Ctrl+Shift+Space"
+        );
+        assert_eq!(
+            normalize_shortcut("Shift+Alt+Ctrl+Digit5").unwrap(),
+            "Ctrl+Alt+Shift+Digit5"
+        );
+        assert_eq!(normalize_shortcut("Ctrl+F12").unwrap(), "Ctrl+F12");
+        assert_eq!(
+            normalize_shortcut(DEFAULT_SHORTCUT).unwrap(),
+            DEFAULT_SHORTCUT
+        );
+    }
+
+    #[test]
+    fn rejects_combinations_outside_the_rules() {
+        for text in [
+            "KeyQ",
+            "Shift+KeyQ",
+            "Super+KeyQ",
+            "Ctrl+Super+KeyQ",
+            "Alt+Alt+KeyQ",
+            "Alt+Q",
+            "Alt+Keyq",
+            "Alt+F13",
+            "Alt+F0",
+            "Alt+F01",
+            "Alt+Enter",
+            "Alt+",
+            "Alt+KeyQ+KeyW",
+            "",
+        ] {
+            assert!(
+                normalize_shortcut(text).is_err(),
+                "{text} deveria ser recusado"
+            );
+        }
     }
 
     #[test]

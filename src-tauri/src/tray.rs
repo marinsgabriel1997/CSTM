@@ -6,17 +6,21 @@ use tauri::{App, AppHandle, Emitter, Manager};
 
 const MAIN_WINDOW: &str = "main";
 const OPEN_ITEM: &str = "open";
+const SETTINGS_ITEM: &str = "settings";
 const QUIT_ITEM: &str = "quit";
 
 /// Evento enviado à janela `main` quando o usuário pede para sair. O frontend grava
 /// as alterações pendentes e decide se encerra o aplicativo.
 const QUIT_REQUESTED: &str = "quit-requested";
+/// Evento enviado à janela `main` para abrir o diálogo de configurações.
+const SETTINGS_REQUESTED: &str = "settings-requested";
 
 pub fn create(app: &App) -> tauri::Result<()> {
     let menu = Menu::with_items(
         app,
         &[
             &MenuItem::with_id(app, OPEN_ITEM, "Abrir cadastro", true, None::<&str>)?,
+            &MenuItem::with_id(app, SETTINGS_ITEM, "Configurações", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, QUIT_ITEM, "Sair", true, None::<&str>)?,
         ],
@@ -27,6 +31,7 @@ pub fn create(app: &App) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
             OPEN_ITEM => show_main_window(app),
+            SETTINGS_ITEM => open_settings(app),
             QUIT_ITEM => request_quit(app),
             _ => {}
         })
@@ -55,6 +60,11 @@ pub fn show_main_window(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+fn open_settings(app: &AppHandle) {
+    show_main_window(app);
+    let _ = app.emit_to(MAIN_WINDOW, SETTINGS_REQUESTED, ());
 }
 
 fn request_quit(app: &AppHandle) {

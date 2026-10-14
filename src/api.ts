@@ -13,6 +13,12 @@ export interface Folder {
   updatedAt: string;
 }
 
+/** Atalho configurado e se ele está registrado no Windows no momento. */
+export interface ShortcutStatus {
+  shortcut: string;
+  registered: boolean;
+}
+
 export interface Snippet {
   id: number;
   folderId: number | null;
@@ -67,8 +73,16 @@ export const api = {
   /** Mostra a janela, mesmo oculta ou minimizada, e lhe dá o foco. */
   showWindow: () => invoke<void>("show_main_window"),
   exitApp: () => invoke<void>("exit_app"),
-  /** Mensagem de falha ao registrar o atalho do menu de colagem; `null` se ele está ativo. */
-  shortcutError: () => invoke<string | null>("shortcut_error"),
+  /** Abre o diálogo de configurações a pedido da bandeja. Devolve a função que remove o aviso. */
+  onSettingsRequested: async (onOpen: () => void) => listen("settings-requested", () => onOpen()),
+
+  // Atalho do menu de colagem, no formato do plugin de atalhos (`Alt+KeyQ`).
+  getShortcut: () => invoke<ShortcutStatus>("get_shortcut"),
+  /** Troca o atalho; em falha (combinação inválida ou recusada), o anterior continua valendo. */
+  setShortcut: (shortcut: string) => invoke<ShortcutStatus>("set_shortcut", { shortcut }),
+  /** Desativa o atalho enquanto uma nova combinação é gravada. */
+  suspendShortcut: () => invoke<ShortcutStatus>("suspend_shortcut"),
+  resumeShortcut: () => invoke<ShortcutStatus>("resume_shortcut"),
 
   // Menu de colagem (janela `picker`).
   /** Avisa a cada abertura do menu. Devolve a função que remove o aviso. */

@@ -464,15 +464,24 @@ describe("segundo plano", () => {
 });
 
 describe("atalho do menu de colagem", () => {
-  it("avisa quando o atalho não pôde ser registrado", async () => {
+  it("avisa quando o atalho não pôde ser registrado e oferece alterá-lo", async () => {
     const user = userEvent.setup();
-    api.shortcutError = async () => "O atalho Alt+Q não pôde ser registrado; outro programa pode estar usando-o.";
+    fake.shortcut.registered = false;
     renderApp();
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("O atalho Alt+Q não pôde ser registrado");
 
-    await user.click(within(alert).getByRole("button", { name: "Fechar mensagem" }));
+    await user.click(within(alert).getByRole("button", { name: "Alterar atalho" }));
+    expect(await screen.findByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+  });
+
+  it("o aviso pode ser fechado", async () => {
+    const user = userEvent.setup();
+    fake.shortcut.registered = false;
+    renderApp();
+
+    await user.click(within(await screen.findByRole("alert")).getByRole("button", { name: "Fechar mensagem" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
@@ -481,5 +490,128 @@ describe("atalho do menu de colagem", () => {
 
     await screen.findByText("Nenhum texto ainda");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("configurações", () => {
+  async function openSettings(user: User) {
+    await user.click(await screen.findByRole("button", { name: "Configurações" }));
+    return within(await screen.findByRole("dialog", { name: "Configurações" }));
+  }
+
+  function shortcutField() {
+    return screen.getByRole("textbox", { name: "Atalho" });
+  }
+
+  function shownKeys() {
+    return [...shortcutField().querySelectorAll("kbd")].map((key) => key.textContent);
+  }
+
+  it("mostra o atalho atual, com o padrão sem a opção de restaurar", async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    const dialog = await openSettings(user);
+
+    expect(shownKeys()).toEqual(["Alt", "Q"]);
+    expect(dialog.getByRole("button", { name: "Restaurar padrão (Alt+Q)" })).toBeDisabled();
+  });
+
+  it("grava a combinação pressionada, suspendendo o atalho durante a gravação", async () => {
+    const user = userEvent.setup();
+    const suspend = vi.spyOn(api, "suspendShortcut");
+    renderApp();
+    const dialog = await openSettings(user);
+
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+    expect(suspend).toHaveBeenCalled();
+    expect(fake.shortcut.registered).toBe(false);
+    expect(shortcutField()).toHaveTextContent("Pressione o novo atalho…");
+
+    await user.keyboard("{Control>}{Shift>}");
+    expect(shownKeys()).toEqual(["Ctrl", "Shift", "…"]);
+    await user.keyboard("[Space]{/Shift}{/Control}");
+
+    expect(await dialog.findByText("Atalho alterado.")).toBeInTheDocument();
+    expect(fake.shortcut).toEqual({ shortcut: "Ctrl+Shift+Space", registered: true });
+    expect(shownKeys()).toEqual(["Ctrl", "Shift", "Espaço"]);
+    expect(dialog.getByRole("button", { name: "Restaurar padrão (Alt+Q)" })).toBeEnabled();
+  });
+
+  it("explica a regra diante de uma combinação inválida e continua aguardando", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+
+    await user.keyboard("q");
+    expect(dialog.getByText(/Use Ctrl ou Alt/)).toBeInTheDocument();
+
+    await user.keyboard("{Alt>}w{/Alt}");
+    expect(await dialog.findByText("Atalho alterado.")).toBeInTheDocument();
+    expect(fake.shortcut.shortcut).toBe("Alt+KeyW");
+  });
+
+  it("Esc cancela a gravação, mantém o diálogo aberto e reativa o atalho", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+    expect(shownKeys()).toEqual(["Alt", "Q"]);
+    await waitFor(() => expect(fake.shortcut).toEqual({ shortcut: "Alt+KeyQ", registered: true }));
+  });
+
+  it("fechar o diálogo durante a gravação reativa o atalho", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+
+    await user.click(dialog.getByRole("button", { name: "Fechar configurações" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(fake.shortcut.registered).toBe(true));
+  });
+
+  it("informa quando o Windows recusa o atalho e mantém o anterior", async () => {
+    const user = userEvent.setup();
+    fake.takenShortcuts.add("Ctrl+Shift+KeyV");
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+
+    await user.keyboard("{Control>}{Shift>}v{/Shift}{/Control}");
+
+    expect(
+      await dialog.findByText(/Não foi possível usar Ctrl\+Shift\+V: outro programa pode estar usando esse atalho/),
+    ).toHaveTextContent("O atalho Alt+Q continua valendo.");
+    await waitFor(() => expect(fake.shortcut).toEqual({ shortcut: "Alt+KeyQ", registered: true }));
+  });
+
+  it("avisa sobre o AltGr em atalhos com Ctrl+Alt e restaura o padrão", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    await user.click(dialog.getByRole("button", { name: "Alterar" }));
+
+    await user.keyboard("{Control>}{Alt>}v{/Alt}{/Control}");
+    expect(await dialog.findByText(/podem bloquear caracteres digitados com AltGr/)).toBeInTheDocument();
+
+    await user.click(dialog.getByRole("button", { name: "Restaurar padrão (Alt+Q)" }));
+    await waitFor(() => expect(fake.shortcut.shortcut).toBe("Alt+KeyQ"));
+    expect(dialog.queryByText(/AltGr/)).not.toBeInTheDocument();
+  });
+
+  it("abre pelo item Configurações da bandeja", async () => {
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    act(() => fake.requestSettings());
+
+    expect(await screen.findByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
   });
 });

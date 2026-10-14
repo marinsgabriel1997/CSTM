@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-13
+
+### Added
+
+- Configurações, abertas pela engrenagem na barra inferior do cadastro ou pelo menu do ícone na bandeja: o atalho do menu de colagem pode ser trocado pressionando a nova combinação. O novo atalho vale na hora e é lembrado entre execuções; se outro programa já usar a combinação, o atalho anterior continua valendo. "Restaurar padrão" volta para `Alt+Q`.
+
+### Changed
+
+- O aviso de atalho indisponível mostra o atalho configurado e oferece "Alterar atalho".
+
 ## [0.5.0] - 2026-10-13
 
 ### Added

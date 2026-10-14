@@ -8,7 +8,7 @@ use tauri::{AppHandle, State};
 
 use crate::db::folders::{self, Folder};
 use crate::db::snippets::{self, Snippet};
-use crate::picker::{self, ShortcutError};
+use crate::picker::{self, ShortcutStatus};
 use crate::tray;
 
 type Db<'a> = State<'a, Mutex<Connection>>;
@@ -156,8 +156,29 @@ pub fn choose_snippet(app: AppHandle, state: Db, id: i64) -> CommandResult<()> {
 }
 
 #[tauri::command]
-pub fn shortcut_error(state: State<ShortcutError>) -> Option<String> {
-    state.0.clone()
+pub fn get_shortcut(app: AppHandle) -> ShortcutStatus {
+    picker::shortcut_status(&app)
+}
+
+// Os comandos que registram atalhos são assíncronos: rodam fora da thread principal,
+// onde o plugin de atalhos executa o registro e aguarda a resposta.
+#[tauri::command]
+pub async fn set_shortcut(
+    app: AppHandle,
+    state: Db<'_>,
+    shortcut: String,
+) -> CommandResult<ShortcutStatus> {
+    picker::change_shortcut(&app, &lock(&state), &shortcut)
+}
+
+#[tauri::command]
+pub async fn suspend_shortcut(app: AppHandle) -> ShortcutStatus {
+    picker::suspend_shortcut(&app)
+}
+
+#[tauri::command]
+pub async fn resume_shortcut(app: AppHandle) -> ShortcutStatus {
+    picker::resume_shortcut(&app)
 }
 
 #[cfg(test)]
