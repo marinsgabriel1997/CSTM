@@ -562,6 +562,58 @@ describe("configurações", () => {
     expect(await fake.api.getPickerNavigation()).toBe("cascade");
   });
 
+  it("oferece o tema, seguindo o Windows como padrão, e grava a escolha", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    let dialog = await openSettings(user);
+
+    expect(dialog.getByRole("radiogroup", { name: "Tema" })).toBeInTheDocument();
+    await waitFor(() => expect(dialog.getByRole("radio", { name: "Seguir o Windows" })).toBeChecked());
+
+    await user.click(dialog.getByRole("radio", { name: "Escuro" }));
+
+    expect(dialog.getByRole("radio", { name: "Escuro" })).toBeChecked();
+    expect(await fake.api.getTheme()).toBe("dark");
+    cleanup();
+    renderApp();
+    dialog = await openSettings(user);
+    await waitFor(() => expect(dialog.getByRole("radio", { name: "Escuro" })).toBeChecked());
+  });
+
+  it("liga e desliga a inicialização com o Windows", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    const toggle = dialog.getByRole("switch", { name: "Iniciar com o Windows" });
+    await waitFor(() => expect(toggle).toBeEnabled());
+    expect(toggle).not.toBeChecked();
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(fake.autostart.enabled).toBe(true);
+
+    await user.click(toggle);
+    await waitFor(() => expect(toggle).not.toBeChecked());
+    expect(fake.autostart.enabled).toBe(false);
+  });
+
+  it("mostra a inicialização com o Windows conforme o sistema e o erro ao alterar", async () => {
+    const user = userEvent.setup();
+    fake.autostart.enabled = true;
+    fake.autostart.failure = "Acesso negado.";
+    renderApp();
+    const dialog = await openSettings(user);
+    const toggle = dialog.getByRole("switch", { name: "Iniciar com o Windows" });
+    await waitFor(() => expect(toggle).toBeChecked());
+
+    await user.click(toggle);
+
+    expect(
+      await dialog.findByText("Não foi possível alterar a inicialização com o Windows: Acesso negado."),
+    ).toBeInTheDocument();
+    expect(toggle).toBeChecked();
+  });
+
   it("restaurar o atalho padrão não altera a navegação nas pastas", async () => {
     const user = userEvent.setup();
     fake.setNavigation("click");

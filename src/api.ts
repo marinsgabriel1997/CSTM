@@ -24,6 +24,9 @@ export interface ShortcutStatus {
 /** Como as pastas se abrem no menu de colagem: ao passar o mouse (cascata) ou ao clicar. */
 export type PickerNavigation = "cascade" | "click";
 
+/** Tema das janelas: `system` segue o Windows. */
+export type ThemeChoice = "system" | "light" | "dark";
+
 /** Subcoluna aberta no menu de colagem, em pixels lógicos. */
 export interface PickerSubcolumn {
   /** Altura que o conteúdo ocupa, sem rolagem. */
@@ -141,6 +144,17 @@ export const api = {
   exitApp: () => invoke<void>("exit_app"),
   /** Abre o diálogo de configurações a pedido da bandeja. Devolve a função que remove o aviso. */
   onSettingsRequested: async (onOpen: () => void) => listen("settings-requested", () => onOpen()),
+  /** Tema escolhido nas Configurações; `system` enquanto nada foi escolhido. */
+  getTheme: () => invoke<ThemeChoice>("get_theme"),
+  /** Grava o tema; as duas janelas recebem `onThemeChanged`. */
+  setTheme: (theme: ThemeChoice) => invoke<ThemeChoice>("set_theme", { theme }),
+  /** Avisa a troca de tema em qualquer janela. Devolve a função que remove o aviso. */
+  onThemeChanged: async (onChange: (theme: ThemeChoice) => void) =>
+    listen<ThemeChoice>("theme-changed", (event) => onChange(event.payload)),
+  /** Se o CSTM inicia com o Windows, conforme o registro (inclui o Gerenciador de Tarefas). */
+  getAutostart: () => invoke<boolean>("get_autostart"),
+  /** Liga ou desliga a inicialização com o Windows; devolve o estado resultante. */
+  setAutostart: (enabled: boolean) => invoke<boolean>("set_autostart", { enabled }),
 
   // Atalho do menu de colagem, no formato do plugin de atalhos (`Alt+KeyQ`).
   getShortcut: () => invoke<ShortcutStatus>("get_shortcut"),
@@ -173,13 +187,15 @@ export const api = {
   setPickerNavigation: (navigation: PickerNavigation) =>
     invoke<PickerNavigation>("set_picker_navigation", { navigation }),
   /**
-   * Redimensiona e move a janela do menu para conter a coluna principal e as subcolunas
-   * abertas (sem subcolunas, volta ao tamanho de uma coluna). Devolve a posição de cada
-   * coluna, a principal primeiro; a principal não muda de lugar na tela.
+   * Posiciona as subcolunas abertas e recorta a janela do menu em volta das colunas
+   * visíveis. Devolve a posição de cada coluna, a principal primeiro; a principal não
+   * muda de lugar na tela.
    */
   layoutPicker: (columns: PickerSubcolumn[]) => invoke<PickerColumn[]>("layout_picker", { columns }),
-  /** Entrega o texto escolhido no menu (copia para o clipboard) e fecha o menu. */
+  /** Fecha o menu e cola o texto escolhido no programa anterior. */
   chooseSnippet: (id: number) => invoke<void>("choose_snippet", { id }),
+  /** Fecha o menu e deixa o texto no clipboard, sem colar. Conta como uso. */
+  copySnippet: (id: number) => invoke<void>("copy_snippet", { id }),
 };
 
 export type Api = typeof api;

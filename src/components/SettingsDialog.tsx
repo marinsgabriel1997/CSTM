@@ -15,13 +15,14 @@ import {
   MessageBarBody,
   Radio,
   RadioGroup,
+  Switch,
   Text,
   tokens,
 } from "@fluentui/react-components";
 import { DismissRegular } from "@fluentui/react-icons";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { api, errorMessage, type PickerNavigation, type ShortcutStatus } from "../api";
+import { api, errorMessage, type PickerNavigation, type ShortcutStatus, type ThemeChoice } from "../api";
 import { DEFAULT_SHORTCUT, recordKey, shortcutKeys, shortcutLabel, usesAltGr } from "../shortcut";
 
 const useStyles = makeStyles({
@@ -62,6 +63,9 @@ const useStyles = makeStyles({
   hint: { color: tokens.colorNeutralForeground2 },
   success: { color: tokens.colorStatusSuccessForeground1 },
   section: { marginTop: tokens.spacingVerticalS },
+  // O Switch tem margem própria; alinha o controle à esquerda, como os títulos.
+  switch: { marginLeft: `calc(-1 * ${tokens.spacingHorizontalS})` },
+  switchHelp: { color: tokens.colorNeutralForeground2, marginTop: `calc(-1 * ${tokens.spacingVerticalM})` },
   actions: { justifyContent: "space-between" },
 });
 
@@ -72,7 +76,10 @@ interface SettingsDialogProps {
   onClose: () => void;
 }
 
-/** Diálogo de configurações: o atalho do menu de colagem e a navegação nas pastas dele. */
+/**
+ * Diálogo de configurações: o atalho do menu de colagem, a navegação nas pastas dele, o
+ * tema e a inicialização com o Windows.
+ */
 function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogProps) {
   const styles = useStyles();
   const [recording, setRecording] = useState(false);
@@ -85,6 +92,11 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
   // Navegação nas pastas do menu; `null` até carregar.
   const [navigation, setNavigation] = useState<PickerNavigation | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  // Tema e inicialização com o Windows; `null` até carregar.
+  const [theme, setTheme] = useState<ThemeChoice | null>(null);
+  const [themeError, setThemeError] = useState<string | null>(null);
+  const [autostart, setAutostart] = useState<boolean | null>(null);
+  const [autostartError, setAutostartError] = useState<string | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   // Espelho de `recording` para os avisos de janela e o fechamento do diálogo.
   const recordingRef = useRef(false);
@@ -119,6 +131,15 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
       (value) => current && setNavigation(value),
       (reason) => current && setNavigationError(errorMessage(reason)),
     );
+    api.getTheme().then(
+      (value) => current && setTheme(value),
+      (reason) => current && setThemeError(errorMessage(reason)),
+    );
+    api.getAutostart().then(
+      (value) => current && setAutostart(value),
+      (reason) =>
+        current && setAutostartError(`Não foi possível ler a inicialização com o Windows: ${errorMessage(reason)}`),
+    );
     return () => {
       current = false;
     };
@@ -131,6 +152,25 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
       setNavigation(await api.setPickerNavigation(value));
     } catch (reason) {
       setNavigationError(errorMessage(reason));
+    }
+  }
+
+  // O tema vale na hora nas duas janelas.
+  async function changeTheme(value: ThemeChoice) {
+    setThemeError(null);
+    try {
+      setTheme(await api.setTheme(value));
+    } catch (reason) {
+      setThemeError(errorMessage(reason));
+    }
+  }
+
+  async function changeAutostart(enabled: boolean) {
+    setAutostartError(null);
+    try {
+      setAutostart(await api.setAutostart(enabled));
+    } catch (reason) {
+      setAutostartError(`Não foi possível alterar a inicialização com o Windows: ${errorMessage(reason)}`);
     }
   }
 
@@ -287,6 +327,40 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
             {navigationError && (
               <MessageBar intent="error">
                 <MessageBarBody>Não foi possível salvar a navegação nas pastas: {navigationError}</MessageBarBody>
+              </MessageBar>
+            )}
+            <Divider className={styles.section} />
+            <Text id="theme-title" className={styles.title}>
+              Tema
+            </Text>
+            <RadioGroup
+              aria-labelledby="theme-title"
+              layout="horizontal"
+              value={theme ?? ""}
+              disabled={theme === null}
+              onChange={(_, data) => void changeTheme(data.value as ThemeChoice)}
+            >
+              <Radio value="system" label="Seguir o Windows" />
+              <Radio value="light" label="Claro" />
+              <Radio value="dark" label="Escuro" />
+            </RadioGroup>
+            {themeError && (
+              <MessageBar intent="error">
+                <MessageBarBody>Não foi possível salvar o tema: {themeError}</MessageBarBody>
+              </MessageBar>
+            )}
+            <Divider className={styles.section} />
+            <Switch
+              className={styles.switch}
+              label="Iniciar com o Windows"
+              checked={autostart ?? false}
+              disabled={autostart === null && !autostartError}
+              onChange={(_, data) => void changeAutostart(data.checked)}
+            />
+            <Caption1 className={styles.switchHelp}>Abre na bandeja ao entrar no Windows, com o atalho já ativo.</Caption1>
+            {autostartError && (
+              <MessageBar intent="error">
+                <MessageBarBody>{autostartError}</MessageBarBody>
               </MessageBar>
             )}
           </DialogContent>

@@ -1,7 +1,18 @@
 // Implementação em memória de `api` para os testes, imitando os contratos do
 // backend usados pela interface: validação, ordenação manual, busca por prefixo e lixeira.
 import type { ItemRef } from "../actions";
-import type { Api, Folder, PickerColumn, PickerNavigation, PickerSubcolumn, ShortcutStatus, Snippet, TransferSummary, TrashItem } from "../api";
+import type {
+  Api,
+  Folder,
+  PickerColumn,
+  PickerNavigation,
+  PickerSubcolumn,
+  ShortcutStatus,
+  Snippet,
+  ThemeChoice,
+  TransferSummary,
+  TrashItem,
+} from "../api";
 import { DEFAULT_SHORTCUT } from "../shortcut";
 
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
@@ -46,6 +57,10 @@ export function createFakeApi() {
   /** Atalhos que o "Windows" recusa, como se outro programa os usasse. */
   const takenShortcuts = new Set<string>();
   let navigation: PickerNavigation = "cascade";
+  let theme: ThemeChoice = "system";
+  const themeListeners = new Set<(theme: ThemeChoice) => void>();
+  /** Inicialização com o Windows, como no registro; `failure` simula a recusa do Windows. */
+  const autostart: { enabled: boolean; failure: string | null } = { enabled: false, failure: null };
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
@@ -53,6 +68,8 @@ export function createFakeApi() {
   const picker = { readies: 0 };
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
+  /** Conteúdos copiados pelo menu de colagem, sem colar, na ordem. */
+  const copied: string[] = [];
   /** Importações e exportações pedidas, na ordem. */
   const transfers: TransferCall[] = [];
   // Simula o seletor e o backend; por padrão, o seletor é cancelado.
@@ -394,6 +411,19 @@ export function createFakeApi() {
       shortcut.registered = !takenShortcuts.has(shortcut.shortcut);
       return { ...shortcut };
     },
+    getTheme: async () => theme,
+    setTheme: async (value) => {
+      theme = value;
+      themeListeners.forEach((listener) => listener(theme));
+      return theme;
+    },
+    onThemeChanged: async (onChange) => subscribe(themeListeners, onChange),
+    getAutostart: async () => autostart.enabled,
+    setAutostart: async (enabled) => {
+      if (autostart.failure) throw autostart.failure;
+      autostart.enabled = enabled;
+      return autostart.enabled;
+    },
     getPickerNavigation: async () => navigation,
     setPickerNavigation: async (value) => {
       navigation = value;
@@ -425,6 +455,13 @@ export function createFakeApi() {
       const snippet = findSnippet(id);
       delivered.push(snippet.content);
       // Como no backend, a colagem conta como uso.
+      snippet.useCount += 1;
+      snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
+    },
+    copySnippet: async (id) => {
+      const snippet = findSnippet(id);
+      copied.push(snippet.content);
+      // Copiar pelo menu também conta como uso.
       snippet.useCount += 1;
       snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
     },
@@ -468,6 +505,8 @@ export function createFakeApi() {
     folders,
     snippets,
     delivered,
+    copied,
+    autostart,
     layouts,
     picker,
     /** Define a navegação nas pastas como se tivesse sido escolhida nas Configurações. */

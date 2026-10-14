@@ -234,6 +234,74 @@ describe("escolha", () => {
   });
 });
 
+describe("copiar", () => {
+  it("o botão Copiar aparece só na linha de texto selecionada e copia sem colar", async () => {
+    const user = userEvent.setup();
+    await seed();
+    renderPicker();
+    const phone = await list().findByRole("option", { name: "Telefone" });
+    // Favoritos começa selecionada: pastas não têm o botão.
+    expect(list().queryByRole("button", { name: /^Copiar/ })).not.toBeInTheDocument();
+
+    await hover(user, phone);
+    const copy = within(phone).getByRole("button", { name: "Copiar Telefone" });
+    expect(list().getAllByRole("button", { name: /^Copiar/ })).toHaveLength(1);
+    expect(copy).toHaveAttribute("title", "Copiar (Ctrl+C)");
+    // O botão não muda o nome da linha.
+    expect(list().getByRole("option", { name: "Telefone" })).toBe(phone);
+    await user.click(copy);
+
+    expect(fake.copied).toEqual(["(11) 91234-5678"]);
+    expect(fake.delivered).toEqual([]);
+    // Copiar pelo menu conta como uso.
+    expect(fake.snippets.find((s) => s.title === "Telefone")?.useCount).toBe(1);
+    expect(search()).toHaveFocus();
+  });
+
+  it("Ctrl+C copia o texto selecionado, mas não uma pasta", async () => {
+    const user = userEvent.setup();
+    await seed();
+    renderPicker();
+    await list().findByRole("option", { name: "Trabalho" });
+
+    await user.keyboard("{Control>}c{/Control}");
+    expect(fake.copied).toEqual([]);
+
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{Control>}c{/Control}");
+    expect(optionNames()[3]).toBe("=> Telefone");
+    expect(fake.copied).toEqual(["(11) 91234-5678"]);
+    expect(fake.delivered).toEqual([]);
+  });
+
+  it("com um trecho da busca selecionado, Ctrl+C não copia o texto da lista", async () => {
+    const user = userEvent.setup();
+    await seed();
+    renderPicker();
+    await list().findByRole("option", { name: "Trabalho" });
+
+    await user.type(search(), "telefone");
+    await screen.findByText("Telefone");
+    await user.keyboard("{Control>}a{/Control}{Control>}c{/Control}");
+    expect(fake.copied).toEqual([]);
+
+    // Sem seleção na busca, copia o resultado selecionado.
+    await user.keyboard("{End}{Control>}c{/Control}");
+    expect(fake.copied).toEqual(["(11) 91234-5678"]);
+  });
+
+  it("mostra o erro quando o texto não pode ser copiado", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    api.copySnippet = vi.fn().mockRejectedValue("não foi possível copiar o texto");
+    renderPicker();
+    await list().findByRole("option", { name: "Telefone" });
+
+    await user.keyboard("{Control>}c{/Control}");
+
+    expect(await screen.findByText("não foi possível copiar o texto")).toBeInTheDocument();
+  });
+});
+
 describe("busca", () => {
   it("lista os resultados de toda a biblioteca com a pasta de cada um", async () => {
     const user = userEvent.setup();

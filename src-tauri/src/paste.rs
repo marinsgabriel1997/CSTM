@@ -1,5 +1,6 @@
 //! Colagem do texto escolhido no programa que estava ativo quando o menu abriu: reativa
 //! essa janela, troca o clipboard pelo texto, simula `Ctrl+V` e devolve o texto anterior.
+//! A cópia faz o mesmo sem o `Ctrl+V`, deixando o texto no clipboard.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -36,7 +37,7 @@ fn lock_target(app: &AppHandle) -> MutexGuard<'_, Option<isize>> {
         .unwrap_or_else(PoisonError::into_inner)
 }
 
-fn copy(app: &AppHandle, content: &str) -> Result<(), String> {
+fn write(app: &AppHandle, content: &str) -> Result<(), String> {
     app.clipboard()
         .write_text(content)
         .map_err(|error| format!("não foi possível copiar o texto: {error}"))
@@ -57,12 +58,12 @@ pub fn paste(app: &AppHandle, content: &str) -> Result<bool, String> {
     let focused = target.is_some_and(platform::activate);
     picker::hide(app);
     if !focused {
-        copy(app, content)?;
+        write(app, content)?;
         return Ok(false);
     }
 
     let previous = app.clipboard().read_text().ok();
-    copy(app, content)?;
+    write(app, content)?;
     let written = platform::clipboard_sequence();
     platform::wait_for_modifiers_release();
     if !platform::send_ctrl_v() {
@@ -74,6 +75,25 @@ pub fn paste(app: &AppHandle, content: &str) -> Result<bool, String> {
         let _ = app.clipboard().write_text(text);
     }
     Ok(true)
+}
+
+/// Deixa o texto no clipboard, sem colar e sem restaurar o anterior; o menu fecha e o
+/// foco volta à janela guardada, se ela ainda existir.
+pub fn copy(app: &AppHandle, content: &str) -> Result<(), String> {
+    let state = app.state::<PasteState>();
+    // Espera uma colagem em andamento terminar de restaurar o clipboard.
+    let _running = state
+        .inner()
+        .running
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner);
+    let target = lock_target(app).take();
+    // Como na colagem, a janela anterior é reativada antes de o menu sumir.
+    if let Some(window) = target {
+        platform::activate(window);
+    }
+    picker::hide(app);
+    write(app, content)
 }
 
 #[cfg(windows)]

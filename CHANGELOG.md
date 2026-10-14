@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-10-14
+
+### Added
+
+- Opção "Iniciar com o Windows" nas Configurações, desligada por padrão: o CSTM abre só na bandeja ao entrar no Windows, com o atalho do menu de colagem já ativo. A opção acompanha a desativação feita pelo Gerenciador de Tarefas, e desinstalar o CSTM remove a entrada.
+- Escolha do tema nas Configurações: seguir o Windows (como antes), claro ou escuro. Vale na hora no cadastro e no menu de colagem.
+- No menu de colagem, a linha do texto selecionado ganha um botão Copiar (e o atalho `Ctrl+C`), que deixa o texto no clipboard sem colar, para usar onde e quando quiser. Clicar no texto continua colando.
+
 ## [0.11.3] - 2026-10-14
 
 ### Fixed

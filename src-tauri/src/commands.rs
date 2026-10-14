@@ -1,5 +1,6 @@
 //! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste`,
-//! `transfer` e `tray`; os erros chegam ao frontend como mensagens prontas para exibição.
+//! `transfer`, `tray`, `theme` e `autostart`; os erros chegam ao frontend como mensagens
+//! prontas para exibição.
 
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -8,6 +9,7 @@ use rusqlite::Connection;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
 
+use crate::autostart;
 use crate::cascade::{PlacedColumn, Subcolumn};
 use crate::db::folders::{self, Folder};
 use crate::db::items::{self, ItemRef, TrashItem};
@@ -15,6 +17,7 @@ use crate::db::settings;
 use crate::db::snippets::{self, Snippet};
 use crate::paste;
 use crate::picker::{self, ShortcutStatus};
+use crate::theme;
 use crate::transfer::{self, Summary};
 use crate::tray;
 
@@ -230,6 +233,36 @@ pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandRe
         let _ = snippets::record_use(&lock(&state), id);
     }
     Ok(())
+}
+
+// Assíncrono pelo mesmo motivo: a cópia aguarda o foco voltar ao programa anterior.
+#[tauri::command]
+pub async fn copy_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
+    let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
+    paste::copy(&app, &snippet.content)?;
+    // Copiar pelo menu é um uso do texto, como colar; uma falha no contador não é erro.
+    let _ = snippets::record_use(&lock(&state), id);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_theme(state: Db) -> CommandResult<String> {
+    respond(settings::get_theme(&lock(&state)))
+}
+
+#[tauri::command]
+pub fn set_theme(app: AppHandle, state: Db, theme: String) -> CommandResult<String> {
+    theme::change(&app, &lock(&state), &theme)
+}
+
+#[tauri::command]
+pub fn get_autostart() -> CommandResult<bool> {
+    autostart::is_enabled()
+}
+
+#[tauri::command]
+pub fn set_autostart(enabled: bool) -> CommandResult<bool> {
+    autostart::set_enabled(enabled)
 }
 
 #[tauri::command]

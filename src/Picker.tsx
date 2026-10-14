@@ -2,6 +2,7 @@ import { Button, Caption1, Input, makeStyles, mergeClasses, Text, tokens } from 
 import {
   ChevronLeft16Regular,
   ChevronRight16Regular,
+  Copy16Regular,
   DocumentText20Regular,
   Fire20Regular,
   Folder20Regular,
@@ -97,6 +98,7 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
   },
   chevron: { flex: "none", color: tokens.colorNeutralForeground3 },
+  copy: { flex: "none", minWidth: "24px", height: "24px", marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
   message: {
     display: "flex",
     flexDirection: "column",
@@ -228,9 +230,11 @@ interface PickerRowProps {
   opener?: boolean;
   onHover: (event: MouseEvent) => void;
   onClick: () => void;
+  /** Copia o texto sem colar; o botão aparece na linha de texto selecionada. */
+  onCopy: () => void;
 }
 
-function PickerRow({ id, row, selected, opener, onHover, onClick }: PickerRowProps) {
+function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: PickerRowProps) {
   const styles = useStyles();
   return (
     <div
@@ -260,6 +264,22 @@ function PickerRow({ id, row, selected, opener, onHover, onClick }: PickerRowPro
         {row.kind === "folder" ? row.folder.name : row.kind === "virtual" ? VIRTUAL_NAMES[row.virtual] : row.snippet.title}
       </Text>
       {row.kind === "snippet" && row.folderName && <Caption1 wrap={false} className={styles.meta}>{row.folderName}</Caption1>}
+      {row.kind === "snippet" && selected && (
+        <Button
+          className={styles.copy}
+          size="small"
+          appearance="subtle"
+          icon={<Copy16Regular />}
+          aria-label={`Copiar ${row.snippet.title}`}
+          title="Copiar (Ctrl+C)"
+          // O foco fica no campo de busca, como nas linhas.
+          tabIndex={-1}
+          onClick={(event) => {
+            event.stopPropagation();
+            onCopy();
+          }}
+        />
+      )}
       {row.kind !== "snippet" && <ChevronRight16Regular className={styles.chevron} />}
     </div>
   );
@@ -502,6 +522,12 @@ function Picker() {
     }
   }
 
+  /** Fecha o menu deixando o texto no clipboard, sem colar. */
+  function copy(row: Row) {
+    if (row.kind !== "snippet") return;
+    api.copySnippet(row.snippet.id).catch((reason) => setError(errorMessage(reason)));
+  }
+
   function clickRow(column: number, row: Row) {
     if (row.kind === "snippet" || !cascade) {
       choose(column, row);
@@ -580,6 +606,15 @@ function Picker() {
       case "Escape":
         void api.hidePicker();
         break;
+      case "c":
+      case "C": {
+        // Com um trecho da busca selecionado, Ctrl+C copia o trecho, como em qualquer campo.
+        const input = event.currentTarget;
+        if (!event.ctrlKey || event.altKey || row?.kind !== "snippet" || input.selectionStart !== input.selectionEnd)
+          return;
+        copy(row);
+        break;
+      }
       default:
         return;
     }
@@ -628,6 +663,7 @@ function Picker() {
         opener={cascade && row.kind !== "snippet" && subs[column]?.place === placeOfRow(row)}
         onHover={(event) => hoverRow(column, row, event)}
         onClick={() => clickRow(column, row)}
+        onCopy={() => copy(row)}
       />
     ));
   }

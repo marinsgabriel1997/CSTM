@@ -24,7 +24,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Navegação por teclado (setas, Enter, Esc) e mouse.
 - Navegação nas pastas configurável: em cascata (padrão), o conteúdo de uma pasta abre numa coluna ao lado quando o mouse passa sobre ela ou ao clicar, como os submenus do Windows; no modo "Clicar para abrir", a lista é substituída pelo conteúdo da pasta. A busca mostra os resultados numa lista única nos dois modos.
 - A janela `picker` ocupa a área útil do monitor durante a abertura, recortada em volta das colunas visíveis; no modo cascata as colunas abrem dentro dela sem redimensioná-la, sempre dentro da área útil, e o menu volta a uma coluna a cada abertura.
-- Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado.
+- Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado. Um botão Copiar na linha selecionada (ou `Ctrl+C`) faz o mesmo sem colar, deixando o texto no clipboard.
 - `Esc` ou clique fora fecha o menu sem colar.
 
 ### 3. Execução em segundo plano
@@ -37,6 +37,8 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
 - Tela de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
 - Navegação nas pastas do menu de colagem ("Abrir ao passar o mouse", padrão, ou "Clicar para abrir"); vale na próxima abertura do menu e é lembrada entre execuções.
+- Tema das janelas: seguir o Windows (padrão), claro ou escuro; vale na hora e é lembrado entre execuções.
+- Iniciar com o Windows (desligado por padrão): o CSTM abre só na bandeja ao entrar no Windows, com o atalho ativo. A entrada fica na chave `Run` do usuário, que é a fonte da verdade (inclusive a desativação pelo Gerenciador de Tarefas); o desinstalador a remove.
 
 ### 5. Importação e exportação
 
@@ -50,7 +52,6 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Expansão automática por abreviação.
 - Ferramentas de edição/transformação de texto.
 - Variáveis em textos (data, hora, cursor).
-- Iniciar com o Windows.
 - Linux e macOS.
 
 ## Fluxo de colagem
@@ -89,8 +90,10 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `commands` | Comandos Tauri expostos ao frontend |
 | `picker` | Exibir/ocultar o menu, posicionamento, janela anterior, navegação nas pastas e recorte da janela em volta das colunas |
 | `cascade` | Geometria pura das colunas do menu em cascata (posição de cada coluna e retângulos do recorte da janela), testada sem janela |
-| `paste` | Clipboard e simulação de `Ctrl+V` (Windows) |
+| `paste` | Clipboard e simulação de `Ctrl+V` (Windows); cópia sem colar |
 | `tray` | Ícone e menu da bandeja |
+| `theme` | Tema escolhido: gravação, aviso às janelas e barra de título do cadastro |
+| `autostart` | Iniciar com o Windows: entrada na chave `Run` do usuário e leitura da `StartupApproved` |
 
 ### Dependências previstas
 
@@ -102,7 +105,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `tauri-plugin-clipboard-manager` | Leitura e escrita do clipboard |
 | `tauri-plugin-single-instance` | Instância única |
 | `tauri` (feature `tray-icon`) | Ícone na bandeja |
-| `windows` | `GetForegroundWindow`, `SetForegroundWindow`, `SendInput` |
+| `windows` | `GetForegroundWindow`, `SetForegroundWindow`, `SendInput`, região da janela e registro (inicialização com o Windows) |
 
 O banco fica na pasta de dados do aplicativo (`%APPDATA%\com.gabriel.cstm\cstm.db`).
 O frontend acessa os dados somente por comandos Tauri; não executa SQL.
@@ -140,7 +143,7 @@ CREATE VIRTUAL TABLE snippets_fts USING fts5(
 );
 -- + gatilhos para manter snippets_fts sincronizada
 
--- Configurações do aplicativo (por exemplo, o atalho); chaves ausentes usam o padrão
+-- Configurações do aplicativo (atalho, navegação nas pastas, tema); chaves ausentes usam o padrão
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL

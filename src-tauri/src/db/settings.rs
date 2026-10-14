@@ -13,6 +13,13 @@ pub const PICKER_NAVIGATION: &str = "picker_navigation";
 pub const NAVIGATION_CASCADE: &str = "cascade";
 pub const NAVIGATION_CLICK: &str = "click";
 
+/// Tema das janelas: `system` (segue o Windows), `light` ou `dark`.
+pub const THEME: &str = "theme";
+
+pub const THEME_SYSTEM: &str = "system";
+pub const THEME_LIGHT: &str = "light";
+pub const THEME_DARK: &str = "dark";
+
 /// Valor gravado para `key`, ou `None` se nunca foi definido.
 pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
@@ -36,6 +43,16 @@ pub fn get_navigation(conn: &Connection) -> Result<String> {
     Ok(match get_setting(conn, PICKER_NAVIGATION)?.as_deref() {
         Some(NAVIGATION_CLICK) => NAVIGATION_CLICK,
         _ => NAVIGATION_CASCADE,
+    }
+    .to_string())
+}
+
+/// Tema das janelas; vale `system` enquanto nada foi gravado.
+pub fn get_theme(conn: &Connection) -> Result<String> {
+    Ok(match get_setting(conn, THEME)?.as_deref() {
+        Some(THEME_LIGHT) => THEME_LIGHT,
+        Some(THEME_DARK) => THEME_DARK,
+        _ => THEME_SYSTEM,
     }
     .to_string())
 }
@@ -89,5 +106,20 @@ mod tests {
         let conn = open_in_memory().unwrap();
         set_setting(&conn, PICKER_NAVIGATION, "hover").unwrap();
         assert_eq!(get_navigation(&conn).unwrap(), "cascade");
+    }
+
+    #[test]
+    fn theme_defaults_to_system_and_reads_the_saved_choice() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_theme(&conn).unwrap(), "system");
+
+        set_setting(&conn, THEME, THEME_DARK).unwrap();
+        assert_eq!(get_theme(&conn).unwrap(), "dark");
+
+        set_setting(&conn, THEME, THEME_LIGHT).unwrap();
+        assert_eq!(get_theme(&conn).unwrap(), "light");
+
+        set_setting(&conn, THEME, "sepia").unwrap();
+        assert_eq!(get_theme(&conn).unwrap(), "system");
     }
 }

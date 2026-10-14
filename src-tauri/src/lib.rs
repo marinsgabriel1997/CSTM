@@ -2,11 +2,13 @@ use std::sync::Mutex;
 
 use tauri::{App, Manager, WebviewWindowBuilder};
 
+mod autostart;
 mod cascade;
 mod commands;
 mod db;
 mod paste;
 mod picker;
+mod theme;
 mod transfer;
 mod tray;
 
@@ -14,9 +16,12 @@ mod tray;
 pub fn run() {
     tauri::Builder::default()
         // Registrado antes dos demais plugins, como pede o plugin: uma segunda
-        // execução apenas traz a janela existente e termina.
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            tray::show_main_window(app);
+        // execução apenas traz a janela existente e termina. Se for o Windows iniciando
+        // o CSTM ao entrar na sessão, nada aparece.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if !autostart::started_by_windows(args) {
+                tray::show_main_window(app);
+            }
         }))
         .plugin(picker::shortcut_plugin())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -56,6 +61,7 @@ pub fn run() {
             commands::exit_app,
             commands::hide_picker,
             commands::choose_snippet,
+            commands::copy_snippet,
             commands::get_picker_navigation,
             commands::set_picker_navigation,
             commands::layout_picker,
@@ -64,6 +70,10 @@ pub fn run() {
             commands::set_shortcut,
             commands::suspend_shortcut,
             commands::resume_shortcut,
+            commands::get_theme,
+            commands::set_theme,
+            commands::get_autostart,
+            commands::set_autostart,
             commands::import_txt_files,
             commands::import_folder,
             commands::import_json,
@@ -79,6 +89,7 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     std::fs::create_dir_all(&data_dir)?;
     let conn = db::open(&data_dir.join("cstm.db"))?;
     picker::register_shortcut(app, &conn);
+    let theme = db::settings::get_theme(&conn)?;
     app.manage(Mutex::new(conn));
     app.manage(paste::PasteState::default());
     app.manage(picker::PickerGeometry::default());
@@ -87,9 +98,15 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // todo o estado registrado: criadas antes do setup, como faz o Tauri, podiam
     // chamar comandos ainda sem o banco quando a inicialização demorava (por
     // exemplo, com o antivírus examinando o executável na primeira execução).
-    for config in app.config().app.windows.clone() {
+    // Iniciado pelo Windows ao entrar na sessão, o CSTM fica só na bandeja.
+    let hidden = autostart::started_by_windows(std::env::args());
+    for mut config in app.config().app.windows.clone() {
+        if hidden && config.label == "main" {
+            config.visible = false;
+        }
         WebviewWindowBuilder::from_config(app, &config)?.build()?;
     }
+    theme::apply(app.handle(), &theme);
     Ok(())
 }
 

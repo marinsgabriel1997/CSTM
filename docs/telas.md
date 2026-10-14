@@ -303,8 +303,9 @@ O aplicativo fica na bandeja do sistema, com a dica "CSTM".
 | Configurações | Mostra a janela de cadastro e abre o diálogo de configurações |
 | Sair | Grava as pendências e encerra; se algo não puder ser gravado, mostra a janela e pede confirmação ("Sair sem salvar?") |
 | Executar o aplicativo de novo | Não cria outra instância; traz a janela existente |
+| Windows iniciando o CSTM ao entrar na sessão (opção Iniciar com o Windows) | Não cria outra instância nem mostra a janela |
 
-A janela abre visível ao iniciar o aplicativo. Não há aviso de que o aplicativo continua na bandeja ao fechar a janela.
+A janela abre visível ao iniciar o aplicativo, exceto quando o Windows o inicia ao entrar na sessão (opção **Iniciar com o Windows** nas Configurações): aí o CSTM fica só na bandeja, com o atalho ativo. Não há aviso de que o aplicativo continua na bandeja ao fechar a janela.
 
 ## Tela 2 — Menu de colagem (janela `picker`)
 
@@ -375,12 +376,13 @@ Busca:
 ### Estrutura
 
 - Abre pelo atalho global `Alt+Q` junto ao cursor do mouse, inteiramente dentro da área útil do monitor em que o cursor está.
-- Coluna de 340 × 440 (no modo cascata, outras colunas abrem ao lado; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema claro ou escuro do sistema, como o cadastro.
+- Coluna de 340 × 440 (no modo cascata, outras colunas abrem ao lado; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema escolhido nas Configurações (por padrão, o do Windows), como o cadastro.
 - Campo de busca no topo, com foco automático, lista no meio (com rolagem) e uma linha de dicas de teclado no rodapé.
 - Na raiz, sem cabeçalhos de seção: as pastas **Mais usados** e **Favoritos**, com ícones próprios e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. Mais usados e Favoritos não existem no cadastro: são calculadas a cada abertura e somem quando vazias.
 - **Mais usados:** os 10 textos com mais usos (ao menos um), do mais para o menos usado; empates pelo uso mais recente. **Favoritos:** os textos favoritos, por título. Dentro das duas, cada texto mostra à direita a pasta em que está, como na busca. Um texto pode aparecer nelas e na sua pasta.
 - Dentro de uma pasta: uma linha de volta com o caminho (`<  Trabalho > E-mails`) seguida das subpastas e dos textos da pasta, nessa ordem e na ordem manual de cada grupo.
 - Pastas têm `>` à direita. Textos mostram só o título; o conteúdo aparece como dica (tooltip) ao passar o mouse.
+- A linha de texto selecionada (pelo mouse ou pelo teclado) mostra à direita um botão pequeno **Copiar**, com o ícone de duas folhas sobrepostas e a dica "Copiar (Ctrl+C)". Pastas, Mais usados, Favoritos e a linha de volta não têm o botão.
 - Com texto na busca, a lista é substituída pelos resultados (na ordem de relevância do backend: primeiro os textos com todos os termos no título, do título mais relevante, em geral o mais curto, ao menos; depois os que só batem no conteúdo), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
 
 ### Comportamento
@@ -389,6 +391,7 @@ Busca:
 | --- | --- |
 | `↑` / `↓`; `Home` / `End` com a busca vazia | Move a seleção (o foco fica no campo de busca); a primeira linha selecionável começa selecionada |
 | `Enter` ou clique num texto | Fecha o menu e cola o texto no programa anterior |
+| Botão Copiar, ou `Ctrl+C` com um texto selecionado | Fecha o menu e deixa o texto no clipboard, sem colar e sem restaurar o conteúdo anterior; o foco volta ao programa anterior. Conta como uso, como a colagem. Com um trecho da busca selecionado, `Ctrl+C` copia o trecho, como em qualquer campo |
 | `Enter`, `→` ou clique numa pasta | Abre a pasta |
 | `←` ou `Backspace` com a busca vazia, ou clique na linha de volta | Volta para a pasta acima |
 | Digitar | Busca; a seleção volta para o primeiro resultado |
@@ -433,7 +436,7 @@ Regras:
 1. **Coluna principal:** igual à do modo clique: 340 × 440, busca no topo, pastas virtuais (Mais usados e Favoritos), pastas e textos da raiz. Não tem linha de volta, porque as pastas abrem ao lado. Ela não se move na tela quando colunas se abrem ou fecham. As subcolunas não têm campo de busca nem rodapé.
 2. **Abertura:** passar o mouse sobre uma pasta abre a coluna dela na hora, sem atraso; clicar também abre. Vale para pastas reais e para Mais usados e Favoritos, em qualquer coluna.
 3. **Troca e fechamento:** passar para outra pasta substitui as colunas abertas a partir dali. Passar sobre um texto fecha as colunas mais profundas que a coluna dele. Voltar à pasta que já está aberta não faz nada. Como não há atraso, atravessar outra pasta na diagonal até a coluna aberta troca as colunas; o movimento horizontal evita isso. A pasta que originou uma coluna fica realçada.
-4. **Teclado:** `↑` / `↓` movem a seleção na coluna atual (e fecham as colunas à direita dela); `→` ou `Enter` numa pasta abre a coluna e entra nela, com o primeiro item selecionado; `←` fecha a coluna atual e volta à anterior, mantendo a pasta selecionada; `Enter` num texto cola; `Esc` fecha o menu, como hoje. `→` e `←` só navegam com a busca vazia. A seleção do mouse e a do teclado são a mesma.
+4. **Teclado:** `↑` / `↓` movem a seleção na coluna atual (e fecham as colunas à direita dela); `→` ou `Enter` numa pasta abre a coluna e entra nela, com o primeiro item selecionado; `←` fecha a coluna atual e volta à anterior, mantendo a pasta selecionada; `Enter` num texto cola e `Ctrl+C` copia, como no modo clique; `Esc` fecha o menu, como hoje. `→` e `←` só navegam com a busca vazia. A seleção do mouse e a do teclado são a mesma.
 5. **Busca:** com texto na busca, as subcolunas se fecham e os resultados continuam numa lista única, sem cascata (como no modo clique).
 6. **Posição horizontal:** a coluna nova abre à direita da anterior (com 2 px de intervalo). Sem espaço na área útil, abre à esquerda da anterior. Sem espaço dos dois lados (ou se a esquerda cobriria colunas abertas), ela fica encostada na borda direita da área útil e as colunas mais antigas que ela cobre saem de vista, voltando quando a coluna nova fecha.
 7. **Posição vertical:** (a) o topo da subcoluna fica alinhado ao topo da pasta que a abriu e a altura vem do conteúdo; (b) se passar da borda inferior da área útil, a coluna sobe o necessário para caber, podendo ficar acima da pasta e do topo da coluna principal; (c) se for maior que a área útil, ocupa toda a altura dela, com rolagem, e `↑` / `↓` rolam até o item selecionado.
@@ -470,7 +473,7 @@ Atalho atual:
 +------------------------------------------------+
 ```
 
-Com a opção de navegação nas pastas (abaixo do atalho, separada por uma linha):
+Com todas as opções (cada uma separada da anterior por uma linha):
 
 ```text
 +------------------------------------------------+
@@ -486,6 +489,13 @@ Com a opção de navegação nas pastas (abaixo do atalho, separada por uma linh
 | Vale a partir da próxima abertura do menu.     |
 | (o) Abrir ao passar o mouse  padrão            |
 | ( ) Clicar para abrir                          |
+| ---------------------------------------------- |
+| Tema                                           |
+| (o) Seguir o Windows  ( ) Claro  ( ) Escuro    |
+| ---------------------------------------------- |
+| [ o] Iniciar com o Windows                     |
+|      Abre na bandeja ao entrar no Windows,     |
+|      com o atalho já ativo.                    |
 |                                                |
 | [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
 +------------------------------------------------+
@@ -509,8 +519,10 @@ Gravando um novo atalho:
 
 ### Estrutura
 
-- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Tem duas configurações: o atalho do menu de colagem e a navegação nas pastas.
-- **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho. Os modos estão descritos em Tela 2, Navegação nas pastas.
+- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Tem quatro configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o tema e a inicialização com o Windows. Se não couberem na altura da janela, o conteúdo do diálogo rola.
+- **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho, sem mexer nas demais opções. Os modos estão descritos em Tela 2, Navegação nas pastas.
+- **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
+- **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
 - O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
 - "Restaurar padrão (Alt+Q)" fica à esquerda, desabilitado quando o atalho já é o padrão ou durante a gravação; "Fechar" à direita.
 
