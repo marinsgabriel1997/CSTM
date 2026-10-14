@@ -462,3 +462,24 @@ describe("segundo plano", () => {
     expect(fake.snippets[0].title).toBe("Saudação");
   });
 });
+
+describe("atalho do menu de colagem", () => {
+  it("avisa quando o atalho não pôde ser registrado", async () => {
+    const user = userEvent.setup();
+    api.shortcutError = async () => "O atalho Alt+Q não pôde ser registrado; outro programa pode estar usando-o.";
+    renderApp();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("O atalho Alt+Q não pôde ser registrado");
+
+    await user.click(within(alert).getByRole("button", { name: "Fechar mensagem" }));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("não mostra aviso com o atalho ativo", async () => {
+    renderApp();
+
+    await screen.findByText("Nenhum texto ainda");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});

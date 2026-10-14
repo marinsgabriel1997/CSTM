@@ -17,7 +17,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
 ### 2. Menu de colagem
 
-- Atalho global (padrão proposto: `Alt+Q`) abre o menu junto ao cursor do mouse.
+- Atalho global `Alt+Q` abre o menu junto ao cursor do mouse, dentro da área útil do monitor.
 - O menu mostra favoritos, pastas (navegáveis) e um campo de busca com foco automático.
 - Navegação por teclado (setas, Enter, Esc) e mouse.
 - Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado.
@@ -138,6 +138,4 @@ Cada etapa termina com um commit funcional.
 
 ## Decisões em aberto
 
-- Atalho padrão (`Ctrl+Shift+Espaço` proposto).
-- Posição do menu: cursor do mouse (proposto) ou cursor de texto quando disponível.
 - Tempo de espera antes de restaurar o clipboard (valor inicial a calibrar por testes).

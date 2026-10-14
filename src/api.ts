@@ -67,6 +67,15 @@ export const api = {
   /** Mostra a janela, mesmo oculta ou minimizada, e lhe dá o foco. */
   showWindow: () => invoke<void>("show_main_window"),
   exitApp: () => invoke<void>("exit_app"),
+  /** Mensagem de falha ao registrar o atalho do menu de colagem; `null` se ele está ativo. */
+  shortcutError: () => invoke<string | null>("shortcut_error"),
+
+  // Menu de colagem (janela `picker`).
+  /** Avisa a cada abertura do menu. Devolve a função que remove o aviso. */
+  onPickerOpened: async (onOpen: () => void) => listen("picker-opened", () => onOpen()),
+  hidePicker: () => invoke<void>("hide_picker"),
+  /** Entrega o texto escolhido no menu (copia para o clipboard) e fecha o menu. */
+  chooseSnippet: (id: number) => invoke<void>("choose_snippet", { id }),
 };
 
 export type Api = typeof api;

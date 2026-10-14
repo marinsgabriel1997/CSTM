@@ -1,16 +1,12 @@
 import { FluentProvider, webDarkTheme, webLightTheme } from "@fluentui/react-components";
+import type { ReactNode } from "react";
 
-import App from "./App";
 import { usePrefersDark } from "./theme";
 
 /** Aplica o tema do Fluent UI conforme o tema claro/escuro do Windows. */
-function Root() {
+function Root({ children }: { children: ReactNode }) {
   const dark = usePrefersDark();
-  return (
-    <FluentProvider theme={dark ? webDarkTheme : webLightTheme}>
-      <App />
-    </FluentProvider>
-  );
+  return <FluentProvider theme={dark ? webDarkTheme : webLightTheme}>{children}</FluentProvider>;
 }
 
 export default Root;

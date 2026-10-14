@@ -1,225 +1,23 @@
 # CSTM — Telas
 
-Wireframes das telas do aplicativo, desenhados antes da implementação. Cada tela tem um inventário do que precisa existir (derivado de `docs/mvp.md`) e versões numeradas do desenho. A versão marcada como **aprovada** é a referência para implementar; as demais ficam como histórico.
+Desenhos aprovados das telas do aplicativo: a referência para implementar. Uma tela nova, ou uma mudança de layout ou de fluxo, é proposta aqui e no protótipo correspondente em `docs/prototipo/` antes da implementação; depois de aprovada, substitui o desenho anterior (o histórico fica no git).
 
 Os desenhos usam somente ASCII (`+`, `-`, `|` e caracteres do teclado), para manter o alinhamento em qualquer editor. Legenda:
 
 | Símbolo | Significado |
 | --- | --- |
-| `[ Texto ]` | botão |
-| `[R]` `[X]` `[^]` `[v]` | botão de ícone: renomear, excluir, subir, descer |
-| `[_____]` | campo de texto |
-| `[ Opção v ]` | seletor |
-| `*` / `( )` | favorito marcado / desmarcado |
+| `[ Buscar... ]` | campo de texto |
+| `[+ Novo v]` | botão com menu |
+| `( Favoritos )` | botão de alternância (filtro) |
+| `*` | favorito |
+| `...` | menu de contexto do item |
 | `=>` | item selecionado |
 | `v Pasta` / `> Pasta` | pasta aberta / fechada (na árvore) |
+| `Pasta  >` | pasta que se abre (no menu de colagem) |
+| `<  Pasta` | linha de volta para a pasta acima |
+| `(v)` | indicador de salvamento |
 
 ## Tela 1 — Cadastro (janela `main`)
-
-### Inventário
-
-O que a tela precisa permitir, independentemente do desenho:
-
-- **Navegar:** favoritos, textos sem pasta, árvore de pastas com subpastas.
-- **Buscar:** por título e conteúdo, em todas as pastas.
-- **Pastas:** criar (na raiz ou dentro de outra), renomear, excluir (com confirmação; leva subpastas e textos), reordenar, mover para outra pasta.
-- **Textos:** criar, editar título e conteúdo, salvar, excluir (com confirmação), favoritar, reordenar dentro da pasta, mover para outra pasta.
-- **Proteções:** avisar antes de descartar alterações não salvas; título e conteúdo obrigatórios.
-- **Feedback:** mensagens de erro do backend.
-
-Estados a desenhar:
-
-1. Primeiro uso (nenhuma pasta, nenhum texto).
-2. Pasta com textos, nenhum texto aberto.
-3. Texto aberto para edição.
-4. Novo texto (rascunho ainda não salvo).
-5. Resultado de busca.
-6. Confirmação (excluir, descartar alterações).
-7. Erro.
-
-### v0 — implementação atual (não aprovada)
-
-Três colunas fixas: navegação, lista de títulos e editor em formulário.
-
-```text
-+----------------------------------------------------------------------------------------+
-| CSTM                                                                                   |
-+------------------------+--------------------------------+------------------------------+
-| [ Buscar textos     ]  | Sem pasta     [ Novo texto ]   | ( ) Novo texto   [ Salvar ]  |
-|                        |                                |                              |
-|    Favoritos           | * Saudação formal              | Pasta                        |
-| => Sem pasta           |   Assinatura                   | [ Sem pasta            v ]   |
-|                        |   Endereço                     | Título                       |
-| Pastas            [+]  |                                | [________________________]   |
-| v Trabalho             |                                | Conteúdo                     |
-|     E-mails            |                                | [                        ]   |
-|   Pessoal              |                                | [                        ]   |
-|                        |                                | [                        ]   |
-| [R] [X] [^] [v]        |                                |                              |
-| Mover para [Raiz  v]   |                                |                              |
-+------------------------+--------------------------------+------------------------------+
-```
-
-Problemas observados:
-
-- Três faixas verticais de cinzas diferentes, com cara de painel administrativo.
-- Metade da janela fica vazia quando nenhum texto está aberto.
-- A lista mostra só o título; o conteúdo não aparece.
-- O editor parece um formulário de cadastro (rótulos e caixas), não um editor de texto.
-- Ações de pasta no rodapé da barra lateral, longe da pasta.
-
-### Conceitos v1 — arquiteturas alternativas (C escolhido)
-
-Três propostas que diferem em navegação, distribuição do espaço e fluxo de edição. A escolha é do conceito; cores, fontes e componentes vêm depois.
-
-| | A — Busca primeiro | B — Explorador | C — Árvore + editor |
-| --- | --- | --- | --- |
-| Navegação | busca e trilha de pastas, sem barra lateral | entrar e sair de pastas, com botão Voltar | uma árvore única com pastas e textos |
-| Espaço | uma coluna na largura toda | grade de cartões; editor ocupa a janela | duas colunas fixas: árvore e editor |
-| Edição | o texto se expande na própria lista | tela própria de edição | editor sempre visível, salvamento automático |
-
-#### A — Busca primeiro
-
-Uma coluna só, como o menu de colagem: a busca no topo é o ponto de entrada. A trilha (`Todas > Trabalho`) mostra onde se está; clicar numa subpasta entra nela, clicar num nível da trilha volta. A lista mostra título e início do conteúdo; dentro de uma pasta aparecem primeiro os favoritos dela, depois os textos e as subpastas. Ações de pasta (criar, renomear, excluir, mover) ficam no menu `[ Pastas v ]` da pasta atual.
-
-Lista na pasta Trabalho:
-
-```text
-+--------------------------------------------------------------------------------+
-| CSTM                                                                           |
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  [ Buscar em todos os textos...                           ]   [ + Novo texto ] |
-|  Todas > Trabalho                                            [ Pastas v ]      |
-|                                                                                |
-|  FAVORITOS                                                                     |
-|  * Saudação formal     Prezado(a), espero que esteja bem...      Trabalho      |
-|  * Assinatura          Atenciosamente, Gabriel de Marins         Sem pasta     |
-|                                                                                |
-|  TRABALHO                                                                      |
-|    Resposta padrão     Obrigado pelo contato, retornaremos...                  |
-|    Follow-up           Olá, passando para saber se...                          |
-|                                                                                |
-|  SUBPASTAS                                                                     |
-|    E-mails  (4)                                                        >       |
-|    Clientes (2)                                                        >       |
-|                                                                                |
-+--------------------------------------------------------------------------------+
-```
-
-Edição: clicar num texto o expande no lugar, empurrando os demais para baixo. `Salvar` e `Cancelar` fecham o cartão.
-
-```text
-+--------------------------------------------------------------------------------+
-| CSTM                                                                           |
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  [ Buscar em todos os textos...                           ]   [ + Novo texto ] |
-|  Todas > Trabalho                                            [ Pastas v ]      |
-|                                                                                |
-|  TRABALHO                                                                      |
-|  +--------------------------------------------------------------------------+  |
-|  | ( )  [ Resposta padrão_____________ ]          [ Pasta: Trabalho v ]     |  |
-|  |                                                                          |  |
-|  | [ Obrigado pelo contato, retornaremos em até 24h.                 ]      |  |
-|  | [                                                                 ]      |  |
-|  | [                                                                 ]      |  |
-|  |                                                                          |  |
-|  |                       [ Excluir ]   [ Cancelar ]   [ Salvar ]            |  |
-|  +--------------------------------------------------------------------------+  |
-|    Follow-up           Olá, passando para saber se...                          |
-|                                                                                |
-+--------------------------------------------------------------------------------+
-```
-
-- **Prós:** busca sempre à mão; mesma lógica visual do menu de colagem; funciona bem em janela estreita; lista com prévia do conteúdo.
-- **Contras:** textos longos ficam desconfortáveis no cartão expandido; a árvore de pastas não fica visível de uma vez; reorganizar muitas pastas exige entrar em cada uma.
-
-#### B — Explorador
-
-Metáfora do Explorador de Arquivos: a janela mostra o conteúdo de uma pasta por vez, com pastas e textos como cartões (pastas primeiro). Duplo clique numa pasta entra nela; `[<]` volta. Na raiz (`Início`) aparecem um cartão "Favoritos", as pastas e os textos sem pasta. Renomear, excluir e mover ficam no menu de contexto (botão direito) de cada cartão.
-
-Pasta Trabalho:
-
-```text
-+--------------------------------------------------------------------------------+
-| CSTM                                                                           |
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  [<]  Início > Trabalho                  [ Buscar... ]  [+ Pasta] [+ Texto]    |
-|  ----------------------------------------------------------------------------  |
-|                                                                                |
-|  +----------------------+  +----------------------+  +----------------------+  |
-|  | PASTA                |  | PASTA                |  | * Saudação formal    |  |
-|  | E-mails              |  | Clientes             |  | Prezado(a),          |  |
-|  | 4 textos             |  | 2 textos             |  | espero que...        |  |
-|  +----------------------+  +----------------------+  +----------------------+  |
-|                                                                                |
-|  +----------------------+  +----------------------+                            |
-|  | Resposta padrão      |  | Follow-up            |                            |
-|  | Obrigado pelo        |  | Olá, passando        |                            |
-|  | contato...           |  | para saber...        |                            |
-|  +----------------------+  +----------------------+                            |
-|                                                                                |
-+--------------------------------------------------------------------------------+
-```
-
-Edição: abrir um texto troca a janela inteira pelo editor, como um documento; `[<]` volta à pasta (pedindo confirmação se houver alterações não salvas).
-
-```text
-+--------------------------------------------------------------------------------+
-| CSTM                                                                           |
-+--------------------------------------------------------------------------------+
-|                                                                                |
-|  [<]  Trabalho > Saudação formal                ( )   [ Excluir ]  [ Salvar ]  |
-|  ----------------------------------------------------------------------------  |
-|                                                                                |
-|     Saudação formal                                                            |
-|     ------------------------------------------------------------------         |
-|     Prezado(a),                                                                |
-|                                                                                |
-|     Espero que esteja bem.                                                     |
-|                                                                                |
-|                                                                                |
-|                                                                                |
-|                                      Pasta: [ Trabalho v ]                     |
-|                                                                                |
-+--------------------------------------------------------------------------------+
-```
-
-- **Prós:** familiar para quem usa o Windows; editor com espaço total, bom para textos longos; cartões mostram prévia; organização de pastas e textos no mesmo lugar.
-- **Contras:** só se vê uma pasta por vez; editar vários textos em sequência exige ir e voltar; ações em menu de contexto ficam menos visíveis.
-
-#### C — Árvore única + editor sempre aberto (escolhido)
-
-Duas colunas fixas: à esquerda uma árvore única em que pastas e textos convivem (textos são folhas; textos sem pasta ficam na raiz da árvore); à direita o editor do texto selecionado. Não há coluna de lista separada nem entradas "Favoritos" e "Sem pasta": favoritos viram um filtro (`[ Só favoritos ]`) que reduz a árvore. Criar pasta (`[+P]`) e texto (`[+T]`) usa a posição selecionada na árvore.
-
-Edição com salvamento automático: não há botão Salvar; alterações válidas são gravadas após uma pausa na digitação, e o rodapé mostra o estado.
-
-```text
-+--------------------------------------------------------------------------------+
-| CSTM                                                                           |
-+-------------------------------+------------------------------------------------+
-| [ Buscar...                 ] |  Trabalho / E-mails                       ( )  |
-| [ Só favoritos ]  [+P]  [+T]  |                                                |
-+-------------------------------+------------------------------------------------+
-| v Trabalho                    |  Resposta padrão                               |
-|   v E-mails                   |  ------------------------------------------    |
-|     => Resposta padrão        |  Obrigado pelo contato, retornaremos em        |
-|        Follow-up              |  até 24h.                                      |
-|   > Clientes                  |                                                |
-|   * Saudação formal           |                                                |
-| > Pessoal                     |                                                |
-|   Assinatura                  |                                                |
-|   Endereço                    |                                                |
-|                               |                    Salvo automaticamente 14:02 |
-+-------------------------------+------------------------------------------------+
-```
-
-- **Prós:** estrutura inteira visível de uma vez; trocar de texto é um clique; sem "Salvar" nem aviso de descarte; menos elementos na tela.
-- **Contras:** árvore fica longa com muitos textos; título não fica destacado na árvore além do nome; salvamento automático muda o fluxo aprovado no p30 (botão Salvar e aviso de descarte) e precisa de regra para título ou conteúdo vazios (não grava até ficarem válidos).
-
-### v2 — conceito C refinado (aprovado)
 
 Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastro.html) (abre direto no navegador; estados e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
 
@@ -245,9 +43,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 +--------------------------------------------------------------------------------+
 ```
 
-Legenda adicional: `( Favoritos )` é o filtro de favoritos; `...` abre o menu de contexto do item; `(v)` é o indicador de salvamento.
-
-#### Estrutura
+### Estrutura
 
 | Elemento | Decisão |
 | --- | --- |
@@ -265,7 +61,7 @@ Legenda adicional: `( Favoritos )` é o filtro de favoritos; `...` abre o menu d
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Confirmação | Diálogo modal para excluir, informando o que vai junto (subpastas, textos, favoritos). Excluir em vermelho. |
 
-#### Salvamento automático
+### Salvamento automático
 
 Estados exibidos na barra inferior (e, quando relevante, no item da árvore):
 
@@ -287,38 +83,9 @@ Regras:
 5. Uma gravação por texto de cada vez; edições feitas durante a gravação disparam outra ao terminar.
 6. Rascunhos inválidos e com erro ficam em memória enquanto o aplicativo estiver aberto; fechar a janela apenas a oculta. Encerrar o aplicativo ("Sair" na bandeja) com pendências pede confirmação.
 
-#### Impactos funcionais
+### Preferências de interface
 
-O conceito C altera requisitos aprovados anteriormente no p30; as mudanças entram no plano `planos/p30-tela-de-cadastro.md` (fase 7).
-
-Requisitos do p30 que mudam:
-
-| Hoje no p30 | Passa a ser |
-| --- | --- |
-| Layout em três colunas (barra lateral, lista, editor) | Duas colunas: árvore única e editor, com divisor redimensionável |
-| Entradas fixas "Favoritos" e "Sem pasta" | Favoritos viram filtro; textos sem pasta ficam na raiz da árvore |
-| Botão Salvar e `Ctrl+S` para gravar | Salvamento automático; `Ctrl+S` só antecipa a gravação |
-| Rascunho gravado só ao salvar | Rascunho gravado automaticamente quando ficar válido |
-| Confirmação para descartar alterações não salvas | Removida: nada é descartado; rascunhos inválidos ficam preservados e marcados |
-| Botões ↑/↓ e seletor "Mover para" na tela | Menu de contexto com mover para cima/baixo, Mover para… (diálogo) e atalhos |
-| Busca mostra lista de resultados por relevância | Busca filtra a árvore, preservando a hierarquia; a ordem é a da árvore (relevância segue disponível para o menu de colagem) |
-| Renomear pasta por formulário na barra lateral | Renomear na árvore (F2) ou pelo título no editor de pasta |
-| Erros em faixa no topo da janela | Erros de gravação na barra inferior e no editor; demais erros em faixa |
-
-Mudanças técnicas decorrentes:
-
-- **Backend:** novo comando para listar todos os textos de uma vez (a árvore precisa deles), com função no `db` e teste. Sem mudança de esquema nem das regras do p20.
-- **Frontend:** reescrever a tela (árvore, menus, editor, barra inferior) e a lógica de edição (estados de salvamento, fila de gravação por texto, rascunhos em memória). Continua com Fluent UI (Tree, Menu, Dialog, tokens) ajustado ao visual do protótipo.
-- **Preferências de interface:** largura da árvore e pastas recolhidas guardadas no `localStorage` do WebView (não são dados do usuário e ficam fora do SQLite).
-- **Testes:** substituir os testes de salvar e de descarte por testes de salvamento automático (com relógio simulado), rascunho inválido preservado, erro com nova tentativa, árvore mista, menu de contexto, busca preservando hierarquia e filtro de favoritos.
-- **Documentação:** atualizar o plano p30 (escopo, riscos, nova fase), `CHANGELOG.md` e `AGENTS.md` (referência a este documento e ao protótipo).
-
-Decisões tomadas na aprovação:
-
-1. Rascunhos inválidos ficam só em memória, sem persistência entre execuções.
-2. Pausa de 800 ms antes de gravar.
-3. Largura da árvore e pastas recolhidas no `localStorage`.
-4. Encerrar o aplicativo com pendências pede confirmação.
+A largura da árvore e as pastas recolhidas são guardadas no `localStorage` do WebView: não são dados do usuário e ficam fora do SQLite.
 
 ## Bandeja e ciclo de vida da janela `main`
 
@@ -336,4 +103,86 @@ A janela abre visível ao iniciar o aplicativo. Não há aviso de que o aplicati
 
 ## Tela 2 — Menu de colagem (janela `picker`)
 
-A desenhar no planejamento do p50. Inventário inicial, de `docs/mvp.md`: favoritos, pastas navegáveis, campo de busca com foco automático, navegação por teclado (setas, Enter, Esc) e mouse; abre junto ao cursor, fecha ao colar, com `Esc` ou clique fora.
+Protótipo visual navegável: [`docs/prototipo/picker.html`](prototipo/picker.html) (abre direto no navegador; estados e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
+
+Raiz (estado ao abrir):
+
+```text
++--------------------------------------+
+| [ Buscar...                        ] |
++--------------------------------------+
+| FAVORITOS                            |
+| => Assinatura                        |
+|    Saudação formal                   |
+|    Telefone                          |
+| TODOS                                |
+|    Trabalho                        > |
+|    Pessoal                         > |
+|    Telefone                          |
+|    Link da agenda                    |
++--------------------------------------+
+| Enter colar  > abrir      Esc fechar |
++--------------------------------------+
+```
+
+Dentro de uma pasta:
+
+```text
++--------------------------------------+
+| [ Buscar...                        ] |
++--------------------------------------+
+| <  Trabalho > E-mails                |
+| => Clientes                        > |
+|    Resposta padrão                   |
+|    Follow-up                         |
++--------------------------------------+
+| Enter colar  < voltar     Esc fechar |
++--------------------------------------+
+```
+
+Busca:
+
+```text
++--------------------------------------+
+| [ resp                             ] |
++--------------------------------------+
+| => Resposta padrão           E-mails |
+|    Respostas rápidas         Pessoal |
++--------------------------------------+
+| Enter colar               Esc fechar |
++--------------------------------------+
+```
+
+### Estrutura
+
+- Abre pelo atalho global `Alt+Q` junto ao cursor do mouse, inteiramente dentro da área útil do monitor em que o cursor está.
+- Janela de 340 × 440, sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema claro ou escuro do sistema, como o cadastro.
+- Campo de busca no topo, com foco automático, lista no meio (com rolagem) e uma linha de dicas de teclado no rodapé.
+- Na raiz: a seção **Favoritos** (por título, oculta quando não há favoritos) e a seção **Todos**, com as pastas e depois os textos da raiz, cada grupo na ordem manual do cadastro. Um texto favorito aparece nas duas seções.
+- Dentro de uma pasta: uma linha de volta com o caminho (`<  Trabalho > E-mails`) seguida das subpastas e dos textos da pasta, nessa ordem e na ordem manual de cada grupo.
+- Pastas têm `>` à direita. Textos mostram só o título; o conteúdo aparece como dica (tooltip) ao passar o mouse.
+- Com texto na busca, a lista é substituída pelos resultados (na ordem de relevância do backend), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
+
+### Comportamento
+
+| Ação | Resultado |
+| --- | --- |
+| `↑` / `↓`; `Home` / `End` com a busca vazia | Move a seleção (o foco fica no campo de busca); a primeira linha selecionável começa selecionada |
+| `Enter` ou clique num texto | Fecha o menu e cola o texto (no p50: copia para o clipboard) |
+| `Enter`, `→` ou clique numa pasta | Abre a pasta |
+| `←` ou `Backspace` com a busca vazia, ou clique na linha de volta | Volta para a pasta acima |
+| Digitar | Busca; a seleção volta para o primeiro resultado |
+| `Esc`, clique fora ou `Alt+Q` | Fecha o menu sem colar |
+| Passar o mouse | Move a seleção para a linha sob o cursor |
+
+- Cada abertura começa na raiz, com a busca vazia, e recarrega os dados (refletindo as edições do cadastro).
+- `→` e `←` só navegam pastas quando o cursor do campo de busca não teria para onde ir (busca vazia); com texto na busca, movem o cursor normalmente.
+
+### Estados
+
+| Estado | Exibição |
+| --- | --- |
+| Biblioteca vazia | "Nenhum texto cadastrado." e o botão "Abrir cadastro" |
+| Pasta vazia | "Pasta vazia." abaixo da linha de volta |
+| Busca sem resultados | "Nenhum texto encontrado." |
+| Falha ao carregar | Mensagem de erro do backend no lugar da lista |

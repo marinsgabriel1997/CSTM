@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>CSTM — Protótipo do menu de colagem</title>
+<!--
+  Protótipo estático do menu de colagem (Tela 2 de docs/telas.md).
+  Não faz parte do aplicativo: abre direto no navegador, sem build.
+  O menu é navegável pelo teclado e pelo mouse. Estados selecionáveis na barra superior
+  ou pela URL: picker.html#estado=pasta&tema=escuro
+-->
+<style>
+  :root {
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  }
+
+  .theme-light {
+    --layer: #f9f9f9;
+    --stroke: rgba(0, 0, 0, 0.08);
+    --stroke-strong: rgba(0, 0, 0, 0.14);
+    --text: #1a1a1a;
+    --text-2: #5d5d5d;
+    --text-3: #8b8b8b;
+    --hover: rgba(0, 0, 0, 0.04);
+    --selected: rgba(0, 0, 0, 0.065);
+    --accent: #005fb8;
+    --on-accent: #ffffff;
+    --danger: #c42b1c;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 0 1px rgba(0, 0, 0, 0.2);
+    --control: #ffffff;
+    --control-bottom: rgba(0, 0, 0, 0.22);
+    --desk: #dfe4ea;
+    --app: #ffffff;
+  }
+
+  .theme-dark {
+    --layer: #2c2c2c;
+    --stroke: rgba(255, 255, 255, 0.07);
+    --stroke-strong: rgba(255, 255, 255, 0.12);
+    --text: #ffffff;
+    --text-2: #c8c8c8;
+    --text-3: #9a9a9a;
+    --hover: rgba(255, 255, 255, 0.05);
+    --selected: rgba(255, 255, 255, 0.085);
+    --accent: #60cdff;
+    --on-accent: #000000;
+    --danger: #ff99a4;
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.6);
+    --control: #2d2d2d;
+    --control-bottom: rgba(255, 255, 255, 0.2);
+    --desk: #202428;
+    --app: #1f1f1f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 24px 40px;
+    font-family: var(--font);
+    font-size: 14px;
+    background: #d9dce1;
+    color: #1a1a1a;
+  }
+
+  /* ---------- Painel do protótipo (fora da tela simulada) ---------- */
+  .proto-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 10px;
+  }
+  .proto-bar button {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border: 1px solid #b9bdc4;
+    border-radius: 999px;
+    background: #f4f5f7;
+    cursor: pointer;
+  }
+  .proto-bar button.on { background: #1f2937; color: #fff; border-color: #1f2937; }
+  .proto-bar .sep { width: 1px; height: 20px; background: #b9bdc4; margin: 0 6px; }
+  .proto-note {
+    max-width: 900px;
+    margin: 0 auto 14px;
+    font-size: 13px;
+    color: #374151;
+    min-height: 20px;
+  }
+
+  /* ---------- Tela simulada: outro programa ao fundo ---------- */
+  .desk {
+    position: relative;
+    width: 900px;
+    height: 600px;
+    margin: 0 auto;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--desk);
+    color: var(--text);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+  .other-app {
+    position: absolute;
+    inset: 40px 60px 60px 60px;
+    border-radius: 8px;
+    background: var(--app);
+    border: 1px solid var(--stroke-strong);
+    padding: 44px 24px 24px;
+    font-size: 13px;
+    color: var(--text-2);
+    line-height: 1.6;
+  }
+  .other-app::before {
+    content: "Sem título — Bloco de Notas";
+    position: absolute;
+    top: 10px;
+    left: 14px;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .caret { display: inline-block; width: 1px; height: 16px; background: var(--text); vertical-align: -3px; }
+  .mouse {
+    position: absolute;
+    left: 330px;
+    top: 150px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 18px solid #111;
+    transform: rotate(-30deg);
+    filter: drop-shadow(0 0 1px #fff);
+  }
+  .toast {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    transform: translateX(-50%);
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: #1f2937;
+    color: #fff;
+    font-size: 12.5px;
+  }
+
+  /* ---------- Menu ---------- */
+  .picker {
+    position: absolute;
+    left: 338px;
+    top: 166px;
+    width: 340px;
+    height: 440px;
+    max-height: calc(100% - 176px);
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    border-radius: 8px;
+    background: var(--layer);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .search { padding: 8px; border-bottom: 1px solid var(--stroke); }
+  .search input {
+    width: 100%;
+    font: inherit;
+    padding: 6px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    border-bottom: 2px solid var(--accent);
+    background: var(--control);
+    color: var(--text);
+    outline: none;
+  }
+  .list { overflow-y: auto; padding: 4px; }
+  .section {
+    padding: 8px 10px 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-3);
+  }
+  .row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 4px;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .row.selected { background: var(--selected); }
+  .row.selected::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 9px;
+    bottom: 9px;
+    width: 3px;
+    border-radius: 2px;
+    background: var(--accent);
+  }
+  .row .icon { width: 16px; text-align: center; color: var(--text-2); font-size: 13px; }
+  .row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .row .meta { color: var(--text-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
+  .row .chevron { color: var(--text-3); }
+  .row.back { color: var(--text-2); }
+  .row.back .label { font-weight: 600; color: var(--text); }
+  .empty { padding: 28px 16px; text-align: center; color: var(--text-2); }
+  .empty button {
+    margin-top: 12px;
+    font: inherit;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .error { padding: 16px; color: var(--danger); }
+  .hints {
+    display: flex;
+    gap: 14px;
+    padding: 7px 12px;
+    border-top: 1px solid var(--stroke);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+  .hints .end { margin-left: auto; }
+  kbd {
+    font: inherit;
+    font-size: 11px;
+    padding: 0 4px;
+    border-radius: 3px;
+    border: 1px solid var(--stroke-strong);
+    color: var(--text-2);
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" id="states"></div>
+<div class="proto-note" id="note"></div>
+
+<div class="desk" id="desk">
+  <div class="other-app" id="other">Prezado cliente,<br /><br /><span class="caret"></span></div>
+  <div class="mouse"></div>
+  <div class="picker" id="picker" role="dialog" aria-label="Menu de colagem">
+    <div class="search"><input id="search" placeholder="Buscar" aria-label="Buscar" autocomplete="off" /></div>
+    <div class="list" id="list" role="listbox" aria-label="Textos"></div>
+    <div class="hints" id="hints"></div>
+  </div>
+</div>
+
+<script>
+  // Biblioteca de exemplo, a mesma do protótipo do cadastro.
+  const folders = [
+    { id: 1, parent: null, name: "Trabalho" },
+    { id: 2, parent: 1, name: "E-mails" },
+    { id: 3, parent: 2, name: "Clientes" },
+    { id: 4, parent: null, name: "Pessoal" },
+  ];
+  const snippets = [
+    { id: 1, folder: 2, title: "Resposta padrão", content: "Olá! Obrigado pelo contato. Recebemos sua mensagem e retornaremos em até 24 horas.", favorite: false },
+    { id: 2, folder: 2, title: "Follow-up", content: "Olá, tudo bem? Gostaria de saber se teve a chance de ver a proposta.", favorite: false },
+    { id: 3, folder: 1, title: "Saudação formal", content: "Prezado(a), espero que esteja bem.", favorite: true },
+    { id: 4, folder: 1, title: "Assinatura", content: "Atenciosamente,\nGabriel", favorite: true },
+    { id: 5, folder: 4, title: "Respostas rápidas", content: "Pode deixar, já vejo isso.", favorite: false },
+    { id: 6, folder: null, title: "Telefone", content: "(11) 91234-5678", favorite: true },
+    { id: 7, folder: null, title: "Link da agenda", content: "https://agenda.exemplo.com/gabriel", favorite: false },
+  ];
+
+  const STATES = {
+    raiz: { label: "Raiz", note: "Estado ao abrir: favoritos e o conteúdo da raiz, com a busca focada." },
+    pasta: { label: "Dentro de uma pasta", note: "← ou Backspace (com a busca vazia) volta; clicar na linha de volta também." },
+    busca: { label: "Busca", note: "A busca vale para toda a biblioteca; a pasta de cada resultado aparece à direita." },
+    "sem-resultados": { label: "Busca sem resultados", note: "" },
+    vazio: { label: "Biblioteca vazia", note: "O botão abre a janela de cadastro." },
+    erro: { label: "Falha ao carregar", note: "A mensagem vem do backend." },
+  };
+
+  let theme = "claro";
+  let mode = "raiz";
+  let folder = null;
+  let query = "";
+  let selected = 0;
+  let rows = [];
+  let open = true;
+
+  const $ = (id) => document.getElementById(id);
+  const fold = (text) => text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const nameOf = (id) => folders.find((f) => f.id === id).name;
+
+  function pathOf(id) {
+    const names = [];
+    for (let at = id; at !== null; at = folders.find((f) => f.id === at).parent) names.unshift(nameOf(at));
+    return names.join(" › ");
+  }
+
+  // Aproxima a busca do backend: todos os termos, por prefixo de palavra, sem acentos.
+  function search(text) {
+    const terms = fold(text).split(/\s+/).filter(Boolean);
+    return snippets.filter((s) => {
+      const words = fold(`${s.title} ${s.content}`).split(/[^\p{L}\p{N}]+/u);
+      return terms.every((term) => words.some((word) => word.startsWith(term)));
+    });
+  }
+
+  function buildRows() {
+    if (mode === "vazio" || mode === "erro") return [];
+    if (query.trim()) {
+      return search(query).map((s) => ({ kind: "snippet", item: s, meta: s.folder && nameOf(s.folder), tip: s.folder ? pathOf(s.folder) : "" }));
+    }
+    const result = [];
+    const contents = [
+      ...folders.filter((f) => f.parent === folder).map((f) => ({ kind: "folder", item: f })),
+      ...snippets.filter((s) => s.folder === folder).map((s) => ({ kind: "snippet", item: s })),
+    ];
+    if (folder === null) {
+      const favorites = snippets.filter((s) => s.favorite).sort((a, b) => a.title.localeCompare(b.title));
+      if (favorites.length) {
+        result.push({ kind: "section", label: "Favoritos" });
+        result.push(...favorites.map((s) => ({ kind: "snippet", item: s })));
+      }
+      result.push({ kind: "section", label: "Todos" });
+      result.push(...contents);
+    } else {
+      result.push({ kind: "back", label: pathOf(folder) });
+      result.push(...contents);
+    }
+    return result;
+  }
+
+  const selectable = (row) => row.kind === "snippet" || row.kind === "folder";
+
+  function render() {
+    document.body.className = theme === "escuro" ? "theme-dark" : "theme-light";
+    $("desk").className = `desk ${theme === "escuro" ? "theme-dark" : "theme-light"}`;
+    $("picker").style.display = open ? "" : "none";
+    renderBar();
+    rows = buildRows();
+    const indexes = rows.map((row, index) => (selectable(row) ? index : -1)).filter((i) => i >= 0);
+    if (!indexes.includes(selected)) selected = indexes[0] ?? -1;
+
+    const list = $("list");
+    list.innerHTML = "";
+    if (mode === "erro") {
+      list.innerHTML = `<div class="error">Não foi possível carregar os textos: banco de dados indisponível.</div>`;
+    } else if (mode === "vazio") {
+      list.innerHTML = `<div class="empty">Nenhum texto cadastrado.<br /><button>Abrir cadastro</button></div>`;
+    } else if (query.trim() && rows.length === 0) {
+      list.innerHTML = `<div class="empty">Nenhum texto encontrado.</div>`;
+    } else {
+      rows.forEach((row, index) => list.appendChild(renderRow(row, index)));
+      if (folder !== null && rows.length === 1) {
+        list.insertAdjacentHTML("beforeend", `<div class="empty">Pasta vazia.</div>`);
+      }
+    }
+    list.querySelector(".selected")?.scrollIntoView({ block: "nearest" });
+
+    const hints = [];
+    if (rows.length) hints.push(`<span><kbd>Enter</kbd> colar</span>`);
+    if (rows.length && !query.trim()) hints.push(folder === null ? `<span><kbd>→</kbd> abrir pasta</span>` : `<span><kbd>←</kbd> voltar</span>`);
+    hints.push(`<span class="end"><kbd>Esc</kbd> fechar</span>`);
+    $("hints").innerHTML = hints.join("");
+  }
+
+  function renderRow(row, index) {
+    const el = document.createElement("div");
+    if (row.kind === "section") {
+      el.className = "section";
+      el.textContent = row.label;
+      return el;
+    }
+    el.className = `row ${row.kind}${index === selected ? " selected" : ""}`;
+    if (row.kind === "back") {
+      el.innerHTML = `<span class="icon">‹</span><span class="label"></span>`;
+      el.querySelector(".label").textContent = row.label;
+      el.onclick = goBack;
+      return el;
+    }
+    el.setAttribute("role", "option");
+    el.setAttribute("aria-selected", index === selected);
+    const isFolder = row.kind === "folder";
+    el.innerHTML = `<span class="icon">${isFolder ? "📁" : "📄"}</span><span class="label"></span>` +
+      (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : "");
+    el.querySelector(".label").textContent = isFolder ? row.item.name : row.item.title;
+    if (row.meta) el.querySelector(".meta").textContent = row.meta;
+    el.title = isFolder ? "" : row.tip ? `${row.tip}\n\n${row.item.content}` : row.item.content;
+    el.onmousemove = () => {
+      if (selected !== index) { selected = index; render(); }
+    };
+    el.onclick = () => choose(row);
+    return el;
+  }
+
+  function choose(row) {
+    if (row.kind === "folder") {
+      folder = row.item.id;
+      selected = 0;
+      render();
+      return;
+    }
+    close(`Copiado para o clipboard: “${row.item.title}”. No p60, o texto é colado no Bloco de Notas.`);
+  }
+
+  function goBack() {
+    if (folder === null) return;
+    const from = folder;
+    folder = folders.find((f) => f.id === folder).parent;
+    rows = buildRows();
+    selected = rows.findIndex((row) => row.kind === "folder" && row.item.id === from);
+    render();
+  }
+
+  function move(step) {
+    const indexes = rows.map((row, index) => (selectable(row) ? index : -1)).filter((i) => i >= 0);
+    if (!indexes.length) return;
+    const at = indexes.indexOf(selected);
+    if (step === "first") selected = indexes[0];
+    else if (step === "last") selected = indexes[indexes.length - 1];
+    else selected = indexes[Math.min(indexes.length - 1, Math.max(0, at + step))];
+    render();
+  }
+
+  function close(message) {
+    open = false;
+    render();
+    showToast(message ?? "Menu fechado sem colar. Pressione Alt+Q para abrir de novo.");
+  }
+
+  function reopen() {
+    open = true;
+    folder = null;
+    query = "";
+    $("search").value = "";
+    selected = 0;
+    hideToast();
+    render();
+    $("search").focus();
+  }
+
+  function showToast(message) {
+    hideToast();
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.id = "toast";
+    toast.textContent = message;
+    $("desk").appendChild(toast);
+  }
+  function hideToast() { $("toast")?.remove(); }
+
+  $("search").addEventListener("input", (event) => {
+    query = event.target.value;
+    selected = 0;
+    render();
+  });
+
+  $("search").addEventListener("keydown", (event) => {
+    const empty = !query;
+    const row = rows[selected];
+    switch (event.key) {
+      case "ArrowDown": move(1); break;
+      case "ArrowUp": move(-1); break;
+      case "Home": if (!empty) return; move("first"); break;
+      case "End": if (!empty) return; move("last"); break;
+      case "Enter": if (row) choose(row); break;
+      case "ArrowRight": if (!empty) return; if (row?.kind === "folder") choose(row); break;
+      case "ArrowLeft":
+      case "Backspace": if (!empty) return; goBack(); break;
+      case "Escape": close(); break;
+      default: return;
+    }
+    event.preventDefault();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.altKey && event.key.toLowerCase() === "q") {
+      event.preventDefault();
+      open ? close() : reopen();
+    }
+  });
+
+  // Clique fora do menu fecha sem colar.
+  $("desk").addEventListener("mousedown", (event) => {
+    if (open && !$("picker").contains(event.target)) close();
+  });
+
+  function setState(state) {
+    mode = state;
+    open = true;
+    folder = state === "pasta" ? 2 : null;
+    query = state === "busca" ? "resp" : state === "sem-resultados" ? "orçamento" : "";
+    $("search").value = query;
+    selected = 0;
+    hideToast();
+    location.hash = `estado=${state}&tema=${theme}`;
+    render();
+    $("search").focus();
+  }
+
+  function renderBar() {
+    const bar = $("states");
+    bar.innerHTML = "";
+    for (const [key, state] of Object.entries(STATES)) {
+      const button = document.createElement("button");
+      button.textContent = state.label;
+      button.className = key === mode ? "on" : "";
+      button.onclick = () => setState(key);
+      bar.appendChild(button);
+    }
+    bar.insertAdjacentHTML("beforeend", `<span class="sep"></span>`);
+    for (const name of ["claro", "escuro"]) {
+      const button = document.createElement("button");
+      button.textContent = name === "claro" ? "Tema claro" : "Tema escuro";
+      button.className = name === theme ? "on" : "";
+      button.onclick = () => {
+        theme = name;
+        location.hash = `estado=${mode}&tema=${theme}`;
+        render();
+        $("search").focus();
+      };
+      bar.appendChild(button);
+    }
+    $("note").textContent = `${STATES[mode].note} Experimente: setas, Enter, →/←, digitar, Esc, Alt+Q e clique fora do menu.`;
+  }
+
+  const params = new URLSearchParams(location.hash.slice(1));
+  theme = params.get("tema") === "escuro" ? "escuro" : "claro";
+  setState(STATES[params.get("estado")] ? params.get("estado") : "raiz");
+</script>
+</body>
+</html>

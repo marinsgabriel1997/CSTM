@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
+### Added
+
+- Menu de colagem aberto por `Alt+Q` em qualquer programa, junto ao cursor do mouse e sempre dentro da tela: busca em todos os textos, favoritos e pastas navegáveis, pelo teclado (setas, `Enter`, `→`/`←`, `Esc`) ou pelo mouse. Escolher um texto o copia para o clipboard; `Esc`, clicar fora ou `Alt+Q` fecham o menu.
+- Aviso no cadastro quando o atalho `Alt+Q` não pode ser registrado, por exemplo por já estar em uso por outro programa.
+
 ## [0.4.0] - 2026-10-13
 
 ### Added

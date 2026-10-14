@@ -4,6 +4,7 @@ use tauri::Manager;
 
 mod commands;
 mod db;
+mod picker;
 mod tray;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -14,14 +15,18 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             tray::show_main_window(app);
         }))
+        .plugin(picker::shortcut_plugin())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
             let conn = db::open(&data_dir.join("cstm.db"))?;
             app.manage(Mutex::new(conn));
             tray::create(app)?;
+            picker::register_shortcut(app);
             Ok(())
         })
+        .on_window_event(picker::on_window_event)
         .invoke_handler(tauri::generate_handler![
             commands::list_folders,
             commands::create_folder,
@@ -39,6 +44,9 @@ pub fn run() {
             commands::move_snippet,
             commands::show_main_window,
             commands::exit_app,
+            commands::hide_picker,
+            commands::choose_snippet,
+            commands::shortcut_error,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -80,13 +80,15 @@ export function ConfirmDialog({ confirmation, onCancel }: ConfirmDialogProps) {
 
 interface ErrorMessageProps {
   message: string;
+  /** Erro (padrão) ou aviso, quando algo não impede o uso do aplicativo. */
+  intent?: "error" | "warning";
   onClose: () => void;
 }
 
-export function ErrorMessage({ message, onClose }: ErrorMessageProps) {
+export function ErrorMessage({ message, intent = "error", onClose }: ErrorMessageProps) {
   return (
     <div role="alert">
-      <MessageBar intent="error">
+      <MessageBar intent={intent}>
         <MessageBarBody>{message}</MessageBarBody>
         <MessageBarActions
           containerAction={

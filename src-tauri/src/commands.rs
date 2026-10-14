@@ -1,4 +1,4 @@
-//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db` e `tray`;
+//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker` e `tray`;
 //! os erros chegam ao frontend como mensagens prontas para exibição.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -8,6 +8,7 @@ use tauri::{AppHandle, State};
 
 use crate::db::folders::{self, Folder};
 use crate::db::snippets::{self, Snippet};
+use crate::picker::{self, ShortcutError};
 use crate::tray;
 
 type Db<'a> = State<'a, Mutex<Connection>>;
@@ -141,6 +142,22 @@ pub fn show_main_window(app: AppHandle) {
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
     app.exit(0);
+}
+
+#[tauri::command]
+pub fn hide_picker(app: AppHandle) {
+    picker::hide(&app);
+}
+
+#[tauri::command]
+pub fn choose_snippet(app: AppHandle, state: Db, id: i64) -> CommandResult<()> {
+    let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
+    picker::deliver(&app, &snippet.content)
+}
+
+#[tauri::command]
+pub fn shortcut_error(state: State<ShortcutError>) -> Option<String> {
+    state.0.clone()
 }
 
 #[cfg(test)]

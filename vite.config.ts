@@ -31,6 +31,13 @@ export default defineConfig(() => ({
     },
   },
 
+  // Uma página por janela: o cadastro (`main`) e o menu de colagem (`picker`).
+  build: {
+    rolldownOptions: {
+      input: { main: "index.html", picker: "picker.html" },
+    },
+  },
+
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],

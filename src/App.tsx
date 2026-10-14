@@ -73,8 +73,11 @@ const useStyles = makeStyles({
     borderLeft: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
     borderTopLeftRadius: tokens.borderRadiusXLarge,
   },
-  error: {
+  messages: {
     position: "absolute",
+    display: "flex",
+    flexDirection: "column",
+    gap: tokens.spacingVerticalS,
     top: tokens.spacingVerticalM,
     left: "50%",
     transform: "translateX(-50%)",
@@ -138,6 +141,8 @@ function App() {
   const [moving, setMoving] = useState<ItemRef | null>(null);
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Falha ao registrar o atalho do menu de colagem, informada uma vez ao abrir.
+  const [shortcutWarning, setShortcutWarning] = useState<string | null>(null);
   const treeRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -159,6 +164,18 @@ function App() {
       current = false;
     };
   }, [version]);
+
+  useEffect(() => {
+    let current = true;
+    api.shortcutError().then(
+      (message) => current && setShortcutWarning(message),
+      // Fora do Tauri (frontend no navegador) não há atalho global.
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearchTerm(query.trim()), SEARCH_DELAY_MS);
@@ -685,9 +702,12 @@ function App() {
         />
       )}
       <ConfirmDialog confirmation={confirmation} onCancel={() => setConfirmation(null)} />
-      {error && (
-        <div className={styles.error}>
-          <ErrorMessage message={error} onClose={() => setError(null)} />
+      {(error || shortcutWarning) && (
+        <div className={styles.messages}>
+          {error && <ErrorMessage message={error} onClose={() => setError(null)} />}
+          {shortcutWarning && (
+            <ErrorMessage intent="warning" message={shortcutWarning} onClose={() => setShortcutWarning(null)} />
+          )}
         </div>
       )}
     </div>

@@ -25,6 +25,9 @@ export function createFakeApi() {
   // Avisos da janela nativa registrados pela interface, disparados pelos testes.
   const closeListeners = new Set<() => void>();
   const quitListeners = new Set<() => void>();
+  const pickerListeners = new Set<() => void>();
+  /** Conteúdos entregues pelo menu de colagem, na ordem. */
+  const delivered: string[] = [];
 
   function findFolder(id: number): Folder {
     const folder = folders.find((f) => f.id === id);
@@ -157,6 +160,12 @@ export function createFakeApi() {
     hideWindow: async () => {},
     showWindow: async () => {},
     exitApp: async () => {},
+    shortcutError: async () => null,
+    onPickerOpened: async (onOpen) => subscribe(pickerListeners, onOpen),
+    hidePicker: async () => {},
+    chooseSnippet: async (id) => {
+      delivered.push(findSnippet(id).content);
+    },
   };
 
   function subscribe(listeners: Set<() => void>, listener: () => void) {
@@ -176,5 +185,10 @@ export function createFakeApi() {
     quitListeners.forEach((listener) => listener());
   }
 
-  return { api, folders, snippets, requestClose, requestQuit };
+  /** Simula o atalho abrindo o menu de colagem. */
+  function openPicker() {
+    pickerListeners.forEach((listener) => listener());
+  }
+
+  return { api, folders, snippets, delivered, requestClose, requestQuit, openPicker };
 }
