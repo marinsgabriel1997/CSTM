@@ -215,6 +215,12 @@ pub fn layout_picker(app: AppHandle, columns: Vec<Subcolumn>) -> CommandResult<V
     picker::layout(&app, &columns)
 }
 
+/// O menu desenhou a raiz depois de abrir: a coluna principal pode aparecer.
+#[tauri::command]
+pub fn picker_ready(app: AppHandle) {
+    picker::ready(&app);
+}
+
 // Assíncrono: a colagem aguarda o foco e a restauração do clipboard fora da thread principal.
 #[tauri::command]
 pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {

@@ -1,9 +1,10 @@
-//! Geometria do menu em cascata: posição de cada coluna e da janela do picker que as contém.
+//! Geometria do menu em cascata: posição de cada coluna e região visível da janela do picker.
 //!
-//! A janela é a caixa que envolve as colunas visíveis. A coluna principal não muda de lugar
-//! na tela: o que muda é a origem da janela, e por isso cada coluna é devolvida em
-//! coordenadas relativas a ela. A regra é a de `docs/telas.md` (Tela 2, Navegação nas
-//! pastas) e a mesma do protótipo `docs/prototipo/picker.html`.
+//! A janela ocupa a área útil do monitor e não se move enquanto o menu está aberto; cada
+//! coluna é devolvida em coordenadas relativas a ela, e a região da janela (o que o Windows
+//! desenha e onde o clique chega) cobre só as colunas visíveis. A regra de posição é a de
+//! `docs/telas.md` (Tela 2, Navegação nas pastas) e a mesma do protótipo
+//! `docs/prototipo/picker.html`.
 
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,11 @@ pub const GAP: f64 = 2.0;
 /// Distância lógica entre o topo do cartão e a primeira linha da lista (borda e margem
 /// interna): com ela, a primeira linha da subcoluna fica na altura da pasta que a abriu.
 pub const LIST_INSET: f64 = 5.0;
+/// Quanto a sombra do cartão (`shadow16` do Fluent: desfoque de 16 px deslocado 8 px para
+/// baixo) passa das bordas, em pixels lógicos. A região inclui essa margem para não cortá-la.
+const SHADOW_SIDE: f64 = 16.0;
+const SHADOW_TOP: f64 = 8.0;
+const SHADOW_BOTTOM: f64 = 24.0;
 
 /// Subcoluna aberta, em pixels lógicos. A pasta que a abriu fica na coluna anterior.
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -38,11 +44,12 @@ pub struct PlacedColumn {
     pub hidden: bool,
 }
 
-/// Janela (em pixels físicos, na tela) e colunas: a principal primeiro, depois as subcolunas.
+/// Colunas (a principal primeiro, depois as subcolunas) e região da janela: um retângulo por
+/// coluna visível, com a margem da sombra, em pixels físicos relativos à janela.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Arrangement {
-    pub window: Area,
     pub columns: Vec<PlacedColumn>,
+    pub region: Vec<Area>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -145,34 +152,43 @@ pub fn arrange(main: Area, work_area: Area, scale: f64, subs: &[Subcolumn]) -> A
         });
     }
 
-    let visible = || columns.iter().filter(|c| !c.hidden).map(|c| c.rect);
-    let left = visible().map(|r| r.x).fold(f64::INFINITY, f64::min);
-    let top = visible().map(|r| r.y).fold(f64::INFINITY, f64::min);
-    let right = visible().map(Rect::right).fold(f64::NEG_INFINITY, f64::max);
-    let bottom = visible()
-        .map(Rect::bottom)
-        .fold(f64::NEG_INFINITY, f64::max);
-
-    // A origem da janela é arredondada para pixels físicos; as colunas são medidas a partir
-    // dela, para que a principal continue exatamente onde está.
-    let window = Area {
-        x: (left * scale).round() as i32,
-        y: (top * scale).round() as i32,
-        width: ((right * scale).round() as i32) - (left * scale).round() as i32,
-        height: ((bottom * scale).round() as i32) - (top * scale).round() as i32,
-    };
-    let origin = (f64::from(window.x) / scale, f64::from(window.y) / scale);
-    let columns = columns
+    let placed = columns
         .iter()
         .map(|c| PlacedColumn {
-            x: c.rect.x - origin.0,
-            y: c.rect.y - origin.1,
+            x: c.rect.x - area.x,
+            y: c.rect.y - area.y,
             width: c.rect.width,
             height: c.rect.height,
             hidden: c.hidden,
         })
         .collect();
-    Arrangement { window, columns }
+    let region = columns
+        .iter()
+        .filter(|c| !c.hidden)
+        .map(|c| shadow_box(c.rect, work_area, scale))
+        .collect();
+    Arrangement {
+        columns: placed,
+        region,
+    }
+}
+
+/// Cartão com a margem da sombra, em pixels físicos relativos à janela (a área útil) e
+/// limitado a ela; arredondado para fora, para não cortar a borda do cartão.
+fn shadow_box(rect: Rect, work_area: Area, scale: f64) -> Area {
+    let physical = |logical: f64, origin: i32| logical * scale - f64::from(origin);
+    let left = physical(rect.x - SHADOW_SIDE, work_area.x).floor().max(0.0) as i32;
+    let top = physical(rect.y - SHADOW_TOP, work_area.y).floor().max(0.0) as i32;
+    let right =
+        (physical(rect.right() + SHADOW_SIDE, work_area.x).ceil() as i32).min(work_area.width);
+    let bottom =
+        (physical(rect.bottom() + SHADOW_BOTTOM, work_area.y).ceil() as i32).min(work_area.height);
+    Area {
+        x: left,
+        y: top,
+        width: right - left,
+        height: bottom - top,
+    }
 }
 
 #[cfg(test)]
@@ -212,40 +228,57 @@ mod tests {
         }
     }
 
-    /// Posição absoluta (lógica) de uma coluna na tela.
-    fn on_screen(result: &Arrangement, index: usize, scale: f64) -> (f64, f64) {
+    fn area(x: i32, y: i32, width: i32, height: i32) -> Area {
+        Area {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// Posição absoluta (lógica) de uma coluna na tela: a janela começa na área útil.
+    fn on_screen(result: &Arrangement, work_area: Area, index: usize, scale: f64) -> (f64, f64) {
         let column = result.columns[index];
         (
-            f64::from(result.window.x) / scale + column.x,
-            f64::from(result.window.y) / scale + column.y,
+            f64::from(work_area.x) / scale + column.x,
+            f64::from(work_area.y) / scale + column.y,
         )
     }
 
     #[test]
-    fn without_subcolumns_the_window_is_the_main_column() {
+    fn the_columns_are_relative_to_the_work_area() {
         let result = arrange(main_at(100, 100), AREA, 1.0, &[]);
 
-        assert_eq!(result.window, main_at(100, 100));
         assert_eq!(result.columns.len(), 1);
-        assert_eq!((result.columns[0].x, result.columns[0].y), (0.0, 0.0));
+        assert_eq!((result.columns[0].x, result.columns[0].y), (100.0, 100.0));
+        // Região: o cartão com a margem da sombra.
+        assert_eq!(result.region, vec![area(84, 92, 372, 472)]);
     }
 
     #[test]
     fn opens_to_the_right_aligned_with_the_folder() {
         let result = arrange(main_at(100, 100), AREA, 1.0, &[sub(200.0, 64.0)]);
 
-        assert_eq!(
-            result.window,
-            Area {
-                x: 100,
-                y: 100,
-                width: 642,
-                height: 440
-            }
-        );
         // Topo da pasta (164) menos a margem da lista (5).
-        assert_eq!(result.columns[1], placed(342.0, 59.0, 200.0));
-        assert_eq!(on_screen(&result, 1, 1.0), (442.0, 159.0));
+        assert_eq!(result.columns[1], placed(442.0, 159.0, 200.0));
+        assert_eq!(
+            result.region,
+            vec![area(84, 92, 372, 472), area(426, 151, 332, 232)]
+        );
+    }
+
+    #[test]
+    fn the_main_column_stays_in_place() {
+        let alone = arrange(main_at(1560, 600), AREA, 1.0, &[]);
+        let with_subs = arrange(
+            main_at(1560, 600),
+            AREA,
+            1.0,
+            &[sub(500.0, 100.0), sub(900.0, 40.0)],
+        );
+
+        assert_eq!(alone.columns[0], with_subs.columns[0]);
     }
 
     #[test]
@@ -253,23 +286,21 @@ mod tests {
         let result = arrange(main_at(100, 500), AREA, 1.0, &[sub(300.0, 400.0)]);
 
         // Pediria o topo em 895; o máximo que cabe é 1040 - 300 = 740.
-        assert_eq!(on_screen(&result, 1, 1.0), (442.0, 740.0));
-        assert_eq!(result.window.y, 500);
-        assert_eq!(result.window.height, 540);
-        assert_eq!(result.columns[1].y, 240.0);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (442.0, 740.0));
+        // A sombra de baixo é cortada pela borda da área útil.
+        assert_eq!(result.region[1], area(426, 732, 332, 308));
     }
 
     #[test]
     fn may_rise_above_the_main_column() {
         let result = arrange(main_at(100, 0), AREA, 1.0, &[sub(1000.0, 400.0)]);
         // Pediria o topo em 395, mas só cabe a partir de 40.
-        assert_eq!(on_screen(&result, 1, 1.0).1, 40.0);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0).1, 40.0);
 
         let result = arrange(main_at(100, 500), AREA, 1.0, &[sub(900.0, 400.0)]);
         // Sobe para 140: acima do topo da coluna principal (500).
-        assert_eq!(on_screen(&result, 1, 1.0).1, 140.0);
-        assert_eq!(result.window.y, 140);
-        assert_eq!(result.columns[0].y, 360.0);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0).1, 140.0);
+        assert_eq!(on_screen(&result, AREA, 0, 1.0).1, 500.0);
     }
 
     #[test]
@@ -277,37 +308,32 @@ mod tests {
         let result = arrange(main_at(100, 300), AREA, 1.0, &[sub(5000.0, 40.0)]);
 
         assert_eq!(result.columns[1].height, 1040.0);
-        assert_eq!(on_screen(&result, 1, 1.0), (442.0, 0.0));
-        assert_eq!(result.window.y, 0);
-        assert_eq!(result.window.height, 1040);
-        assert_eq!(result.columns[0].y, 300.0);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (442.0, 0.0));
+        assert_eq!(result.region[1], area(426, 0, 332, 1040));
     }
 
     #[test]
     fn opens_to_the_left_without_room_on_the_right() {
         let result = arrange(main_at(1560, 100), AREA, 1.0, &[sub(200.0, 64.0)]);
 
-        assert_eq!(on_screen(&result, 1, 1.0), (1258.0, 159.0));
-        assert_eq!(result.window.x, 1258);
-        assert_eq!(result.window.width, 642);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1258.0, 159.0));
         // A principal não se mexe na tela.
-        assert_eq!(on_screen(&result, 0, 1.0), (1560.0, 100.0));
-        assert_eq!(result.columns[0].x, 302.0);
+        assert_eq!(on_screen(&result, AREA, 0, 1.0), (1560.0, 100.0));
+        assert_eq!(
+            result.region,
+            vec![area(1544, 92, 372, 472), area(1242, 151, 332, 232)]
+        );
     }
 
     #[test]
     fn goes_flush_right_and_hides_older_columns_when_neither_side_fits() {
-        let narrow = Area {
-            x: 0,
-            y: 0,
-            width: 700,
-            height: 1040,
-        };
+        let narrow = area(0, 0, 700, 1040);
         let result = arrange(main_at(200, 0), narrow, 1.0, &[sub(200.0, 64.0)]);
         // Sem espaço à direita (542 + 300 > 700) nem à esquerda (200 - 302 < 0).
-        assert_eq!(on_screen(&result, 1, 1.0).0, 400.0);
+        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 400.0);
         // A coluna anterior da nova é a principal, que não sai de vista.
         assert!(!result.columns[0].hidden);
+        assert_eq!(result.region.len(), 2);
 
         let result = arrange(
             main_at(200, 0),
@@ -315,13 +341,13 @@ mod tests {
             1.0,
             &[sub(200.0, 64.0), sub(200.0, 40.0)],
         );
-        assert_eq!(on_screen(&result, 2, 1.0).0, 400.0);
-        // A segunda subcoluna cobre a principal, que sai de vista e deixa a janela.
+        assert_eq!(on_screen(&result, narrow, 2, 1.0).0, 400.0);
+        // A segunda subcoluna cobre a principal, que sai de vista e da região.
         assert!(result.columns[0].hidden);
         assert!(!result.columns[1].hidden);
         assert!(!result.columns[2].hidden);
-        assert_eq!(result.window.x, 400);
-        assert_eq!(result.window.width, 300);
+        assert_eq!(result.region.len(), 2);
+        assert!(result.region.iter().all(|r| r.x >= 384));
     }
 
     #[test]
@@ -335,15 +361,10 @@ mod tests {
 
         // A primeira vai à esquerda (1198). A segunda caberia à direita (1500), mas cobriria
         // a principal; à esquerda (896) não cobre ninguém.
-        assert_eq!(on_screen(&result, 1, 1.0).0, 1198.0);
-        assert_eq!(on_screen(&result, 2, 1.0).0, 896.0);
+        assert_eq!(on_screen(&result, AREA, 1, 1.0).0, 1198.0);
+        assert_eq!(on_screen(&result, AREA, 2, 1.0).0, 896.0);
 
-        let narrow = Area {
-            x: 0,
-            y: 0,
-            width: 1000,
-            height: 1040,
-        };
+        let narrow = area(0, 0, 1000, 1040);
         let result = arrange(
             main_at(640, 0),
             narrow,
@@ -352,8 +373,8 @@ mod tests {
         );
         // Primeira à esquerda (338). A segunda caberia à direita (640), mas cobriria a
         // principal; à esquerda (36) não cobre ninguém.
-        assert_eq!(on_screen(&result, 1, 1.0).0, 338.0);
-        assert_eq!(on_screen(&result, 2, 1.0).0, 36.0);
+        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 338.0);
+        assert_eq!(on_screen(&result, narrow, 2, 1.0).0, 36.0);
         assert!(result.columns.iter().all(|c| !c.hidden));
     }
 
@@ -362,73 +383,67 @@ mod tests {
         let result = arrange(main_at(1560, 600), AREA, 1.0, &[sub(500.0, 100.0)]);
 
         // À esquerda da principal e subindo até caber (1040 - 500).
-        assert_eq!(on_screen(&result, 1, 1.0), (1258.0, 540.0));
-        assert_eq!(result.window.x, 1258);
-        assert_eq!(result.window.y, 540);
-        assert_eq!(result.window.y + result.window.height, 1040);
-        assert_eq!(on_screen(&result, 0, 1.0), (1560.0, 600.0));
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1258.0, 540.0));
+        assert_eq!(on_screen(&result, AREA, 0, 1.0), (1560.0, 600.0));
     }
 
     #[test]
     fn works_in_physical_pixels_on_a_scaled_monitor() {
-        let area = Area {
-            x: 0,
-            y: 0,
-            width: 3840,
-            height: 2080,
-        };
+        let work_area = area(0, 0, 3840, 2080);
         // Escala 2: a principal de 340 x 440 lógicos ocupa 680 x 880 físicos.
-        let main = Area {
-            x: 200,
-            y: 200,
-            width: 680,
-            height: 880,
-        };
-        let result = arrange(main, area, 2.0, &[sub(200.0, 64.0)]);
-
-        assert_eq!(
-            result.window,
-            Area {
-                x: 200,
-                y: 200,
-                width: 1284,
-                height: 880
-            }
+        let result = arrange(
+            area(200, 200, 680, 880),
+            work_area,
+            2.0,
+            &[sub(200.0, 64.0)],
         );
-        assert_eq!(result.columns[1], placed(342.0, 59.0, 200.0));
+
+        assert_eq!(result.columns[1], placed(442.0, 159.0, 200.0));
+        // Região em pixels físicos: (442 - 16) * 2 = 852 e (159 - 8) * 2 = 302.
+        assert_eq!(result.region[1], area(852, 302, 664, 464));
 
         // Perto da borda direita: abre à esquerda, e a principal continua no mesmo pixel.
-        let main = Area {
-            x: 3120,
-            y: 200,
-            width: 680,
-            height: 880,
-        };
-        let result = arrange(main, area, 2.0, &[sub(200.0, 64.0)]);
-        assert_eq!(result.window.x, 2516);
-        assert_eq!(
-            f64::from(result.window.x) + result.columns[0].x * 2.0,
-            3120.0
+        let result = arrange(
+            area(3120, 200, 680, 880),
+            work_area,
+            2.0,
+            &[sub(200.0, 64.0)],
         );
+        assert_eq!(result.columns[0].x * 2.0, 3120.0);
+        assert_eq!(on_screen(&result, work_area, 1, 2.0).0, 1258.0);
+    }
+
+    #[test]
+    fn rounds_the_region_outward_at_fractional_scales() {
+        let work_area = area(0, 0, 2880, 1560);
+        // Escala 1,5: a principal de 340 x 440 lógicos em (200, 200).
+        let result = arrange(
+            area(300, 300, 510, 660),
+            work_area,
+            1.5,
+            &[sub(201.0, 64.5)],
+        );
+
+        // Subcoluna de 542 a 842 e de 259,5 a 460,5 lógicos; com a sombra, de 789 a 1287 e
+        // de 377,25 a 726,75 físicos, arredondados para fora.
+        assert_eq!(result.region[1], area(789, 377, 498, 350));
     }
 
     #[test]
     fn respects_a_work_area_that_does_not_start_at_the_origin() {
-        let area = Area {
-            x: -1280,
-            y: 40,
-            width: 1280,
-            height: 944,
-        };
-        let main = Area {
-            x: -1280,
-            y: 500,
-            width: 340,
-            height: 440,
-        };
-        let result = arrange(main, area, 1.0, &[sub(900.0, 100.0)]);
+        let work_area = area(-1280, 40, 1280, 944);
+        let result = arrange(
+            area(-1280, 500, 340, 440),
+            work_area,
+            1.0,
+            &[sub(900.0, 100.0)],
+        );
 
         // Cabe à direita; sobe até o limite de baixo da área útil (984 - 900 = 84).
-        assert_eq!(on_screen(&result, 1, 1.0), (-938.0, 84.0));
+        assert_eq!(on_screen(&result, work_area, 1, 1.0), (-938.0, 84.0));
+        // Relativas à janela, que começa em (-1280, 40).
+        assert_eq!((result.columns[0].x, result.columns[0].y), (0.0, 460.0));
+        assert_eq!(result.region[0], area(0, 452, 356, 472));
+        assert_eq!(result.region[1], area(326, 36, 332, 908));
     }
 }

@@ -162,8 +162,11 @@ export const api = {
   exportTxt: (items: ItemRef[]) => invoke<TransferSummary | null>("export_txt", { items }),
 
   // Menu de colagem (janela `picker`).
-  /** Avisa a cada abertura do menu. Devolve a função que remove o aviso. */
-  onPickerOpened: async (onOpen: () => void) => listen("picker-opened", () => onOpen()),
+  /** Avisa a cada abertura do menu, com a posição da coluna principal. Devolve a função que remove o aviso. */
+  onPickerOpened: async (onOpen: (main: PickerColumn) => void) =>
+    listen<PickerColumn>("picker-opened", (event) => onOpen(event.payload)),
+  /** Avisa que o menu desenhou a raiz depois de abrir: só então a coluna principal aparece. */
+  pickerReady: () => invoke<void>("picker_ready"),
   hidePicker: () => invoke<void>("hide_picker"),
   /** Navegação nas pastas; `cascade` enquanto nada foi escolhido. Vale na próxima abertura do menu. */
   getPickerNavigation: () => invoke<PickerNavigation>("get_picker_navigation"),

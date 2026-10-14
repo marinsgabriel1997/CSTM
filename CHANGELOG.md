@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.11.3] - 2026-10-14
+
+### Fixed
+
+- O menu de colagem não pisca mais ao navegar entre pastas e subpastas na cascata: a janela fica fixa enquanto o menu está aberto, e as colunas abrem e fecham dentro dela. Clicar fora das colunas continua chegando ao programa de trás.
+- Ao abrir, o menu de colagem não mostra mais por um instante o conteúdo da abertura anterior.
+
 ## [0.11.2] - 2026-10-14
 
 ### Fixed

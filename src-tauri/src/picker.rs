@@ -1,13 +1,15 @@
 //! Menu de colagem: janela `picker` aberta pelo atalho global junto ao cursor do mouse.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::thread;
+use std::time::Duration;
 
 use rusqlite::Connection;
 use serde::Serialize;
 use tauri::plugin::TauriPlugin;
 use tauri::{
-    App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime, Window,
-    WindowEvent, Wry,
+    App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, PhysicalSize, Runtime,
+    WebviewWindow, Window, WindowEvent, Wry,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
@@ -22,8 +24,12 @@ pub const DEFAULT_SHORTCUT: &str = "Alt+KeyQ";
 const WIDTH: f64 = 340.0;
 const HEIGHT: f64 = 440.0;
 
-/// Evento enviado ao menu a cada abertura, para que volte à raiz e recarregue os dados.
+/// Evento enviado ao menu a cada abertura, com a posição da coluna principal, para que
+/// volte à raiz e recarregue os dados.
 const PICKER_OPENED: &str = "picker-opened";
+/// Quanto a abertura espera o menu avisar que já desenhou a raiz antes de mostrá-lo mesmo
+/// assim (`ready`).
+const READY_TIMEOUT: Duration = Duration::from_millis(150);
 
 /// Atalho configurado e se ele está registrado no momento. Fica sem registro quando o
 /// Windows o recusa ao iniciar ou enquanto o cadastro grava uma nova combinação.
@@ -40,13 +46,30 @@ type ShortcutLock = Mutex<ShortcutStatus>;
 struct MainColumn {
     /// Posição e tamanho em pixels físicos.
     rect: Area,
+    /// Área útil do monitor, que é também o retângulo da janela.
     work_area: Area,
     scale: f64,
 }
 
-/// Coluna principal do menu aberto; vazia enquanto o menu nunca foi aberto.
+impl MainColumn {
+    fn arrange(&self, subs: &[Subcolumn]) -> cascade::Arrangement {
+        cascade::arrange(self.rect, self.work_area, self.scale, subs)
+    }
+}
+
 #[derive(Default)]
-pub struct PickerGeometry(Mutex<Option<MainColumn>>);
+struct Opening {
+    /// Coluna principal do menu aberto; vazia enquanto o menu nunca foi aberto.
+    main: Option<MainColumn>,
+    /// Número da abertura mais recente, para o tempo limite reconhecer a sua.
+    count: u64,
+    /// A janela está visível, mas com a região vazia, à espera de o menu desenhar a raiz.
+    waiting: bool,
+}
+
+/// Abertura atual do menu de colagem: a coluna principal e a espera pelo aviso de pronto.
+#[derive(Default)]
+pub struct PickerGeometry(Mutex<Opening>);
 
 /// Retângulo em pixels físicos, como a área útil de um monitor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -239,41 +262,66 @@ fn show(app: &AppHandle) -> tauri::Result<()> {
     };
     paste::remember_target(app);
     let cursor = app.cursor_position()?;
-    if let Some(monitor) = app.monitor_from_point(cursor.x, cursor.y)? {
-        let size = LogicalSize::new(WIDTH, HEIGHT).to_physical::<i32>(monitor.scale_factor());
-        let work_area = monitor.work_area();
-        let area = Area {
-            x: work_area.position.x,
-            y: work_area.position.y,
-            width: work_area.size.width as i32,
-            height: work_area.size.height as i32,
-        };
-        let (x, y) = place(
-            (cursor.x as i32, cursor.y as i32),
-            (size.width, size.height),
-            area,
-        );
-        window.set_position(PhysicalPosition::new(x, y))?;
-        // Ao passar para um monitor com outra escala, o tamanho lógico é reaplicado.
-        window.set_size(LogicalSize::new(WIDTH, HEIGHT))?;
-        // Cada abertura começa com uma coluna só, do tamanho da janela.
-        *lock_geometry(app) = Some(MainColumn {
-            rect: Area {
-                x,
-                y,
-                width: size.width,
-                height: size.height,
-            },
-            work_area: area,
-            scale: monitor.scale_factor(),
-        });
-    }
-    app.emit_to(PICKER_WINDOW, PICKER_OPENED, ())?;
+    let Some(monitor) = app
+        .monitor_from_point(cursor.x, cursor.y)?
+        .or(app.primary_monitor()?)
+    else {
+        return Ok(());
+    };
+    let scale = monitor.scale_factor();
+    let size = LogicalSize::new(WIDTH, HEIGHT).to_physical::<i32>(scale);
+    let work_area = monitor.work_area();
+    let area = Area {
+        x: work_area.position.x,
+        y: work_area.position.y,
+        width: work_area.size.width as i32,
+        height: work_area.size.height as i32,
+    };
+    let (x, y) = place(
+        (cursor.x as i32, cursor.y as i32),
+        (size.width, size.height),
+        area,
+    );
+    let main = MainColumn {
+        rect: Area {
+            x,
+            y,
+            width: size.width,
+            height: size.height,
+        },
+        work_area: area,
+        scale,
+    };
+    // A janela ocupa a área útil e não muda até fechar: as colunas abrem dentro dela, e só
+    // a região muda. Ela aparece com a região vazia, invisível, até o menu desenhar a raiz;
+    // assim o conteúdo da abertura anterior não aparece.
+    window.set_position(PhysicalPosition::new(area.x, area.y))?;
+    window.set_size(PhysicalSize::new(
+        work_area.size.width,
+        work_area.size.height,
+    ))?;
+    set_region(&window, &[])?;
+    let count = {
+        let mut opening = lock_opening(app);
+        opening.main = Some(main);
+        opening.count += 1;
+        opening.waiting = true;
+        opening.count
+    };
+    app.emit_to(PICKER_WINDOW, PICKER_OPENED, main.arrange(&[]).columns[0])?;
     window.show()?;
-    window.set_focus()
+    window.set_focus()?;
+    // Se o aviso do menu não chegar, a coluna principal aparece mesmo assim.
+    let handle = app.clone();
+    thread::spawn(move || {
+        thread::sleep(READY_TIMEOUT);
+        let app = handle.clone();
+        let _ = handle.run_on_main_thread(move || reveal(&app, Some(count)));
+    });
+    Ok(())
 }
 
-fn lock_geometry(app: &AppHandle) -> MutexGuard<'_, Option<MainColumn>> {
+fn lock_opening(app: &AppHandle) -> MutexGuard<'_, Opening> {
     app.state::<PickerGeometry>()
         .inner()
         .0
@@ -281,29 +329,74 @@ fn lock_geometry(app: &AppHandle) -> MutexGuard<'_, Option<MainColumn>> {
         .unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Posiciona a janela do menu para conter a coluna principal e as subcolunas abertas e
-/// devolve a posição de cada coluna, relativa à janela. Sem subcolunas, é a abertura.
+/// O menu desenhou a raiz da abertura atual: a coluna principal passa a aparecer.
+pub fn ready(app: &AppHandle) {
+    reveal(app, None);
+}
+
+/// Aplica a região da coluna principal se a abertura (`count`, ou a atual quando `None`)
+/// ainda espera por ela.
+fn reveal(app: &AppHandle, count: Option<u64>) {
+    let main = {
+        let mut opening = lock_opening(app);
+        if !opening.waiting || count.is_some_and(|count| count != opening.count) {
+            return;
+        }
+        opening.waiting = false;
+        opening.main
+    };
+    if let (Some(main), Some(window)) = (main, app.get_webview_window(PICKER_WINDOW)) {
+        let _ = set_region(&window, &main.arrange(&[]).region);
+    }
+}
+
+/// Recorta a janela do menu nas colunas visíveis e devolve a posição de cada coluna,
+/// relativa à janela. A janela em si não muda de tamanho nem de lugar.
 pub fn layout(app: &AppHandle, subs: &[Subcolumn]) -> Result<Vec<PlacedColumn>, String> {
     let window = app
         .get_webview_window(PICKER_WINDOW)
         .ok_or("o menu de colagem não existe")?;
-    let main = (*lock_geometry(app)).ok_or("o menu de colagem ainda não foi aberto")?;
-    let arrangement = cascade::arrange(main.rect, main.work_area, main.scale, subs);
-    let size = PhysicalSize::new(
-        arrangement.window.width.max(1) as u32,
-        arrangement.window.height.max(1) as u32,
-    );
-    // Sem decorações, o tamanho externo é o da área de conteúdo.
-    window
-        .set_size(size)
-        .and_then(|()| {
-            window.set_position(PhysicalPosition::new(
-                arrangement.window.x,
-                arrangement.window.y,
-            ))
-        })
-        .map_err(|error| error.to_string())?;
+    let main = {
+        let mut opening = lock_opening(app);
+        // A região passa a ser a destas colunas; o aviso de pronto não a substitui mais.
+        opening.waiting = false;
+        opening.main
+    }
+    .ok_or("o menu de colagem ainda não foi aberto")?;
+    let arrangement = main.arrange(subs);
+    set_region(&window, &arrangement.region).map_err(|error| error.to_string())?;
     Ok(arrangement.columns)
+}
+
+/// Limita o desenho e o clique da janela à união dos retângulos (pixels físicos relativos
+/// à janela); fora deles, o clique vai para o programa de trás. Sem retângulos, a janela
+/// fica invisível.
+#[cfg(windows)]
+fn set_region(window: &WebviewWindow, rects: &[Area]) -> tauri::Result<()> {
+    use windows::Win32::Graphics::Gdi::{
+        CombineRgn, CreateRectRgn, DeleteObject, RGN_OR, SetWindowRgn,
+    };
+
+    let hwnd = window.hwnd()?;
+    unsafe {
+        let region = CreateRectRgn(0, 0, 0, 0);
+        for rect in rects {
+            let part = CreateRectRgn(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height);
+            CombineRgn(Some(region), Some(region), Some(part), RGN_OR);
+            let _ = DeleteObject(part.into());
+        }
+        // Aceita pela janela, a região passa a pertencer ao Windows e não deve ser apagada.
+        if SetWindowRgn(hwnd, Some(region), true) == 0 {
+            let _ = DeleteObject(region.into());
+            return Err(tauri::Error::Io(std::io::Error::last_os_error()));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn set_region(_window: &WebviewWindow, _rects: &[Area]) -> tauri::Result<()> {
+    Ok(())
 }
 
 /// Grava a navegação nas pastas (`cascade` ou `click`); vale na próxima abertura do menu.

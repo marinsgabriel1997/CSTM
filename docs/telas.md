@@ -375,7 +375,7 @@ Busca:
 ### Estrutura
 
 - Abre pelo atalho global `Alt+Q` junto ao cursor do mouse, inteiramente dentro da área útil do monitor em que o cursor está.
-- Janela de 340 × 440 (no modo cascata, ela cresce para conter as colunas abertas; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema claro ou escuro do sistema, como o cadastro.
+- Coluna de 340 × 440 (no modo cascata, outras colunas abrem ao lado; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema claro ou escuro do sistema, como o cadastro.
 - Campo de busca no topo, com foco automático, lista no meio (com rolagem) e uma linha de dicas de teclado no rodapé.
 - Na raiz, sem cabeçalhos de seção: as pastas **Mais usados** e **Favoritos**, com ícones próprios e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. Mais usados e Favoritos não existem no cadastro: são calculadas a cada abertura e somem quando vazias.
 - **Mais usados:** os 10 textos com mais usos (ao menos um), do mais para o menos usado; empates pelo uso mais recente. **Favoritos:** os textos favoritos, por título. Dentro das duas, cada texto mostra à direita a pasta em que está, como na busca. Um texto pode aparecer nelas e na sua pasta.
@@ -437,10 +437,10 @@ Regras:
 5. **Busca:** com texto na busca, as subcolunas se fecham e os resultados continuam numa lista única, sem cascata (como no modo clique).
 6. **Posição horizontal:** a coluna nova abre à direita da anterior (com 2 px de intervalo). Sem espaço na área útil, abre à esquerda da anterior. Sem espaço dos dois lados (ou se a esquerda cobriria colunas abertas), ela fica encostada na borda direita da área útil e as colunas mais antigas que ela cobre saem de vista, voltando quando a coluna nova fecha.
 7. **Posição vertical:** (a) o topo da subcoluna fica alinhado ao topo da pasta que a abriu e a altura vem do conteúdo; (b) se passar da borda inferior da área útil, a coluna sobe o necessário para caber, podendo ficar acima da pasta e do topo da coluna principal; (c) se for maior que a área útil, ocupa toda a altura dela, com rolagem, e `↑` / `↓` rolam até o item selecionado.
-8. **Janela e aparência:** a janela do picker é transparente, sem borda nem sombra nativa, e tem o tamanho do retângulo que envolve as colunas abertas, sempre dentro da área útil do monitor. Cada coluna é um cartão com fundo, cantos arredondados e sombra próprios, desenhados pela interface. Clicar na área transparente da janela (fora dos cartões) fecha o menu, como clicar fora.
-9. **Reabertura:** ao abrir de novo (`Alt+Q`), o menu volta a uma coluna só, na raiz.
+8. **Janela e aparência:** a janela do picker é transparente, sem borda nem sombra nativa, e ocupa a área útil do monitor em que abriu, sem mudar de tamanho nem de lugar enquanto o menu está aberto; assim, abrir e fechar colunas não faz a janela piscar. Ela é recortada (região da janela) em volta das colunas visíveis, com uma margem para a sombra: fora do recorte nada é desenhado e o clique vai para o programa de trás, que fecha o menu ao receber o foco. Cada coluna é um cartão com fundo, cantos arredondados e sombra próprios, desenhados pela interface. Clicar na área transparente dentro do recorte (sombra e intervalo entre cartões) também fecha o menu.
+9. **Reabertura:** ao abrir de novo (`Alt+Q`), o menu volta a uma coluna só, na raiz. A janela aparece sem recorte (invisível) e só mostra a coluna principal depois de desenhá-la, para não exibir o conteúdo da abertura anterior.
 
-Os cenários de posição (normal, borda direita, borda inferior e coluna grande) podem ser experimentados no protótipo, com o contorno da área útil e da janela transparente.
+Os cenários de posição (normal, borda direita, borda inferior e coluna grande) podem ser experimentados no protótipo, com o contorno da área útil e do retângulo que envolve as colunas.
 
 ### Estados
 

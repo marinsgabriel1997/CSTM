@@ -298,6 +298,23 @@ describe("abertura", () => {
     expect(list().getByText("Favoritos")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Pessoal" })).not.toBeInTheDocument();
   });
+
+  it("põe a coluna principal onde a abertura indicou e avisa depois de desenhá-la", async () => {
+    await seed();
+    renderPicker();
+    await list().findByRole("option", { name: "Pessoal" });
+    expect(fake.picker.readies).toBe(0);
+
+    act(() => fake.openPicker({ x: 500, y: 200 }));
+
+    expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px", width: "340px" });
+    await waitFor(() => expect(fake.picker.readies).toBe(1));
+
+    act(() => fake.openPicker({ x: 40, y: 600 }));
+
+    expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "40px", top: "600px" });
+    await waitFor(() => expect(fake.picker.readies).toBe(2));
+  });
 });
 
 describe("modo clique", () => {
@@ -516,6 +533,19 @@ describe("cascata", () => {
     expect(main).toHaveStyle({ left: "300px", top: "10px" });
     // Escondida, a coluna principal ainda guarda o foco do teclado.
     expect(document.activeElement).toBe(main?.querySelector("input"));
+  });
+
+  it("as subcolunas abrem a partir da coluna principal da abertura", async () => {
+    const user = userEvent.setup();
+    await openRoot();
+    act(() => fake.openPicker({ x: 500, y: 200 }));
+
+    await hover(user, list().getByRole("option", { name: "Trabalho" }));
+
+    const column = await screen.findByRole("listbox", { name: "Trabalho" });
+    // À direita da principal (500 + 340 + 2), com a primeira linha na altura da pasta.
+    expect(column.parentElement).toHaveStyle({ left: "842px", top: "195px" });
+    expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px" });
   });
 
   it("cada abertura volta a uma coluna só", async () => {

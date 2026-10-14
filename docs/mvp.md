@@ -23,7 +23,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - O menu mostra as pastas virtuais Mais usados (10 textos) e Favoritos, as pastas (navegáveis) e um campo de busca com foco automático.
 - Navegação por teclado (setas, Enter, Esc) e mouse.
 - Navegação nas pastas configurável: em cascata (padrão), o conteúdo de uma pasta abre numa coluna ao lado quando o mouse passa sobre ela ou ao clicar, como os submenus do Windows; no modo "Clicar para abrir", a lista é substituída pelo conteúdo da pasta. A busca mostra os resultados numa lista única nos dois modos.
-- No modo cascata, a janela `picker` cresce para conter as colunas abertas, sempre dentro da área útil do monitor, e volta a uma coluna a cada abertura.
+- A janela `picker` ocupa a área útil do monitor durante a abertura, recortada em volta das colunas visíveis; no modo cascata as colunas abrem dentro dela sem redimensioná-la, sempre dentro da área útil, e o menu volta a uma coluna a cada abertura.
 - Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado.
 - `Esc` ou clique fora fecha o menu sem colar.
 
@@ -79,7 +79,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | Janela | Função |
 |---|---|
 | `main` | Cadastro e organização dos textos |
-| `picker` | Menu flutuante: sem bordas, transparente e sem sombra nativa (cada coluna é um cartão desenhado pela interface), sempre no topo, fora da barra de tarefas, criada oculta; no modo cascata é redimensionada e movida pelo backend para conter as colunas abertas |
+| `picker` | Menu flutuante: sem bordas, transparente e sem sombra nativa (cada coluna é um cartão desenhado pela interface), sempre no topo, fora da barra de tarefas, criada oculta; a cada abertura ocupa a área útil do monitor, e o backend a recorta (região da janela) em volta das colunas visíveis, deixando o clique passar para o programa de trás fora delas |
 
 ### Backend (Rust)
 
@@ -87,8 +87,8 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 |---|---|
 | `db` | Conexão SQLite, migrações, consultas |
 | `commands` | Comandos Tauri expostos ao frontend |
-| `picker` | Exibir/ocultar o menu, posicionamento, janela anterior, navegação nas pastas e posicionamento da janela em cascata |
-| `cascade` | Geometria pura das colunas do menu em cascata (posição de cada coluna e retângulo da janela), testada sem janela |
+| `picker` | Exibir/ocultar o menu, posicionamento, janela anterior, navegação nas pastas e recorte da janela em volta das colunas |
+| `cascade` | Geometria pura das colunas do menu em cascata (posição de cada coluna e retângulos do recorte da janela), testada sem janela |
 | `paste` | Clipboard e simulação de `Ctrl+V` (Windows) |
 | `tray` | Ícone e menu da bandeja |
 

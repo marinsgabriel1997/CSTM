@@ -59,6 +59,7 @@ pub fn run() {
             commands::get_picker_navigation,
             commands::set_picker_navigation,
             commands::layout_picker,
+            commands::picker_ready,
             commands::get_shortcut,
             commands::set_shortcut,
             commands::suspend_shortcut,

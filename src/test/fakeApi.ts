@@ -5,6 +5,8 @@ import type { Api, Folder, PickerColumn, PickerNavigation, PickerSubcolumn, Shor
 import { DEFAULT_SHORTCUT } from "../shortcut";
 
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
+/** Coluna principal do menu de colagem quando a abertura não diz onde: no canto da janela. */
+const DEFAULT_MAIN: PickerColumn = { x: 0, y: 0, width: 340, height: 440, hidden: false };
 
 function required(value: string, field: string): string {
   const trimmed = value.trim();
@@ -38,7 +40,7 @@ export function createFakeApi() {
   // Avisos da janela nativa registrados pela interface, disparados pelos testes.
   const closeListeners = new Set<() => void>();
   const quitListeners = new Set<() => void>();
-  const pickerListeners = new Set<() => void>();
+  const pickerListeners = new Set<(main: PickerColumn) => void>();
   const settingsListeners = new Set<() => void>();
   const shortcut: ShortcutStatus = { shortcut: DEFAULT_SHORTCUT, registered: true };
   /** Atalhos que o "Windows" recusa, como se outro programa os usasse. */
@@ -46,6 +48,9 @@ export function createFakeApi() {
   let navigation: PickerNavigation = "cascade";
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
+  /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
+  let main: PickerColumn = { ...DEFAULT_MAIN };
+  const picker = { readies: 0 };
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
   /** Importações e exportações pedidas, na ordem. */
@@ -394,11 +399,11 @@ export function createFakeApi() {
       navigation = value;
       return navigation;
     },
-    // Layout determinístico e simples: a principal na origem (340 x 440) e cada subcoluna à
-    // direita da anterior, com o topo na pasta; não imita a falta de espaço da tela.
+    // Layout determinístico e simples: a principal onde a abertura a colocou e cada subcoluna
+    // à direita da anterior, com o topo na pasta; não imita a falta de espaço da tela.
     layoutPicker: async (columns) => {
       layouts.push(columns);
-      const placed: PickerColumn[] = [{ x: 0, y: 0, width: 340, height: 440, hidden: false }];
+      const placed: PickerColumn[] = [{ ...main }];
       for (const [index, column] of columns.entries()) {
         const parent = placed[index];
         placed.push({
@@ -412,6 +417,9 @@ export function createFakeApi() {
       return placed;
     },
     onPickerOpened: async (onOpen) => subscribe(pickerListeners, onOpen),
+    pickerReady: async () => {
+      picker.readies += 1;
+    },
     hidePicker: async () => {},
     chooseSnippet: async (id) => {
       const snippet = findSnippet(id);
@@ -427,7 +435,7 @@ export function createFakeApi() {
     exportTxt: (items) => runTransfer({ command: "exportTxt", items }),
   };
 
-  function subscribe(listeners: Set<() => void>, listener: () => void) {
+  function subscribe<T>(listeners: Set<T>, listener: T) {
     listeners.add(listener);
     return () => {
       listeners.delete(listener);
@@ -444,9 +452,10 @@ export function createFakeApi() {
     quitListeners.forEach((listener) => listener());
   }
 
-  /** Simula o atalho abrindo o menu de colagem. */
-  function openPicker() {
-    pickerListeners.forEach((listener) => listener());
+  /** Simula o atalho abrindo o menu de colagem, com a coluna principal em `at`. */
+  function openPicker(at: Partial<PickerColumn> = {}) {
+    main = { ...DEFAULT_MAIN, ...at };
+    pickerListeners.forEach((listener) => listener(main));
   }
 
   /** Simula o item "Configurações" da bandeja. */
@@ -460,6 +469,7 @@ export function createFakeApi() {
     snippets,
     delivered,
     layouts,
+    picker,
     /** Define a navegação nas pastas como se tivesse sido escolhida nas Configurações. */
     setNavigation: (value: PickerNavigation) => {
       navigation = value;

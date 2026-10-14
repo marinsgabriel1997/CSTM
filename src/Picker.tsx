@@ -14,8 +14,9 @@ import { api, errorMessage, type Folder, type PickerColumn, type PickerNavigatio
 import { folderPath, siblingsOf, snippetsIn } from "./tree";
 
 const useStyles = makeStyles({
-  // A janela é transparente: cada coluna é um cartão com fundo, cantos e sombra próprios.
-  // Clicar fora dos cartões fecha o menu.
+  // A janela é transparente e ocupa a área útil do monitor, recortada pelo backend em volta
+  // das colunas visíveis: cada coluna é um cartão com fundo, cantos e sombra próprios.
+  // Clicar fora dos cartões, mas dentro do recorte (sombra e intervalos), fecha o menu.
   root: {
     position: "relative",
     width: "100%",
@@ -312,7 +313,8 @@ function Picker() {
   const [results, setResults] = useState<{ term: string; list: Snippet[] } | null>(null);
   // Pasta mostrada na coluna principal (só muda no modo clique).
   const [folderId, setFolderId] = useState<Place>(null);
-  // Subcolunas abertas (cascata) e a posição de todas as colunas, a principal primeiro.
+  // Subcolunas abertas (cascata) e a posição de todas as colunas na janela, a principal
+  // primeiro; a principal vem de cada abertura, nos dois modos de navegação.
   const [subs, setSubs] = useState<OpenColumn[]>([]);
   const [placements, setPlacements] = useState<PickerColumn[]>([]);
   // Coluna que recebe o teclado e a linha selecionada em cada uma; `null` (ou uma linha que
@@ -328,11 +330,11 @@ function Picker() {
     let unlisten: (() => void) | undefined;
     let disposed = false;
     api
-      .onPickerOpened(() => {
+      .onPickerOpened((main) => {
         pending.invalidate();
         setFolderId(null);
         setSubs([]);
-        setPlacements([]);
+        setPlacements([main]);
         setActiveColumn(0);
         setSelection([]);
         setQuery("");
@@ -357,8 +359,17 @@ function Picker() {
       (reason) => current && setError(errorMessage(reason)),
     );
     inputRef.current?.focus();
+    // A janela abre invisível; ao fim do primeiro quadro já desenhado com a raiz, avisa o
+    // backend para mostrar a coluna principal, sem o conteúdo da abertura anterior.
+    let frame = 0;
+    if (version > 0) {
+      frame = requestAnimationFrame(() => {
+        frame = requestAnimationFrame(() => void api.pickerReady().catch(() => undefined));
+      });
+    }
     return () => {
       current = false;
+      cancelAnimationFrame(frame);
     };
   }, [version]);
 
@@ -605,7 +616,7 @@ function Picker() {
 
   const body = renderBody();
   const hasOptions = !body && rows.length > 0;
-  const mainPlacement = cascade ? placements[0] : undefined;
+  const mainPlacement = placements[0];
 
   function renderRows(column: number) {
     return rowsOf(column).map((row) => (
@@ -624,7 +635,7 @@ function Picker() {
   return (
     <div
       className={styles.root}
-      // Clicar na área transparente, fora dos cartões, fecha o menu como clicar fora dele.
+      // Clicar na área transparente, fora dos cartões, fecha o menu como clicar fora do recorte.
       onMouseDown={(event) => event.target === event.currentTarget && void api.hidePicker()}
     >
       <div
