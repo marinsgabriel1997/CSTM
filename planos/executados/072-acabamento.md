@@ -1,8 +1,9 @@
 # 072 — Acabamento
 
-- Status: Aguardando aprovação
+- Status: Concluído
 - Prioridade: Média
 - Criado em: 2026-10-14
+- Concluído em: 2026-10-14
 
 ## Objetivo
 
@@ -78,43 +79,58 @@ Não confirmada:
 
 ### Fase 1 — Ícone
 
-- [ ] Copiar o SVG da opção A de `docs/prototipo/icone.html` para `src-tauri/icons/icon.svg`.
-- [ ] Rodar `npx tauri icon src-tauri/icons/icon.svg`.
-- [ ] Registrar o ícone em `docs/telas.md`.
+- [x] Copiar o SVG da opção A de `docs/prototipo/icone.html` para `src-tauri/icons/icon.svg`.
+- [x] Rodar `npx tauri icon src-tauri/icons/icon.svg`.
+- [x] Registrar o ícone em `docs/telas.md`.
 
 Critério: arquivos gerados em `src-tauri/icons/`; script confirma que `icon.ico` contém 16, 24, 32, 48, 64 e 256 px; `npm run tauri -- build` compila.
 
 ### Fase 2 — Metadados e instalador
 
-- [ ] `tauri.conf.json` com `publisher`, `copyright`, `shortDescription` e `longDescription`, `bundle.targets: ["nsis"]` e `windows.nsis` com `installMode: "currentUser"` e `languages: ["PortugueseBR"]`, mais a opção de Menu Iniciar se aplicável.
-- [ ] Regras do instalador registradas em `docs/mvp.md`.
+- [x] `tauri.conf.json` com `publisher`, `copyright`, `shortDescription` e `longDescription`, `bundle.targets: ["nsis"]` e `windows.nsis` com `installMode: "currentUser"` e `languages: ["PortugueseBR"]`, mais a opção de Menu Iniciar se aplicável.
+- [x] Regras do instalador registradas em `docs/mvp.md`.
 
 Critério: `npm run tauri -- build` gera somente o instalador NSIS (`src-tauri/target/release/bundle/nsis/*.exe`, sem pasta `msi`); o `.nsi` gerado contém `PortugueseBR`, `RequestExecutionLevel user` e a caixa de apagar dados sem estado marcado; `(Get-Item <exe>).VersionInfo` mostra ProductName CSTM, versão 0.11.0, descrição e copyright (se não mostrar, registrar a evidência e pedir decisão).
 
+Resultado: `CSTM_0.11.0_x64-setup.exe` gerado, sem pasta `msi`; o `.nsi` contém `PortugueseBR`, `RequestExecutionLevel user` e a caixa de apagar dados criada sem `BM_SETCHECK` (desmarcada). `VersionInfo`: ProductName "CSTM", ProductVersion e FileVersion "0.11.0", CompanyName "CSTM", LegalCopyright "© 2026 CSTM". Divergência: FileDescription é "CSTM" (o Tauri usa o `productName`), não o `shortDescription`; aceito pelo usuário no Marco.
+
 ### Fase 3 — Comportamento de navegador no release
 
-- [ ] Módulo no frontend que bloqueia o menu de contexto padrão (exceto campos editáveis) e os atalhos de navegador, aplicado nas janelas `main` e `picker`.
-- [ ] Testes com `vi.stubEnv`: release bloqueia o menu de contexto padrão e os atalhos listados; campos editáveis mantêm o menu de contexto; atalhos do app continuam; dev (`PROD` false) não bloqueia nada.
+- [x] Módulo no frontend que bloqueia o menu de contexto padrão (exceto campos editáveis) e os atalhos de navegador, aplicado nas janelas `main` e `picker`.
+- [x] Testes com `vi.stubEnv`: release bloqueia o menu de contexto padrão e os atalhos listados; campos editáveis mantêm o menu de contexto; atalhos do app continuam; dev (`PROD` false) não bloqueia nada.
 
 Critério: `npm run test`, `npm run build` e `npm run lint` passam.
 
 ### Fase 4 — Documentação e validação técnica
 
-- [ ] `README.md` com instalação, aviso do SmartScreen, local de instalação e dos dados.
-- [ ] `docs/mvp.md` com a etapa 7 concluída.
-- [ ] `CHANGELOG.md` com `## [0.11.0] - data`.
-- [ ] Versão 0.11.0 em `package.json`, `package-lock.json`, `Cargo.toml`, `Cargo.lock` e `tauri.conf.json`.
+- [x] `README.md` com instalação, aviso do SmartScreen, local de instalação e dos dados.
+- [x] `docs/mvp.md` com a etapa 7 concluída.
+- [x] `CHANGELOG.md` com `## [0.11.0] - data`.
+- [x] Versão 0.11.0 em `package.json`, `package-lock.json`, `Cargo.toml`, `Cargo.lock` e `tauri.conf.json`.
 
 Critério: `npm run test`, `npm run build`, `npm run lint`, `npm run test:rust`, `npm run lint:rust` e `cargo fmt --check` passam; `npm run tauri -- build` gera o instalador NSIS 0.11.0.
 
+### Fase 5 — Encerrar o instalador após "Desinstalar"
+
+- [x] Template NSIS próprio em `src-tauri/windows/installer.nsi` (`bundle.windows.nsis.template`), cópia do template do bundler do Tauri CLI 2.12.1 (tag `tauri-cli-v2.12.1`) com uma única mudança: na página "já está instalado" da mesma versão, escolher "Desinstalar CSTM" encerra o instalador após a desinstalação bem-sucedida (a página final do desinstalador mostra a conclusão); nas atualizações, "Desinstalar antes de instalar" continua seguindo para a instalação.
+- [x] Regra registrada em `docs/mvp.md` e no `README.md`; risco de manutenção registrado abaixo.
+
+Critério: `npm run tauri -- build` gera o instalador; o `.nsi` gerado difere do anterior (template padrão) somente pelo bloco que encerra o instalador.
+
+Resultado: build ok; comparando o `.nsi` gerado antes e depois (ignorando BOM e fim de linha), a única diferença é o bloco `${If} $R0 = 0 / ${AndIf} $WixMode <> 1 / Quit`.
+
+Risco: o template próprio deixa de acompanhar as atualizações do template do Tauri; ao atualizar o Tauri CLI, copiar o template da nova versão e reaplicar a mudança.
+
 ## Marco — Validação do usuário
 
-- [ ] Instalador em português; instala sem pedir administrador em `%LOCALAPPDATA%\CSTM`.
-- [ ] Ícone nítido na janela, na barra de tarefas, na bandeja, no Menu Iniciar e no instalador, inclusive em 16 e 32 px.
-- [ ] Propriedades do `CSTM.exe` mostram nome, versão 0.11.0, descrição e copyright.
-- [ ] Alt+Q e a colagem funcionam no app instalado.
-- [ ] No app instalado, F5, Ctrl+R, Ctrl+P, Ctrl+F e o menu de contexto do navegador não têm efeito; o menu de contexto continua nos campos de texto; os atalhos do app funcionam.
-- [ ] No `npm run tauri -- dev`, F5 e o menu de contexto do navegador continuam funcionando.
-- [ ] Reinstalar por cima mantém os dados; desinstalar sem marcar a opção de apagar dados mantém `%APPDATA%\com.gabriel.cstm\cstm.db`.
+- [x] Instalador em português; instala sem pedir administrador em `%LOCALAPPDATA%\CSTM`.
+- [x] Ícone nítido na janela, na barra de tarefas, na bandeja, no Menu Iniciar e no instalador, inclusive em 16 e 32 px.
+- [x] Propriedades do `CSTM.exe` mostram nome, versão 0.11.0, descrição e copyright.
+- [x] Alt+Q e a colagem funcionam no app instalado.
+- [x] No app instalado, F5, Ctrl+R, Ctrl+P, Ctrl+F e o menu de contexto do navegador não têm efeito; o menu de contexto continua nos campos de texto; os atalhos do app funcionam.
+- [x] No `npm run tauri -- dev`, F5 e o menu de contexto do navegador continuam funcionando.
+- [x] Reinstalar por cima mantém os dados; desinstalar sem marcar a opção de apagar dados mantém `%APPDATA%\com.gabriel.cstm\cstm.db`.
 
-Resultado: pendente.
+Resultado (2026-10-14): ao desinstalar pelo instalador ("Desinstalar CSTM"), o instalador seguia para as telas de instalação após a desinstalação. Ajuste pedido: mostrar a conclusão da desinstalação e encerrar o instalador; corrigido na Fase 5. Demais verificações pendentes.
+
+Resultado (2026-10-14): após a Fase 5, todas as verificações foram validadas pelo usuário, com a descrição do arquivo "CSTM" nas propriedades do `CSTM.exe` aceita. Aceite explícito do Marco.

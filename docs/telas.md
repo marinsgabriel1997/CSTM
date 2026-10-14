@@ -542,3 +542,7 @@ Regras das combinações: `Ctrl` ou `Alt` obrigatório, `Shift` opcional, sem `W
 | Atalho em uso por outro programa | Faixa de erro: "Não foi possível usar Ctrl+Shift+V: outro programa pode estar usando esse atalho. O atalho Alt+Q continua valendo." |
 | Combinação com `Ctrl+Alt` | Aceita, com faixa de aviso: "Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no teclado ABNT2)." |
 | Atalho atual indisponível ao iniciar | O aviso do cadastro informa o atalho configurado e oferece "Alterar atalho" |
+
+## Ícone do aplicativo
+
+Ícone "Prancheta": quadrado azul `#0F6CBD` de cantos arredondados, folha branca com presilha âmbar `#FFB900` e três linhas de texto azuis. Aparece na janela, na barra de tarefas, na bandeja, no Menu Iniciar e no instalador. A fonte é `src-tauri/icons/icon.svg`; os demais formatos de `src-tauri/icons/` são gerados com `npx tauri icon src-tauri/icons/icon.svg` (o `icon.ico` contém 16, 24, 32, 48, 64 e 256 px). As opções avaliadas, em 16, 32 e 256 px sobre fundo claro e escuro, estão em `docs/prototipo/icone.html`.

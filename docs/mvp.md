@@ -147,6 +147,16 @@ CREATE TABLE settings (
 );
 ```
 
+## Instalador
+
+- Formato: somente NSIS (`bundle.targets: ["nsis"]`); não há instalador MSI.
+- Instalação por usuário (`installMode: "currentUser"`) em `%LOCALAPPDATA%\CSTM`, sem pedir administrador. Atalho no Menu Iniciar.
+- Idioma do instalador: português do Brasil (`PortugueseBR`).
+- Os dados ficam em `%APPDATA%\com.gabriel.cstm` e são preservados ao reinstalar por cima e ao desinstalar, a menos que o usuário marque a opção do desinstalador de apagar os dados do aplicativo (desmarcada por padrão), que remove `%APPDATA%\com.gabriel.cstm` e `%LOCALAPPDATA%\com.gabriel.cstm`.
+- WebView2 no modo padrão do Tauri (baixado se ausente).
+- Executar o instalador com a mesma versão já instalada oferece "Adicionar/Reinstalar componentes" ou "Desinstalar CSTM"; desinstalar por ali encerra o instalador ao fim da desinstalação. O comportamento vem do template próprio `src-tauri/windows/installer.nsi`, cópia do template do Tauri CLI 2.12.1 com essa única mudança; ao atualizar o Tauri CLI, copiar o template da nova versão e reaplicá-la.
+- Sem assinatura de código: o SmartScreen do Windows avisa ao executar o instalador.
+
 ## Etapas
 
 Cada etapa termina com um commit funcional.
@@ -159,4 +169,4 @@ Cada etapa termina com um commit funcional.
 5b. **Configurações:** tela de configurações com a troca do atalho.
 5c. **Menu em cascata:** colunas de pastas ao passar o mouse, janela transparente e opção de navegação nas Configurações.
 6. **Colagem:** foco na janela anterior, clipboard, `SendInput`, restauração do clipboard.
-7. **Acabamento:** ícones, nome, versão, instalador.
+7. **Acabamento:** ícone, metadados do executável, instalador NSIS e bloqueio do comportamento de navegador (menu de contexto e atalhos como F5) no build de release.

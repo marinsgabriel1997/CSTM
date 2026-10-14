@@ -6,6 +6,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-14
+
+### Added
+
+- Ícone próprio do CSTM ("Prancheta"), usado na janela, na barra de tarefas, na bandeja, no Menu Iniciar e no instalador.
+- As propriedades do `CSTM.exe` mostram editor, versão e copyright.
+
+### Changed
+
+- O build gera somente o instalador NSIS, em português, que instala o CSTM para o usuário atual em `%LOCALAPPDATA%\CSTM` sem pedir administrador; o instalador MSI deixou de ser gerado. Reinstalar ou desinstalar preserva os dados, a menos que a opção de apagar os dados seja marcada no desinstalador. Executar o instalador com o CSTM já instalado permite desinstalá-lo; ao fim da desinstalação, o instalador é encerrado.
+- No aplicativo instalado, o menu de contexto do navegador (exceto nos campos de texto) e os atalhos F5, Ctrl+R, Ctrl+Shift+R, Ctrl+P, Ctrl+F, Ctrl+U e Ctrl+Shift+I não têm mais efeito; antes, F5 recarregava o cadastro e podia perder edições pendentes.
+
 ## [0.10.0] - 2026-10-14
 
 ### Added

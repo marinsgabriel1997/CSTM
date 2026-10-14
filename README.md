@@ -12,6 +12,14 @@ Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db` (SQLite). O botão `...` 
 
 Na árvore do cadastro valem os atalhos de um gerenciador de arquivos: Ctrl+clique, Shift+clique e Ctrl+A (seleção múltipla), Ctrl+X, Ctrl+C e Ctrl+V (mover e copiar), Ctrl+Z (desfazer), F2 (renomear), Del (enviar para a lixeira) e Shift+Del (excluir definitivamente). Itens excluídos ficam na Lixeira, no fim da árvore, até serem restaurados ou excluídos definitivamente.
 
+## Instalação
+
+`npm run tauri -- build` gera o instalador em `src-tauri/target/release/bundle/nsis/CSTM_<versão>_x64-setup.exe`. Ele instala o CSTM somente para o usuário atual, em `%LOCALAPPDATA%\CSTM`, sem pedir administrador, e cria o atalho no Menu Iniciar. Se o WebView2 não estiver presente, o instalador o baixa.
+
+O instalador não tem assinatura digital, por isso o SmartScreen do Windows avisa ao executá-lo: use "Mais informações" e "Executar assim mesmo".
+
+Reinstalar por cima preserva os dados em `%APPDATA%\com.gabriel.cstm`. Ao desinstalar, os dados também são mantidos, a menos que a opção de apagar os dados do aplicativo seja marcada. Para desinstalar, use Configurações > Aplicativos ou execute o instalador da mesma versão e escolha "Desinstalar CSTM".
+
 ## Stack
 
 React 19, TypeScript, Vite, Fluent UI React v9, Tauri 2 e Rust (edição 2024).

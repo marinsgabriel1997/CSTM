@@ -4,6 +4,9 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import Root from "./Root";
 import "./App.css";
+import { blockBrowserBehavior } from "./browserBehavior";
+
+blockBrowserBehavior();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
