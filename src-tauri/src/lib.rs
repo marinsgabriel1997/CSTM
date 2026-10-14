@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use tauri::Manager;
+use tauri::{App, Manager, WebviewWindowBuilder};
 
 mod cascade;
 mod commands;
@@ -22,14 +22,12 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&data_dir)?;
-            let conn = db::open(&data_dir.join("cstm.db"))?;
-            picker::register_shortcut(app, &conn);
-            app.manage(Mutex::new(conn));
-            app.manage(paste::PasteState::default());
-            app.manage(picker::PickerGeometry::default());
-            tray::create(app)?;
+            // Um erro devolvido ao Tauri vira um panic sem mensagem, que fecha o
+            // aplicativo em silêncio; aqui o usuário vê o motivo antes do fim.
+            if let Err(error) = setup(app) {
+                show_startup_error(&error.to_string());
+                std::process::exit(1);
+            }
             Ok(())
         })
         .on_window_event(picker::on_window_event)
@@ -73,4 +71,41 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    let data_dir = app.path().app_data_dir()?;
+    std::fs::create_dir_all(&data_dir)?;
+    let conn = db::open(&data_dir.join("cstm.db"))?;
+    picker::register_shortcut(app, &conn);
+    app.manage(Mutex::new(conn));
+    app.manage(paste::PasteState::default());
+    app.manage(picker::PickerGeometry::default());
+    tray::create(app)?;
+    // As janelas têm `create: false` na configuração e só são criadas aqui, com
+    // todo o estado registrado: criadas antes do setup, como faz o Tauri, podiam
+    // chamar comandos ainda sem o banco quando a inicialização demorava (por
+    // exemplo, com o antivírus examinando o executável na primeira execução).
+    for config in app.config().app.windows.clone() {
+        WebviewWindowBuilder::from_config(app, &config)?.build()?;
+    }
+    Ok(())
+}
+
+/// Caixa de mensagem nativa: o loop de eventos ainda não roda durante o setup,
+/// então os diálogos do plugin não podem ser usados.
+#[cfg(windows)]
+fn show_startup_error(error: &str) {
+    use windows::Win32::UI::WindowsAndMessaging::{MB_ICONERROR, MB_OK, MessageBoxW};
+    use windows::core::HSTRING;
+
+    let text = HSTRING::from(format!("O CSTM não pôde ser iniciado: {error}"));
+    unsafe {
+        MessageBoxW(None, &text, &HSTRING::from("CSTM"), MB_OK | MB_ICONERROR);
+    }
+}
+
+#[cfg(not(windows))]
+fn show_startup_error(error: &str) {
+    eprintln!("O CSTM não pôde ser iniciado: {error}");
 }

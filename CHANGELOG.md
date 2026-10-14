@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-10-14
+
+### Fixed
+
+- As janelas do CSTM só são criadas depois de o banco estar aberto; antes, quando a inicialização demorava (por exemplo, com o antivírus examinando o programa na primeira execução), o cadastro podia mostrar o erro "state not managed".
+- Se o CSTM não consegue iniciar (pasta de dados, banco ou ícone da bandeja), uma mensagem mostra o motivo antes de ele fechar; antes, o aplicativo fechava sem nenhum aviso.
+
 ## [0.11.1] - 2026-10-14
 
 ### Fixed
