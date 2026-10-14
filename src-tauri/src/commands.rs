@@ -1,4 +1,4 @@
-//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker` e `tray`;
+//! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste` e `tray`;
 //! os erros chegam ao frontend como mensagens prontas para exibição.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
@@ -8,6 +8,7 @@ use tauri::{AppHandle, State};
 
 use crate::db::folders::{self, Folder};
 use crate::db::snippets::{self, Snippet};
+use crate::paste;
 use crate::picker::{self, ShortcutStatus};
 use crate::tray;
 
@@ -149,10 +150,15 @@ pub fn hide_picker(app: AppHandle) {
     picker::hide(&app);
 }
 
+// Assíncrono: a colagem aguarda o foco e a restauração do clipboard fora da thread principal.
 #[tauri::command]
-pub fn choose_snippet(app: AppHandle, state: Db, id: i64) -> CommandResult<()> {
+pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
     let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
-    picker::deliver(&app, &snippet.content)
+    if paste::paste(&app, &snippet.content)? {
+        // O texto já foi colado; uma falha no contador não deve aparecer como erro.
+        let _ = snippets::record_use(&lock(&state), id);
+    }
+    Ok(())
 }
 
 #[tauri::command]

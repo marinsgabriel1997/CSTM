@@ -4,6 +4,7 @@ use tauri::Manager;
 
 mod commands;
 mod db;
+mod paste;
 mod picker;
 mod tray;
 
@@ -23,6 +24,7 @@ pub fn run() {
             let conn = db::open(&data_dir.join("cstm.db"))?;
             picker::register_shortcut(app, &conn);
             app.manage(Mutex::new(conn));
+            app.manage(paste::PasteState::default());
             tray::create(app)?;
             Ok(())
         })

@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-13
+
+### Added
+
+- Escolher um texto no menu de colagem o cola no programa que estava ativo quando o atalho foi pressionado. Meio segundo depois, o texto que estava no clipboard volta para ele, a menos que algo novo tenha sido copiado nesse intervalo. Se o programa anterior não puder ser reativado, o texto fica no clipboard para ser colado manualmente.
+- Cada colagem é contada no uso do texto.
+
 ## [0.6.0] - 2026-10-13
 
 ### Added

@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "cstm"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "rusqlite",
  "rusqlite_migration",
@@ -662,6 +662,7 @@ dependencies = [
  "tauri-plugin-clipboard-manager",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-single-instance",
+ "windows",
 ]
 
 [[package]]

@@ -189,10 +189,6 @@ pub fn move_snippet(
 }
 
 /// Registra uma colagem do texto. Não altera `updated_at`, reservado a edições.
-#[cfg_attr(
-    not(test),
-    expect(dead_code, reason = "usado pela colagem a partir do p60")
-)]
 pub fn record_use(conn: &Connection, id: i64) -> Result<()> {
     ensure_changed(conn.execute(
         &format!(

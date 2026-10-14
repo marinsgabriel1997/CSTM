@@ -9,10 +9,10 @@ use tauri::{
     App, AppHandle, Emitter, LogicalSize, Manager, PhysicalPosition, Runtime, Window, WindowEvent,
     Wry,
 };
-use tauri_plugin_clipboard_manager::ClipboardExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 
 use crate::db::settings;
+use crate::paste;
 
 const PICKER_WINDOW: &str = "picker";
 /// Atalho padrão, no formato do `tauri-plugin-global-shortcut` (tecla física).
@@ -223,6 +223,7 @@ fn show(app: &AppHandle) -> tauri::Result<()> {
     let Some(window) = app.get_webview_window(PICKER_WINDOW) else {
         return Ok(());
     };
+    paste::remember_target(app);
     let cursor = app.cursor_position()?;
     if let Some(monitor) = app.monitor_from_point(cursor.x, cursor.y)? {
         let size = LogicalSize::new(WIDTH, HEIGHT).to_physical::<i32>(monitor.scale_factor());
@@ -251,15 +252,6 @@ pub fn hide(app: &AppHandle) {
     if let Some(window) = app.get_webview_window(PICKER_WINDOW) {
         let _ = window.hide();
     }
-}
-
-/// Entrega o texto escolhido. Por enquanto, copia para o clipboard e fecha o menu.
-pub fn deliver(app: &AppHandle, content: &str) -> Result<(), String> {
-    app.clipboard()
-        .write_text(content)
-        .map_err(|error| format!("não foi possível copiar o texto: {error}"))?;
-    hide(app);
-    Ok(())
 }
 
 /// O menu fecha ao perder o foco (clique fora) e nunca é destruído: Alt+F4 apenas o oculta.

@@ -169,7 +169,7 @@ Busca:
 | Ação | Resultado |
 | --- | --- |
 | `↑` / `↓`; `Home` / `End` com a busca vazia | Move a seleção (o foco fica no campo de busca); a primeira linha selecionável começa selecionada |
-| `Enter` ou clique num texto | Fecha o menu e cola o texto (no p50: copia para o clipboard) |
+| `Enter` ou clique num texto | Fecha o menu e cola o texto no programa anterior |
 | `Enter`, `→` ou clique numa pasta | Abre a pasta |
 | `←` ou `Backspace` com a busca vazia, ou clique na linha de volta | Volta para a pasta acima |
 | Digitar | Busca; a seleção volta para o primeiro resultado |

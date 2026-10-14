@@ -50,12 +50,14 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 4. Ocultar o menu e reativar a janela guardada (`SetForegroundWindow`).
 5. Salvar o conteúdo atual do clipboard (somente texto).
 6. Copiar o texto escolhido para o clipboard e simular `Ctrl+V` (`SendInput`).
-7. Após um breve intervalo, restaurar o conteúdo anterior do clipboard.
+7. Após 500 ms, restaurar o texto anterior do clipboard, se o clipboard ainda contiver o texto colado (`GetClipboardSequenceNumber`).
 8. Incrementar o contador de uso do texto.
+
+Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam soltas. Se a janela guardada não puder ser reativada, o texto apenas fica no clipboard, sem `Ctrl+V` e sem restauração. Se o clipboard não tinha texto antes, o texto colado permanece nele.
 
 ### Limitações conhecidas
 
-- Programas executados como administrador não recebem a colagem se o CSTM não estiver elevado (UIPI).
+- Programas executados como administrador não recebem a colagem se o CSTM não estiver elevado (UIPI); o Windows não informa a falha.
 - Alguns programas podem ignorar entrada simulada (jogos, acesso remoto, certos terminais).
 - Somente conteúdo de texto do clipboard é restaurado; formatos ricos anteriores podem ser perdidos.
 
@@ -145,7 +147,3 @@ Cada etapa termina com um commit funcional.
 5b. **Configurações:** tela de configurações com a troca do atalho.
 6. **Colagem:** foco na janela anterior, clipboard, `SendInput`, restauração do clipboard.
 7. **Acabamento:** ícones, nome, versão, instalador.
-
-## Decisões em aberto
-
-- Tempo de espera antes de restaurar o clipboard (valor inicial a calibrar por testes).

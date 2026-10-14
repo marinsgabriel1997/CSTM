@@ -54,7 +54,7 @@
 - Preservar a intenção do fluxo de colagem: guardar a janela ativa, selecionar o texto, ocultar o menu, restaurar foco, colar e restaurar o texto anterior do clipboard.
 - Considerar as limitações documentadas de UIPI, entrada simulada e perda de formatos não textuais do clipboard ao definir comportamento e critérios de aceite.
 - O atalho padrão é `Alt+Q`, configurável pelo usuário na tela de configurações (p55), e o menu abre junto ao cursor do mouse (p50); mudar esses comportamentos exige nova aprovação.
-- Resolver no planejamento a decisão ainda aberta sobre o intervalo de restauração do clipboard.
+- O clipboard é restaurado 500 ms após o `Ctrl+V` simulado e somente se ainda contiver o texto colado (p60); mudar esse intervalo exige nova validação no Windows.
 - Não adicionar funcionalidades paralelas, substituir a arquitetura ou reescrever módulos inteiros quando uma alteração limitada resolver a tarefa.
 
 ## Qualidade e nomenclatura
