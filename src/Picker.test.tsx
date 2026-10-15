@@ -543,10 +543,10 @@ describe("cascata", () => {
       "E-mails",
       "Saudação formal",
     ]);
-    // Duas linhas de 32 px mais a margem da lista.
-    expect(fake.layouts).toEqual([[{ contentHeight: 74, anchorY: 0 }]]);
+    // O campo de busca (41 px), duas linhas de 32 px e a margem da lista.
+    expect(fake.layouts).toEqual([[{ contentHeight: 115 }]]);
     // A posição vem do backend.
-    expect(column.parentElement).toHaveStyle({ left: "342px", width: "300px", height: "74px" });
+    expect(column.parentElement).toHaveStyle({ left: "342px", width: "300px", height: "115px" });
     // O foco continua na busca.
     expect(search()).toHaveFocus();
   });
@@ -715,8 +715,8 @@ describe("cascata", () => {
     await hover(user, list().getByRole("option", { name: "Trabalho" }));
 
     const column = await screen.findByRole("listbox", { name: "Trabalho" });
-    // À direita da principal (500 + 340 + 2), com a primeira linha na altura da pasta.
-    expect(column.parentElement).toHaveStyle({ left: "842px", top: "195px" });
+    // À direita da principal (500 + 340 + 2), com o topo no da principal.
+    expect(column.parentElement).toHaveStyle({ left: "842px", top: "200px" });
     expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px" });
   });
 
@@ -754,5 +754,156 @@ describe("cascata", () => {
 
     expect(await screen.findByText("o menu de colagem ainda não foi aberto")).toBeInTheDocument();
     expect(screen.queryByRole("listbox", { name: "Trabalho" })).not.toBeInTheDocument();
+  });
+
+  describe("busca dentro da coluna", () => {
+    const field = (name: string) => screen.getByRole("combobox", { name: `Buscar em ${name}` });
+    const names = (box: string) => sub(box).getAllByRole("option").map((option) => option.textContent);
+
+    async function openFolder(user: ReturnType<typeof userEvent.setup>, name: string) {
+      await user.click(list().getByRole("option", { name }));
+      await screen.findByRole("listbox", { name });
+    }
+
+    it("cada subcoluna tem o campo de busca com o nome da pasta", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+
+      await openFolder(user, "Trabalho");
+
+      expect(screen.getByPlaceholderText("Buscar em Trabalho")).toBeInTheDocument();
+      expect(field("Trabalho")).toHaveAttribute("aria-controls", "picker-list-1");
+      // O foco continua no campo principal.
+      expect(search()).toHaveFocus();
+    });
+
+    it("numa pasta real encontra textos das subpastas e mostra a subpasta só quando não é a da coluna", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await openFolder(user, "Trabalho");
+
+      await user.type(field("Trabalho"), "resp");
+      await waitFor(() => expect(names("Trabalho")).toEqual(["Resposta padrãoE-mails"]));
+      expect(sub("Trabalho").getByRole("option")).toHaveAttribute(
+        "title",
+        "Trabalho › E-mails\n\nObrigado pelo contato.",
+      );
+
+      await user.clear(field("Trabalho"));
+      await user.type(field("Trabalho"), "saud");
+      await waitFor(() => expect(names("Trabalho")).toEqual(["Saudação formal"]));
+      expect(sub("Trabalho").getByRole("option")).toHaveAttribute("title", "Trabalho\n\nPrezado(a),");
+    });
+
+    it("em Favoritos filtra os textos da lista, com a pasta de cada um", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await openFolder(user, "Favoritos");
+
+      await user.type(field("Favoritos"), "sau");
+      await waitFor(() => expect(names("Favoritos")).toEqual(["Saudação formalTrabalho"]));
+
+      // Textos que bateriam com a busca, mas não são favoritos, ficam de fora.
+      await user.clear(field("Favoritos"));
+      await user.type(field("Favoritos"), "resp");
+      expect(await sub("Favoritos").findByText("Nenhum texto encontrado.")).toBeInTheDocument();
+    });
+
+    it("no Histórico filtra os itens já carregados, sem acento nem caixa", async () => {
+      const user = userEvent.setup();
+      fake.copyElsewhere({ title: "Reunião às 15h", preview: "Reunião às 15h\nLevar o relatório." });
+      fake.copyElsewhere({ title: "Orçamento do mês", preview: "Orçamento do mês" });
+      await openRoot();
+      await openFolder(user, "Histórico");
+
+      await user.type(field("Histórico"), "REUNIAO relat");
+
+      await waitFor(() => expect(names("Histórico")).toHaveLength(1));
+      expect(names("Histórico")[0]).toMatch(/^Reunião às 15h/);
+    });
+
+    it("→ numa pasta leva o foco ao campo da coluna nova, onde digitar filtra", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+
+      await user.keyboard("{ArrowDown}{ArrowRight}");
+      await waitFor(() => expect(field("Trabalho")).toHaveFocus());
+      expect(field("Trabalho")).toHaveAttribute("aria-activedescendant");
+      expect(search()).not.toHaveAttribute("aria-activedescendant");
+
+      await user.keyboard("resp");
+      await waitFor(() => expect(names("Trabalho")).toEqual(["Resposta padrãoE-mails"]));
+      expect(sub("Trabalho").getByRole("option")).toHaveAttribute("aria-selected", "true");
+      // Setas laterais só navegam com o campo vazio.
+      await user.keyboard("{ArrowLeft}");
+      expect(field("Trabalho")).toHaveFocus();
+    });
+
+    it("← com o campo vazio fecha a coluna e devolve o foco ao campo da coluna anterior", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await user.keyboard("{ArrowDown}{ArrowRight}");
+      await waitFor(() => expect(field("Trabalho")).toHaveFocus());
+      await user.keyboard("{Enter}");
+      await waitFor(() => expect(field("E-mails")).toHaveFocus());
+
+      await user.keyboard("{ArrowLeft}");
+      await waitFor(() => expect(columns()).toEqual(["Textos", "Trabalho"]));
+      expect(field("Trabalho")).toHaveFocus();
+
+      await user.keyboard("{Backspace}");
+      await waitFor(() => expect(columns()).toEqual(["Textos"]));
+      expect(search()).toHaveFocus();
+    });
+
+    it("filtrar fecha as colunas à direita e seleciona o primeiro resultado", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await openFolder(user, "Trabalho");
+      await user.click(sub("Trabalho").getByRole("option", { name: "E-mails" }));
+      await screen.findByRole("listbox", { name: "Trabalho › E-mails" });
+
+      await user.type(field("Trabalho"), "s");
+
+      await waitFor(() => expect(columns()).toEqual(["Textos", "Trabalho"]));
+      await waitFor(() => expect(sub("Trabalho").getAllByRole("option")[0]).toHaveAttribute("aria-selected", "true"));
+    });
+
+    it("o botão ✕ limpa o filtro e mantém o foco no campo", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await openFolder(user, "Trabalho");
+      expect(screen.queryByRole("button", { name: "Limpar busca" })).not.toBeInTheDocument();
+
+      await user.type(field("Trabalho"), "resp");
+      await waitFor(() => expect(names("Trabalho")).toHaveLength(1));
+      await user.click(screen.getByRole("button", { name: "Limpar busca" }));
+
+      expect(field("Trabalho")).toHaveValue("");
+      expect(field("Trabalho")).toHaveFocus();
+      await waitFor(() => expect(names("Trabalho")).toEqual(["E-mails", "Saudação formal"]));
+      expect(screen.queryByRole("button", { name: "Limpar busca" })).not.toBeInTheDocument();
+    });
+
+    it("Esc no campo da subcoluna fecha o menu", async () => {
+      const user = userEvent.setup();
+      const hidePicker = vi.spyOn(api, "hidePicker");
+      await openRoot();
+      await openFolder(user, "Trabalho");
+
+      await user.type(field("Trabalho"), "{Escape}");
+
+      expect(hidePicker).toHaveBeenCalled();
+    });
+
+    it("informa quando o filtro não encontra nada", async () => {
+      const user = userEvent.setup();
+      await openRoot();
+      await openFolder(user, "Trabalho");
+
+      await user.type(field("Trabalho"), "orçamento");
+
+      expect(await sub("Trabalho").findByText("Nenhum texto encontrado.")).toBeInTheDocument();
+    });
   });
 });

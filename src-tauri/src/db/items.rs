@@ -462,7 +462,10 @@ mod tests {
         assert_eq!(tree(&conn), ["Agenda"]);
         assert_eq!(titles(list_all_snippets(&conn).unwrap()), ["Agenda"]);
         assert!(list_favorites(&conn).unwrap().is_empty());
-        assert_eq!(titles(search_snippets(&conn, "texto").unwrap()), ["Agenda"]);
+        assert_eq!(
+            titles(search_snippets(&conn, "texto", None).unwrap()),
+            ["Agenda"]
+        );
         // O item continua acessível pelo id, para ser restaurado.
         assert!(get_snippet(&conn, reply.id).is_ok());
         assert!(matches!(

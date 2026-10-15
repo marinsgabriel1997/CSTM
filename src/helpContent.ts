@@ -49,6 +49,7 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     paragraphs: [
       "No cadastro, o campo **Buscar** filtra a árvore por título e conteúdo, sem diferenciar acentos. O botão **Favoritos** mostra só os textos favoritos.",
       "No menu de colagem, é só digitar: a busca vale para todos os textos, e cada resultado mostra a pasta em que está.",
+      "Com a navegação em cascata, cada coluna aberta ao lado tem o próprio campo **Buscar em**, que filtra só aquela pasta e as subpastas dela (ou o Histórico, os Favoritos e os Mais usados). Ao entrar numa coluna com `→`, é só digitar.",
     ],
   },
   {

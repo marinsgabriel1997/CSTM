@@ -35,8 +35,6 @@ export type ThemeChoice = "system" | "light" | "dark";
 export interface PickerSubcolumn {
   /** Altura que o conteúdo ocupa, sem rolagem. */
   contentHeight: number;
-  /** Distância do topo da linha da pasta ao topo da coluna anterior, já com a rolagem dela. */
-  anchorY: number;
 }
 
 /** Posição de uma coluna, em pixels lógicos relativos ao canto superior esquerdo da janela. */
@@ -118,7 +116,8 @@ export const api = {
   listSnippets: (folderId: number | null) => invoke<Snippet[]>("list_snippets", { folderId }),
   listAllSnippets: () => invoke<Snippet[]>("list_all_snippets"),
   listFavorites: () => invoke<Snippet[]>("list_favorites"),
-  searchSnippets: (query: string) => invoke<Snippet[]>("search_snippets", { query }),
+  searchSnippets: (query: string, folderId?: number | null) =>
+    invoke<Snippet[]>("search_snippets", { query, folderId: folderId ?? null }),
   createSnippet: (folderId: number | null, title: string, content: string) =>
     invoke<Snippet>("create_snippet", { folderId, title, content }),
   updateSnippet: (id: number, title: string, content: string) =>

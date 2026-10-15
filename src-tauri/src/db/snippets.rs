@@ -104,7 +104,13 @@ pub fn list_favorites(conn: &Connection) -> Result<Vec<Snippet>> {
 /// relevante (em geral o mais curto) ao menos; depois, os demais pela relevância no
 /// conteúdo. Pesos no `bm25` sozinhos não bastam: um termo repetido no conteúdo
 /// superava um título que o continha.
-pub fn search_snippets(conn: &Connection, query: &str) -> Result<Vec<Snippet>> {
+///
+/// Com `folder_id`, só entram os textos dessa pasta e de todas as suas subpastas.
+pub fn search_snippets(
+    conn: &Connection,
+    query: &str,
+    folder_id: Option<i64>,
+) -> Result<Vec<Snippet>> {
     let Some(query) = fts_query(query) else {
         return Ok(Vec::new());
     };
@@ -112,12 +118,18 @@ pub fn search_snippets(conn: &Connection, query: &str) -> Result<Vec<Snippet>> {
     query_list(
         conn,
         &format!(
-            "SELECT {COLUMNS} FROM snippets_fts JOIN snippets ON snippets.id = snippets_fts.rowid
+            "WITH RECURSIVE scope(id) AS (
+                 SELECT id FROM folders WHERE id = ?3
+                 UNION ALL
+                 SELECT folders.id FROM folders JOIN scope ON folders.parent_id = scope.id
+             )
+             SELECT {COLUMNS} FROM snippets_fts JOIN snippets ON snippets.id = snippets_fts.rowid
              WHERE snippets_fts MATCH ?1 AND {LIVE_SNIPPET}
+               AND (?3 IS NULL OR snippets.folder_id IN (SELECT id FROM scope))
              ORDER BY snippets.id IN (SELECT rowid FROM snippets_fts WHERE snippets_fts MATCH ?2) DESC,
                       bm25(snippets_fts, 1.0, 0.0), bm25(snippets_fts, 0.0, 1.0), snippets.id"
         ),
-        (query, title_query),
+        (query, title_query, folder_id),
     )
 }
 
@@ -244,7 +256,7 @@ mod tests {
     }
 
     fn search_titles(conn: &Connection, query: &str) -> Vec<String> {
-        titles(search_snippets(conn, query).unwrap())
+        titles(search_snippets(conn, query, None).unwrap())
     }
 
     /// Falha se o índice FTS divergir da tabela `snippets`.
@@ -488,7 +500,7 @@ mod tests {
         for query in [
             "\"", "*", "(", "AND", "OR NOT", "-x", "título:", "^", "a\"b",
         ] {
-            search_snippets(&conn, query).unwrap();
+            search_snippets(&conn, query, None).unwrap();
         }
         assert_eq!(search_titles(&conn, "(sem"), ["Cotação"]);
         assert_eq!(search_titles(&conn, "\"r$"), ["Cotação"]);
@@ -527,6 +539,73 @@ mod tests {
         .unwrap();
         assert_eq!(search_titles(&conn, "texto"), ["Novo"]);
         assert_fts_in_sync(&conn);
+    }
+
+    fn search_in_folder(conn: &Connection, query: &str, folder_id: i64) -> Vec<String> {
+        titles(search_snippets(conn, query, Some(folder_id)).unwrap())
+    }
+
+    #[test]
+    fn search_in_a_folder_includes_its_subfolders() {
+        let conn = open_in_memory().unwrap();
+        let work = create_folder(&conn, None, "Trabalho").unwrap();
+        let clients = create_folder(&conn, Some(work.id), "Clientes").unwrap();
+        let deep = create_folder(&conn, Some(clients.id), "Antigos").unwrap();
+        create_snippet(&conn, Some(work.id), "Na pasta", "texto").unwrap();
+        create_snippet(&conn, Some(clients.id), "Na subpasta", "texto").unwrap();
+        create_snippet(&conn, Some(deep.id), "Na subpasta funda", "texto").unwrap();
+
+        let mut found = search_in_folder(&conn, "texto", work.id);
+        found.sort();
+        assert_eq!(found, ["Na pasta", "Na subpasta", "Na subpasta funda"]);
+        assert_eq!(
+            search_in_folder(&conn, "texto", clients.id).len(),
+            2,
+            "a subpasta não inclui os textos da pasta acima"
+        );
+    }
+
+    #[test]
+    fn search_in_a_folder_excludes_siblings_and_the_root() {
+        let conn = open_in_memory().unwrap();
+        let work = create_folder(&conn, None, "Trabalho").unwrap();
+        let personal = create_folder(&conn, None, "Pessoal").unwrap();
+        create_snippet(&conn, Some(work.id), "Do trabalho", "texto").unwrap();
+        create_snippet(&conn, Some(personal.id), "Pessoal", "texto").unwrap();
+        create_snippet(&conn, None, "Da raiz", "texto").unwrap();
+
+        assert_eq!(search_in_folder(&conn, "texto", work.id), ["Do trabalho"]);
+        assert!(search_in_folder(&conn, "inexistente", work.id).is_empty());
+    }
+
+    #[test]
+    fn search_in_a_folder_excludes_trashed_snippets() {
+        let mut conn = open_in_memory().unwrap();
+        let work = create_folder(&conn, None, "Trabalho").unwrap();
+        let sub = create_folder(&conn, Some(work.id), "Clientes").unwrap();
+        create_snippet(&conn, Some(work.id), "Vivo", "texto").unwrap();
+        let trashed = create_snippet(&conn, Some(work.id), "Na lixeira", "texto").unwrap();
+        create_snippet(&conn, Some(sub.id), "Na pasta apagada", "texto").unwrap();
+
+        let mut trash = |kind, id| {
+            items::trash(&mut conn, &[ItemRef { kind, id }]).unwrap();
+        };
+        trash(Kind::Snippet, trashed.id);
+        trash(Kind::Folder, sub.id);
+
+        assert_eq!(search_in_folder(&conn, "texto", work.id), ["Vivo"]);
+    }
+
+    #[test]
+    fn search_without_a_folder_covers_every_snippet() {
+        let conn = open_in_memory().unwrap();
+        let work = create_folder(&conn, None, "Trabalho").unwrap();
+        create_snippet(&conn, Some(work.id), "Na pasta", "texto").unwrap();
+        create_snippet(&conn, None, "Da raiz", "texto").unwrap();
+
+        let mut found = search_titles(&conn, "texto");
+        found.sort();
+        assert_eq!(found, ["Da raiz", "Na pasta"]);
     }
 
     #[test]

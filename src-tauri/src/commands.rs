@@ -85,8 +85,12 @@ pub fn list_favorites(state: Db) -> CommandResult<Vec<Snippet>> {
 }
 
 #[tauri::command]
-pub fn search_snippets(state: Db, query: String) -> CommandResult<Vec<Snippet>> {
-    respond(snippets::search_snippets(&lock(&state), &query))
+pub fn search_snippets(
+    state: Db,
+    query: String,
+    folder_id: Option<i64>,
+) -> CommandResult<Vec<Snippet>> {
+    respond(snippets::search_snippets(&lock(&state), &query, folder_id))
 }
 
 #[tauri::command]

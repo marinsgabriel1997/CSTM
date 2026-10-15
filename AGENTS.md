@@ -30,6 +30,7 @@
 - Execução: implementar somente o plano explicitamente aprovado, em mudanças incrementais; executar continuamente as fases técnicas autorizadas, atualizar o andamento e realizar as validações previstas, sem pedir autorizações ou aceites intermediários.
 - Revisão: inspecionar código, diff e critérios de aceite somente em leitura; relatar problemas sem corrigir arquivos por iniciativa própria.
 - Alinhar o modo com o usuário quando a ambiguidade alterar as permissões da tarefa.
+- Apresentar decisões e dúvidas ao usuário como perguntas interativas com as opções disponíveis (ferramenta de perguntas do cliente), indicando a recomendada, em vez de listá-las só em texto corrido.
 - Antes da implementação, resolver as pendências identificáveis, apresentar o plano completo com fases e Marco final e aguardar aprovação explícita. Silêncio não equivale a aprovação.
 - Mudanças relevantes de escopo, arquitetura ou contratos exigem revisão do plano e novo aceite.
 - Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis; apresentar o Marco final para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.

@@ -19,6 +19,8 @@ import { DEFAULT_SHORTCUT } from "../shortcut";
 
 const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 /** Coluna principal do menu de colagem quando a abertura não diz onde: no canto da janela. */
+/** Altura da área útil simulada do monitor, em pixels lógicos. */
+const WORK_AREA_HEIGHT = 1040;
 const DEFAULT_MAIN: PickerColumn = { x: 0, y: 0, width: 340, height: 440, hidden: false };
 
 function required(value: string, field: string): string {
@@ -294,10 +296,11 @@ export function createFakeApi() {
         .filter((s) => s.favorite)
         .sort((a, b) => a.title.toLowerCase().localeCompare(b.title.toLowerCase()) || a.id - b.id)
         .map((s) => ({ ...s })),
-    searchSnippets: async (query) => {
+    searchSnippets: async (query, folderId) => {
       const terms = normalize(query).split(/\s+/).filter(Boolean);
       if (terms.length === 0) return [];
       return liveSnippets()
+        .filter((s) => folderId == null || (s.folderId !== null && isSelfOrDescendant(s.folderId, folderId)))
         .filter((s) => {
           const words = normalize(`${s.title} ${s.content}`).split(/[^\p{L}\p{N}]+/u);
           return terms.every((term) => words.some((word) => word.startsWith(term)));
@@ -462,7 +465,7 @@ export function createFakeApi() {
       return navigation;
     },
     // Layout determinístico e simples: a principal onde a abertura a colocou e cada subcoluna
-    // à direita da anterior, com o topo na pasta; não imita a falta de espaço da tela.
+    // à direita da anterior, com o topo no da principal; não imita a falta de espaço lateral.
     layoutPicker: async (columns) => {
       layouts.push(columns);
       const placed: PickerColumn[] = [{ ...main }];
@@ -470,9 +473,9 @@ export function createFakeApi() {
         const parent = placed[index];
         placed.push({
           x: parent.x + parent.width + 2,
-          y: Math.max(0, parent.y + column.anchorY - 5),
+          y: main.y,
           width: 300,
-          height: column.contentHeight,
+          height: Math.min(column.contentHeight, WORK_AREA_HEIGHT - main.y),
           hidden: false,
         });
       }

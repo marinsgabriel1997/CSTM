@@ -6,6 +6,16 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-10-14
+
+### Added
+
+- No menu de colagem em cascata, cada coluna aberta ao lado ganha um campo **Buscar em**, que filtra só aquela pasta e as subpastas dela, ou o Histórico, os Favoritos e os Mais usados. Entrar numa coluna pelo teclado leva o foco para o campo dela.
+
+### Changed
+
+- As colunas abertas ao lado no menu em cascata começam na altura do topo da coluna principal e descem até a barra de tarefas, rolando por dentro quando o conteúdo não cabe. Antes, uma pasta grande, como o Histórico, ocupava a tela de cima a baixo.
+
 ## [0.14.0] - 2026-10-14
 
 ### Added

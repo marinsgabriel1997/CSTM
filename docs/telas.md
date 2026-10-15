@@ -435,31 +435,33 @@ Os trechos acima (Estrutura, Comportamento e Estados) descrevem o modo "Clicar p
 Cascata, com Trabalho aberto:
 
 ```text
-+--------------------------------------+
-| [ Buscar...                        ] |
-+--------------------------------------+
-|    Mais usados                     > |
-|    Favoritos                       > |  +----------------------------+
-| => Trabalho                        > |  | => E-mails               > |
-|    Pessoal                         > |  |    Saudação formal         |
-|    Telefone                          |  |    Assinatura              |
-|    Link da agenda                    |  +----------------------------+
++--------------------------------------+  +----------------------------+
+| [ Buscar...                        ] |  | [ Buscar em Trabalho     ] |
++--------------------------------------+  +----------------------------+
+|    Mais usados                     > |  | => E-mails               > |
+|    Favoritos                       > |  |    Saudação formal         |
+| => Trabalho                        > |  |    Assinatura              |
+|    Pessoal                         > |  +----------------------------+
+|    Telefone                          |
+|    Link da agenda                    |
 +--------------------------------------+
 | Enter colar  > abrir      Esc fechar |
 +--------------------------------------+
 ```
 
-(O desenho é esquemático: a coluna nova tem a altura do conteúdo e o topo alinhado à pasta que a abriu; ver Posição.)
+(A coluna nova começa na altura do topo da coluna principal e tem a altura do conteúdo, até a borda inferior da área útil; ver regra 7.)
 
 Regras:
 
-1. **Coluna principal:** igual à do modo clique: 340 × 440, busca no topo, pastas virtuais (Histórico, Mais usados e Favoritos), pastas e textos da raiz. Não tem linha de volta, porque as pastas abrem ao lado. Ela não se move na tela quando colunas se abrem ou fecham. As subcolunas não têm campo de busca nem rodapé.
+1. **Coluna principal:** igual à do modo clique: 340 × 440, busca no topo, pastas virtuais (Histórico, Mais usados e Favoritos), pastas e textos da raiz. Não tem linha de volta, porque as pastas abrem ao lado. Ela não se move na tela quando colunas se abrem ou fecham. As subcolunas não têm rodapé; cada uma tem no topo um campo de busca próprio, sempre visível (regra 5).
 2. **Abertura:** passar o mouse sobre uma pasta abre a coluna dela na hora, sem atraso; clicar também abre. Vale para pastas reais e para Histórico, Mais usados e Favoritos, em qualquer coluna.
 3. **Troca e fechamento:** passar para outra pasta substitui as colunas abertas a partir dali. Passar sobre um texto fecha as colunas mais profundas que a coluna dele. Voltar à pasta que já está aberta não faz nada. Como não há atraso, atravessar outra pasta na diagonal até a coluna aberta troca as colunas; o movimento horizontal evita isso. A pasta que originou uma coluna fica realçada.
-4. **Teclado:** `↑` / `↓` movem a seleção na coluna atual (e fecham as colunas à direita dela); `→` ou `Enter` numa pasta abre a coluna e entra nela, com o primeiro item selecionado; `←` fecha a coluna atual e volta à anterior, mantendo a pasta selecionada; `Enter` num texto cola e `Ctrl+C` copia, como no modo clique; `Esc` fecha o menu, como hoje. `→` e `←` só navegam com a busca vazia. A seleção do mouse e a do teclado são a mesma.
-5. **Busca:** com texto na busca, as subcolunas se fecham e os resultados continuam numa lista única, sem cascata (como no modo clique).
+4. **Teclado:** o teclado age no campo que tem o foco: o da coluna principal ao abrir o menu, ou o de uma subcoluna. `↑` / `↓` movem a seleção na coluna do campo (e fecham as colunas à direita dela); `→` ou `Enter` numa pasta abre a coluna, entra nela com o primeiro item selecionado e leva o foco para o campo dela; `←` fecha a coluna atual, volta à anterior mantendo a pasta selecionada e devolve o foco ao campo dela; `Enter` num texto cola e `Ctrl+C` copia, como no modo clique; `Esc` fecha o menu, em qualquer campo. `→` e `←` só navegam com o campo vazio. Clicar no campo de uma subcoluna leva o foco para ele; passar o mouse não move o foco. A seleção do mouse e a do teclado são a mesma.
+5. **Busca:**
+   - **Principal:** com texto na busca da coluna principal, as subcolunas se fecham e os resultados continuam numa lista única, sem cascata (como no modo clique).
+   - **Na subcoluna:** o campo do topo (placeholder "Buscar em <pasta>", com ✕ para limpar quando tem texto) filtra só a partir daquela pasta, e digitar nele fecha as colunas à direita e seleciona o primeiro resultado. Numa pasta do cadastro, mostra os textos dela e de todas as subpastas, pela mesma regra e ordem da busca principal, sem pastas; os textos de subpastas mostram à direita o nome da subpasta, e o caminho completo fica na dica. Em Favoritos e Mais usados, mostra os textos da lista que batem com a busca, na ordem de relevância. No Histórico, mostra os itens cujo título ou prévia (os primeiros 500 caracteres) têm todos os termos, como prefixo de palavra e sem diferenciar acento ou caixa, na ordem do Histórico; uma imagem bate com "imagem". Sem resultados, mostra "Nenhum texto encontrado.". O filtro dura enquanto a coluna está aberta: trocar a pasta dela, fechá-la ou reabrir o menu o descarta.
 6. **Posição horizontal:** a coluna nova abre à direita da anterior (com 2 px de intervalo). Sem espaço na área útil, abre à esquerda da anterior. Sem espaço dos dois lados (ou se a esquerda cobriria colunas abertas), ela fica encostada na borda direita da área útil e as colunas mais antigas que ela cobre saem de vista, voltando quando a coluna nova fecha.
-7. **Posição vertical:** (a) o topo da subcoluna fica alinhado ao topo da pasta que a abriu e a altura vem do conteúdo; (b) se passar da borda inferior da área útil, a coluna sobe o necessário para caber, podendo ficar acima da pasta e do topo da coluna principal; (c) se for maior que a área útil, ocupa toda a altura dela, com rolagem, e `↑` / `↓` rolam até o item selecionado.
+7. **Posição vertical:** toda subcoluna, em qualquer nível, começa na altura do topo da coluna principal (mesmo se ela estiver fora de vista) e tem a altura do conteúdo, incluindo o campo de busca, até a borda inferior da área útil (a barra de tarefas ou a borda da tela). Se o conteúdo não couber, a coluna rola por dentro, e `↑` / `↓` rolam até o item selecionado. Como a coluna principal sempre cabe na área útil, a subcoluna tem pelo menos a altura dela. A pasta que abriu a coluna fica realçada (regra 3).
 8. **Janela e aparência:** a janela do picker é transparente, sem borda nem sombra nativa, e ocupa a área útil do monitor em que abriu, sem mudar de tamanho nem de lugar enquanto o menu está aberto; assim, abrir e fechar colunas não faz a janela piscar. Ela é recortada (região da janela) em volta das colunas visíveis, com uma margem para a sombra: fora do recorte nada é desenhado e o clique vai para o programa de trás, que fecha o menu ao receber o foco. Cada coluna é um cartão com fundo, cantos arredondados e sombra próprios, desenhados pela interface. Clicar na área transparente dentro do recorte (sombra e intervalo entre cartões) também fecha o menu.
 9. **Reabertura:** ao abrir de novo (`Alt+Q`), o menu volta a uma coluna só, na raiz. A janela aparece sem recorte (invisível) e só mostra a coluna principal depois de desenhá-la, para não exibir o conteúdo da abertura anterior.
 

@@ -3,6 +3,7 @@ import {
   ChevronLeft16Regular,
   ChevronRight16Regular,
   Copy16Regular,
+  Dismiss16Regular,
   DocumentText20Regular,
   Fire20Regular,
   Folder20Regular,
@@ -173,6 +174,8 @@ type Row =
   | { kind: "snippet"; key: string; snippet: Snippet; folderName?: string; tip: string }
   | { kind: "clip"; key: string; item: ClipboardItem };
 
+type SnippetRow = Extract<Row, { kind: "snippet" }>;
+
 /** Linhas que colam ao serem escolhidas: textos cadastrados e itens do histórico. */
 type ItemRow = Extract<Row, { kind: "snippet" | "clip" }>;
 
@@ -196,8 +199,8 @@ interface OpenColumn {
   place: number | Virtual;
   /** Altura do conteúdo, sem rolagem. */
   contentHeight: number;
-  /** Distância do topo da pasta que a abriu ao topo da coluna anterior. */
-  anchorY: number;
+  /** Texto do campo de busca da coluna; vazio mostra a pasta inteira. */
+  query: string;
 }
 
 /** Altura de uma linha e margem da lista (preenchimento e bordas do cartão). */
@@ -205,10 +208,13 @@ const ROW_HEIGHT = 32;
 const LIST_MARGIN = 10;
 /** Altura da subcoluna que só mostra "Pasta vazia.". */
 const EMPTY_HEIGHT = 56;
+/** Altura do campo de busca da subcoluna: o campo pequeno (24 px), o preenchimento (2 × 8 px) e a borda. */
+const SEARCH_HEIGHT = 41;
 
 const folderKey = (place: number | Virtual) => `folder-${place}`;
 const columnId = (column: number) => `picker-column-${column}`;
 const rowId = (column: number, key: string) => `picker-${column}-${key}`;
+const listId = (column: number) => (column === 0 ? "picker-list" : `picker-list-${column}`);
 
 const placeOfRow = (row: Row): number | Virtual | null =>
   row.kind === "folder" ? row.folder.id : row.kind === "virtual" ? row.virtual : null;
@@ -221,10 +227,49 @@ function mostUsed(snippets: Snippet[]): Snippet[] {
     .slice(0, MOST_USED_LIMIT);
 }
 
+const filterKey = (place: number | Virtual, term: string) => `${place}|${term}`;
+
+/** Linhas de uma subcoluna: a pasta inteira ou, com texto no campo, só o que bate com ele. */
+function subRows(library: Library | null, sub: OpenColumn, found: { key: string; list: Snippet[] } | undefined): Row[] {
+  const term = sub.query.trim();
+  const rows = contentRows(library, sub.place);
+  if (!term || !library) return rows;
+  if (sub.place === "history") {
+    return rows.filter((row) => row.kind === "clip" && matchesHistory(row.item, term));
+  }
+  // Enquanto a resposta não chega, a lista fica vazia.
+  if (found?.key !== filterKey(sub.place, term)) return [];
+  if (typeof sub.place === "number") {
+    return found.list.map((snippet) => {
+      const row = snippetWithFolder(library.folders, snippet, "filter");
+      // Na pasta da própria coluna, a pasta de cada texto não informa nada.
+      return snippet.folderId === sub.place ? { ...row, folderName: undefined } : row;
+    });
+  }
+  // Favoritos e Mais usados: os textos da lista, na ordem da busca.
+  const byId = new Map(rows.flatMap((row) => (row.kind === "snippet" ? [[row.snippet.id, row] as const] : [])));
+  return found.list.flatMap((snippet) => byId.get(snippet.id) ?? []);
+}
+
 function pathLabel(folders: Folder[], folderId: number | null): string {
   return folderPath(folders, folderId)
     .map((folder) => folder.name)
     .join(" › ");
+}
+
+/** Minúsculas e sem acentos, como a busca do backend. */
+const normalizeText = (text: string) => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** Todos os termos devem ser prefixo de alguma palavra do título ou da prévia. */
+function matchesHistory(item: ClipboardItem, term: string): boolean {
+  const terms = normalizeText(term).split(/\s+/).filter(Boolean);
+  const words = normalizeText(`${item.title} ${item.preview}`).split(/[^\p{L}\p{N}]+/u);
+  return terms.every((wanted) => words.some((word) => word.startsWith(wanted)));
+}
+
+/** Nome curto da pasta, usado no campo de busca da coluna. */
+function placeName(folders: Folder[], place: number | Virtual): string {
+  return typeof place === "number" ? (folders.find((folder) => folder.id === place)?.name ?? "") : VIRTUAL_NAMES[place];
 }
 
 function placeLabel(folders: Folder[], place: number | Virtual): string {
@@ -232,7 +277,7 @@ function placeLabel(folders: Folder[], place: number | Virtual): string {
 }
 
 /** Textos de várias pastas (busca, Mais usados, Favoritos) mostram a pasta de cada um. */
-function snippetWithFolder(folders: Folder[], snippet: Snippet, prefix: string): Row {
+function snippetWithFolder(folders: Folder[], snippet: Snippet, prefix: string): SnippetRow {
   const path = pathLabel(folders, snippet.folderId);
   return {
     kind: "snippet",
@@ -399,7 +444,12 @@ function Picker() {
   // não existe mais) seleciona a primeira.
   const [activeColumn, setActiveColumn] = useState(0);
   const [selection, setSelection] = useState<(string | null)[]>([]);
+  // Resultado da busca de cada subcoluna (pelo índice da coluna), com a pasta e o termo a que pertence.
+  const [subFound, setSubFound] = useState<({ key: string; list: Snippet[] } | undefined)[]>([]);
+  // Coluna cujo campo deve receber o foco depois da próxima renderização (um objeto novo a cada pedido).
+  const [focusRequest, setFocusRequest] = useState<{ column: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const subInputs = useRef<(HTMLInputElement | null)[]>([]);
   const pending = useAsyncControl();
   const term = query.trim();
   const cascade = library?.navigation === "cascade";
@@ -412,6 +462,7 @@ function Picker() {
         pending.invalidate();
         setFolderId(null);
         setSubs([]);
+        setSubFound([]);
         setPlacements([main]);
         setActiveColumn(0);
         setSelection([]);
@@ -492,6 +543,30 @@ function Picker() {
     };
   }, [term, version]);
 
+  // Busca de cada subcoluna com filtro numa pasta real ou em Favoritos/Mais usados.
+  useEffect(() => {
+    let current = true;
+    subs.forEach((sub, index) => {
+      const subTerm = sub.query.trim();
+      if (!subTerm || sub.place === "history") return;
+      const key = filterKey(sub.place, subTerm);
+      api.searchSnippets(subTerm, typeof sub.place === "number" ? sub.place : undefined).then(
+        (list) =>
+          current &&
+          setSubFound((previous) => {
+            const next = [...previous];
+            next[index + 1] = { key, list };
+            return next;
+          }),
+        (reason) => current && setError(errorMessage(reason)),
+      );
+    });
+    // Descarta respostas de uma busca anterior que cheguem fora de ordem.
+    return () => {
+      current = false;
+    };
+  }, [subs, version]);
+
   // Linhas de cada coluna: a principal (busca ou pasta atual) e uma por subcoluna aberta.
   const columnRows = useMemo((): Row[][] => {
     let main: Row[];
@@ -503,8 +578,8 @@ function Picker() {
     } else {
       main = contentRows(library, folderId);
     }
-    return [main, ...subs.map((sub) => contentRows(library, sub.place))];
-  }, [library, term, results, folderId, subs]);
+    return [main, ...subs.map((sub, index) => subRows(library, sub, subFound[index + 1]))];
+  }, [library, term, results, folderId, subs, subFound]);
 
   const rowsOf = (column: number) => columnRows[column] ?? [];
   const activeRowOf = (column: number) => {
@@ -530,7 +605,7 @@ function Picker() {
   async function requestLayout(columns: OpenColumn[]): Promise<PickerColumn[] | null> {
     const request = pending.invalidate();
     try {
-      const placed = await api.layoutPicker(columns.map(({ contentHeight, anchorY }) => ({ contentHeight, anchorY })));
+      const placed = await api.layoutPicker(columns.map(({ contentHeight }) => ({ contentHeight })));
       return pending.isCurrent(request) ? placed : null;
     } catch (reason) {
       if (pending.isCurrent(request)) setError(errorMessage(reason));
@@ -547,15 +622,13 @@ function Picker() {
     const place = placeOfRow(row);
     if (place === null) return false;
     if (subs[column]?.place === place) return true;
-    const rowBox = document.getElementById(rowId(column, row.key))?.getBoundingClientRect();
-    const columnBox = document.getElementById(columnId(column))?.getBoundingClientRect();
     const count = contentRows(library, place).length;
     const next: OpenColumn[] = [
       ...subs.slice(0, column),
       {
         place,
-        contentHeight: count > 0 ? count * ROW_HEIGHT + LIST_MARGIN : EMPTY_HEIGHT,
-        anchorY: rowBox && columnBox ? rowBox.top - columnBox.top : 0,
+        contentHeight: SEARCH_HEIGHT + (count > 0 ? count * ROW_HEIGHT + LIST_MARGIN : EMPTY_HEIGHT),
+        query: "",
       },
     ];
     const placed = await requestLayout(next);
@@ -582,6 +655,19 @@ function Picker() {
     if (!(await openColumn(column, row))) return;
     setActiveColumn(column + 1);
     select(column + 1, null);
+    // Entrar na coluna leva o teclado ao campo dela.
+    setFocusRequest({ column: column + 1 });
+  }
+
+  /** Texto do campo de busca da coluna. */
+  const queryOf = (column: number) => (column === 0 ? query : (subs[column - 1]?.query ?? ""));
+
+  /** Muda o filtro de uma subcoluna: fecha as colunas à direita e seleciona o primeiro resultado. */
+  function filterColumn(column: number, value: string) {
+    closeAfter(column);
+    setSubs((previous) => previous.map((sub, index) => (index === column - 1 ? { ...sub, query: value } : sub)));
+    select(column, null);
+    setActiveColumn(column);
   }
 
   function openFolder(place: number | Virtual) {
@@ -662,7 +748,7 @@ function Picker() {
     const options = rowsOf(activeColumn);
     const position = active ? options.indexOf(active) : -1;
     const row = active;
-    const blank = query === "";
+    const blank = queryOf(activeColumn) === "";
     switch (event.key) {
       case "ArrowDown":
         move(position + 1);
@@ -696,6 +782,7 @@ function Picker() {
           select(parent, folderKey(subs[parent].place));
           closeAfter(parent);
           setActiveColumn(parent);
+          setFocusRequest({ column: parent });
         }
         break;
       case "Escape":
@@ -714,6 +801,11 @@ function Picker() {
     }
     event.preventDefault();
   }
+
+  // Leva o foco ao campo pedido, que já existe depois da renderização.
+  useEffect(() => {
+    if (focusRequest) (focusRequest.column === 0 ? inputRef.current : subInputs.current[focusRequest.column])?.focus();
+  }, [focusRequest]);
 
   const activeKey = active?.key;
   useEffect(() => {
@@ -746,6 +838,12 @@ function Picker() {
   const body = renderBody();
   const hasOptions = !body && rows.length > 0;
   const mainPlacement = placements[0];
+
+  /** A busca do filtro da coluna ainda não respondeu? */
+  function subPending(sub: OpenColumn, column: number) {
+    const subTerm = sub.query.trim();
+    return subTerm !== "" && sub.place !== "history" && subFound[column]?.key !== filterKey(sub.place, subTerm);
+  }
 
   function renderRows(column: number) {
     return rowsOf(column).map((row) => (
@@ -782,8 +880,8 @@ function Picker() {
             role="combobox"
             aria-label="Buscar"
             aria-expanded
-            aria-controls="picker-list"
-            aria-activedescendant={hasOptions && active ? rowId(activeColumn, active.key) : undefined}
+            aria-controls={listId(0)}
+            aria-activedescendant={hasOptions && activeColumn === 0 && active ? rowId(activeColumn, active.key) : undefined}
             placeholder="Buscar"
             contentBefore={<Search16Regular />}
             value={query}
@@ -795,6 +893,7 @@ function Picker() {
                 setActiveColumn(0);
               }
             }}
+            onFocus={() => setActiveColumn(0)}
             onKeyDown={onKeyDown}
           />
         </div>
@@ -805,7 +904,7 @@ function Picker() {
         ) : (
           <div />
         )}
-        <div id="picker-list" className={styles.list} role="listbox" aria-label="Textos">
+        <div id={listId(0)} className={styles.list} role="listbox" aria-label="Textos">
           {body ?? renderRows(0)}
         </div>
         <div className={styles.hints}>
@@ -860,12 +959,56 @@ function Picker() {
               style={cardStyle(placement)}
               aria-hidden={placement.hidden || undefined}
             >
+              <div className={styles.search}>
+                <Input
+                  ref={(element) => {
+                    subInputs.current[column] = element;
+                  }}
+                  className={styles.input}
+                  size="small"
+                  role="combobox"
+                  aria-label={library ? `Buscar em ${placeName(library.folders, sub.place)}` : "Buscar"}
+                  aria-expanded
+                  aria-controls={listId(column)}
+                  aria-activedescendant={column === activeColumn && active ? rowId(column, active.key) : undefined}
+                  placeholder={library ? `Buscar em ${placeName(library.folders, sub.place)}` : "Buscar"}
+                  contentBefore={<Search16Regular />}
+                  contentAfter={
+                    sub.query !== "" ? (
+                      <Button
+                        size="small"
+                        appearance="transparent"
+                        icon={<Dismiss16Regular />}
+                        aria-label="Limpar busca"
+                        // O foco fica no campo, como nas linhas.
+                        tabIndex={-1}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => {
+                          filterColumn(column, "");
+                          setFocusRequest({ column });
+                        }}
+                      />
+                    ) : undefined
+                  }
+                  value={sub.query}
+                  onChange={(_, data) => filterColumn(column, data.value)}
+                  onFocus={() => setActiveColumn(column)}
+                  onKeyDown={onKeyDown}
+                />
+              </div>
               <div
+                id={listId(column)}
                 className={styles.list}
                 role="listbox"
                 aria-label={library ? placeLabel(library.folders, sub.place) : undefined}
               >
-                {rowsOf(column).length === 0 ? <Text className={styles.emptyFolder}>Pasta vazia.</Text> : renderRows(column)}
+                {rowsOf(column).length > 0 ? (
+                  renderRows(column)
+                ) : sub.query.trim() === "" ? (
+                  <Text className={styles.emptyFolder}>Pasta vazia.</Text>
+                ) : (
+                  !subPending(sub, column) && <Text className={styles.emptyFolder}>Nenhum texto encontrado.</Text>
+                )}
               </div>
             </div>
           );

@@ -281,6 +281,12 @@
     user-select: none;
   }
   .card .list { flex: 1; min-height: 0; }
+  .subsearch { position: relative; padding: 6px; border-bottom: 1px solid var(--stroke); }
+  .subsearch input { padding: 4px 26px 4px 8px; font-size: 13px; }
+  .subsearch .clear {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    border: 0; background: none; color: var(--text-2, #6b7280); cursor: pointer; font-size: 12px; padding: 2px 4px;
+  }
   .row.open { background: var(--selected); }
   .cstatus { max-width: 900px; margin: 8px auto 0; font-size: 13px; color: #374151; min-height: 20px; }
   kbd {
@@ -657,6 +663,8 @@ Levar o relatório impresso.", when: "14:32" },
   (() => {
     const AREA = { w: 900, h: 560 };
     const GAP = 2, MAIN_W = 340, MAIN_H = 440, SUB_W = 300, ROW_H = 32;
+    // Altura do campo de busca no topo de cada subcoluna (margem, campo e linha divisória).
+    const SUB_SEARCH_H = 41;
 
     const SCEN = {
       normal: { label: "Normal", x: 250, y: 30, note: "Passe o mouse sobre Trabalho: a coluna abre na hora à direita, alinhada à pasta e com a altura do conteúdo. Continue em E-mails e Clientes." },
@@ -711,11 +719,34 @@ Levar o relatório impresso.", when: "14:32" },
         .map((s) => snip(s, true));
     }
 
-    // Geometria da coluna nova (o backend faz o mesmo no aplicativo). Coordenadas na área útil.
-    function placeColumn(parent, rowTop, contentH, earlier) {
-      const h = Math.min(contentH, AREA.h);
-      let y = 0;
-      if (h < AREA.h) y = Math.max(0, Math.min(rowTop - 5, AREA.h - h)); // topo na pasta; sobe se bater embaixo
+    const matchesAll = (text, terms) => {
+      const words = fold(text).split(/[^\p{L}\p{N}]+/u);
+      return terms.every((term) => words.some((word) => word.startsWith(term)));
+    };
+    const inside = (folder, key) => {
+      for (let at = folder; at !== null; at = cFolders.find((f) => f.id === at).parent) if (at === key) return true;
+      return false;
+    };
+    // Resultado do campo de uma subcoluna: só a partir da pasta dela.
+    function filterEntries(key, text) {
+      const terms = fold(text).split(/\s+/).filter(Boolean);
+      if (key === "historico") {
+        return entriesOf(key).filter((h) => matchesAll(`${h.title} ${h.content}`, terms));
+      }
+      if (typeof key === "string") {
+        const ids = new Set(VIRT[key].items().map((s) => s.id));
+        return searchEntries(text).filter((e) => ids.has(e.key));
+      }
+      return cSnippets
+        .filter((s) => s.folder !== null && inside(s.folder, key) && matchesAll(`${s.title} ${s.content}`, terms))
+        .map((s) => ({ ...snip(s), meta: s.folder !== key ? cName(s.folder) : "" }));
+    }
+
+    // Geometria da coluna nova (o backend faz o mesmo no aplicativo). Coordenadas na área útil:
+    // toda subcoluna começa no topo da coluna principal e desce até a borda de baixo.
+    function placeColumn(parent, contentH, earlier) {
+      const y = cols[0].y;
+      const h = Math.min(contentH, AREA.h - y);
       const hits = (x) => earlier.some((c) => !c.hidden && x < c.x + c.w && x + SUB_W > c.x);
       let x = parent.x + parent.w + GAP;
       let side = "direita";
@@ -724,7 +755,7 @@ Levar o relatório impresso.", when: "14:32" },
         side = "esquerda";
         if (x < 0 || hits(x)) { x = AREA.w - SUB_W; side = "sem espaço"; }
       }
-      return { x, y, h, side, shifted: h < AREA.h ? rowTop - 5 - y : 0, full: h === AREA.h };
+      return { x, y, h, side, full: h === AREA.h - y };
     }
 
     const desk = $("cdesk");
@@ -759,7 +790,8 @@ Levar o relatório impresso.", when: "14:32" },
         col.list.appendChild(el);
         col.rows.push({ el, entry });
       });
-      if (!items.length) col.list.innerHTML = `<div class="empty">${col.key === null && query ? "Nenhum texto encontrado." : "Pasta vazia."}</div>`;
+      const filtered = col.key === null ? query : col.query;
+      if (!items.length) col.list.innerHTML = `<div class="empty">${filtered ? "Nenhum texto encontrado." : "Pasta vazia."}</div>`;
     }
 
     function markRows() {
@@ -772,8 +804,9 @@ Levar o relatório impresso.", when: "14:32" },
       const row = cols[active]?.rows[cols[active].sel];
       const parts = [];
       if (row) parts.push(`<span><kbd>Enter</kbd> ${row.entry.kind === "folder" ? "abrir" : "colar"}</span>`);
-      if (!query && row?.entry.kind === "folder") parts.push(`<span><kbd>→</kbd> abrir</span>`);
-      if (!query && active > 0) parts.push(`<span><kbd>←</kbd> voltar</span>`);
+      const typed = active === 0 ? query : cols[active]?.query;
+      if (!typed && row?.entry.kind === "folder") parts.push(`<span><kbd>→</kbd> abrir</span>`);
+      if (!typed && active > 0) parts.push(`<span><kbd>←</kbd> voltar</span>`);
       parts.push(`<span class="end"><kbd>Esc</kbd> fechar</span>`);
       $("chints").innerHTML = parts.join("");
     }
@@ -805,21 +838,42 @@ Levar o relatório impresso.", when: "14:32" },
       const entry = parent.rows[ri].entry;
       closeFrom(ci + 1);
       const items = entriesOf(entry.key);
-      const contentH = items.length ? items.length * ROW_H + 10 : 56;
-      const rowTop = rectOf(parent.rows[ri].el).top;
-      const g = placeColumn(parent, rowTop, contentH, cols);
+      const contentH = SUB_SEARCH_H + (items.length ? items.length * ROW_H + 10 : 56);
+      const g = placeColumn(parent, contentH, cols);
 
       const el = document.createElement("div");
       el.className = "card";
       el.setAttribute("aria-label", entry.title);
-      el.innerHTML = `<div class="list" role="listbox"></div>`;
+      el.innerHTML = `<div class="search subsearch"><input autocomplete="off" /><button class="clear" title="Limpar" aria-label="Limpar" tabindex="-1" hidden>✕</button></div><div class="list" role="listbox"></div>`;
       Object.assign(el.style, { left: `${g.x}px`, top: `${g.y}px`, width: `${SUB_W}px`, height: `${g.h}px` });
-      el.firstChild.style.overflowY = "auto";
+      const input = el.querySelector("input");
+      const clear = el.querySelector(".clear");
+      input.placeholder = `Buscar em ${entry.title}`;
+      input.setAttribute("aria-label", `Buscar em ${entry.title}`);
+      el.children[1].style.overflowY = "auto";
       desk.appendChild(el);
-      const col = { el, list: el.firstChild, key: entry.key, x: g.x, y: g.y, w: SUB_W, h: g.h, sel: -1, openRow: -1 };
+      const col = { el, list: el.children[1], input, key: entry.key, x: g.x, y: g.y, w: SUB_W, h: g.h, sel: -1, openRow: -1, query: "" };
       cols.push(col);
       fillList(col, items);
       parent.openRow = ri;
+
+      const applyFilter = () => {
+        const ci = cols.indexOf(col);
+        col.query = input.value;
+        clear.hidden = !input.value;
+        closeFrom(ci + 1);
+        fillList(col, input.value.trim() ? filterEntries(col.key, input.value) : entriesOf(col.key));
+        col.sel = col.rows.length ? 0 : -1;
+        active = ci;
+        markRows();
+      };
+      input.addEventListener("input", applyFilter);
+      input.addEventListener("focus", () => {
+        const ci = cols.indexOf(col);
+        if (active !== ci) { active = ci; if (col.sel < 0 && col.rows.length) col.sel = 0; markRows(); }
+      });
+      clear.addEventListener("mousedown", (event) => event.preventDefault());
+      clear.addEventListener("click", () => { input.value = ""; applyFilter(); input.focus(); });
 
       // Colunas mais antigas cobertas pela nova saem de vista.
       if (g.side === "sem espaço") {
@@ -834,9 +888,8 @@ Levar o relatório impresso.", when: "14:32" },
       updateWindow();
       markRows();
       const bits = [`“${entry.title}”: abriu à ${g.side === "sem espaço" ? "direita, sem espaço dos dois lados (colunas mais antigas saem de vista)" : g.side}`];
-      if (g.full) bits.push("é maior que a área útil: ocupa toda a altura e rola");
-      else if (g.shifted > 0) bits.push(`subiu ${Math.round(g.shifted)} px para caber na área útil`);
-      else bits.push("topo alinhado à pasta, altura pelo conteúdo");
+      if (g.full) bits.push("topo no da coluna principal; não cabe até a borda de baixo, então rola");
+      else bits.push("topo no da coluna principal, altura pelo conteúdo");
       setStatus(bits.join("; ") + ".");
     }
 
@@ -932,28 +985,32 @@ Levar o relatório impresso.", when: "14:32" },
       const col = cols[active];
       const row = col?.rows[col.sel];
       const key = event.key;
+      const typed = active === 0 ? query : col?.query;
+      const focusField = (c) => (c === cols[0] ? $("csearch") : c.input)?.focus();
       if (key === "Escape") closeMenu();
       else if (key === "ArrowDown" || key === "ArrowUp") {
         if (!col.rows.length) return;
         col.sel = Math.min(col.rows.length - 1, Math.max(0, col.sel + (key === "ArrowDown" ? 1 : -1)));
         closeFrom(active + 1);
         markRows();
-      } else if (key === "Enter" || (key === "ArrowRight" && !query)) {
+      } else if (key === "Enter" || (key === "ArrowRight" && !typed)) {
         if (!row) return;
         if (row.entry.kind !== "folder") { if (key === "Enter") paste(row.entry); else return; }
         else {
           if (!(cols[active + 1] && cols[active + 1].key === row.entry.key)) openColumn(active, col.sel);
           active += 1;
           cols[active].sel = cols[active].rows.length ? 0 : -1;
+          focusField(cols[active]);
           markRows();
         }
-      } else if (key === "ArrowLeft" && !query) {
+      } else if (key === "ArrowLeft" && !typed) {
         if (active === 0) return;
         closeFrom(active);
+        focusField(cols[active]);
         markRows();
       } else if ((key === "c" || key === "C") && event.ctrlKey) {
         // Com um trecho da busca selecionado, Ctrl+C copia o trecho.
-        const input = $("csearch");
+        const input = active === 0 ? $("csearch") : col.input;
         if (row?.entry.kind === "folder" || !row || input.selectionStart !== input.selectionEnd) return;
         copyEntry(row.entry);
       } else return;
