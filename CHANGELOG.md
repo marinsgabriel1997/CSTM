@@ -6,6 +6,19 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-10-14
+
+### Added
+
+- Ajuda dentro do aplicativo, com as abas Básico (onde clicar para começar) e Avançado (as demais funcionalidades). Abre pelo botão `?` da barra inferior, por `F1` ou pela bandeja, e aparece sozinha uma vez depois de instalar ou atualizar.
+- Página Sobre o CSTM, com a versão, o link do projeto no GitHub, a pasta dos dados (com o botão Abrir pasta), a licença e o autor. Abre pelo botão `i` da barra inferior ou pela bandeja.
+- O CSTM passa a ser distribuído sob a licença MIT.
+
+### Changed
+
+- As Configurações deixam de ser uma janela sobreposta e passam a ocupar a área do editor, como a Ajuda e o Sobre. Clicar de novo no botão, selecionar um item na árvore ou criar um texto volta ao editor.
+- O menu da bandeja ganha os itens Ajuda e Sobre o CSTM.
+
 ## [0.13.0] - 2026-10-14
 
 ### Added

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "CSTM",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "identifier": "com.gabriel.cstm",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -48,7 +48,7 @@
     "targets": ["nsis"],
     "publisher": "CSTM",
     "homepage": "https://github.com/marinsgabriel1997/CSTM",
-    "copyright": "© 2026 CSTM",
+    "copyright": "© 2026 Gabriel de Marins",
     "shortDescription": "CSTM - Clipboard, Snippets & Text Manager",
     "longDescription": "Cadastre textos reutilizáveis em pastas e cole-os em qualquer programa pelo menu flutuante aberto com Alt+Q.",
     "windows": {

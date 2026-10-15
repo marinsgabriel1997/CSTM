@@ -26,6 +26,9 @@ pub const CLIPBOARD_HISTORY: &str = "clipboard_history";
 pub const ON: &str = "on";
 pub const OFF: &str = "off";
 
+/// Presente depois que a Ajuda abriu sozinha na primeira execução.
+pub const HELP_SHOWN: &str = "help_shown";
+
 /// Valor gravado para `key`, ou `None` se nunca foi definido.
 pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
     Ok(conn
@@ -70,6 +73,15 @@ pub fn get_clipboard_history(conn: &Connection) -> Result<bool> {
 
 pub fn set_clipboard_history(conn: &Connection, enabled: bool) -> Result<()> {
     set_setting(conn, CLIPBOARD_HISTORY, if enabled { ON } else { OFF })
+}
+
+/// Se a Ajuda ainda deve abrir sozinha; marca-a como mostrada, para abrir uma vez só.
+pub fn take_help_prompt(conn: &Connection) -> Result<bool> {
+    let pending = get_setting(conn, HELP_SHOWN)?.is_none();
+    if pending {
+        set_setting(conn, HELP_SHOWN, ON)?;
+    }
+    Ok(pending)
 }
 
 #[cfg(test)]
@@ -136,6 +148,17 @@ mod tests {
 
         set_setting(&conn, THEME, "sepia").unwrap();
         assert_eq!(get_theme(&conn).unwrap(), "system");
+    }
+
+    #[test]
+    fn help_prompt_is_taken_only_once() {
+        let conn = open_in_memory().unwrap();
+        assert!(take_help_prompt(&conn).unwrap());
+        assert!(!take_help_prompt(&conn).unwrap());
+        assert_eq!(
+            get_setting(&conn, HELP_SHOWN).unwrap().as_deref(),
+            Some("on")
+        );
     }
 
     #[test]

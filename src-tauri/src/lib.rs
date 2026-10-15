@@ -28,6 +28,7 @@ pub fn run() {
         .plugin(picker::shortcut_plugin())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Um erro devolvido ao Tauri vira um panic sem mensagem, que fecha o
             // aplicativo em silêncio; aqui o usuário vê o motivo antes do fim.
@@ -78,6 +79,10 @@ pub fn run() {
             commands::set_shortcut,
             commands::suspend_shortcut,
             commands::resume_shortcut,
+            commands::take_help_prompt,
+            commands::get_data_dir,
+            commands::open_repository,
+            commands::open_data_folder,
             commands::get_theme,
             commands::set_theme,
             commands::get_autostart,

@@ -41,7 +41,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas                             9 textos · 4 pastas |
+| (v) Todas as alterações salvas              9 textos · 4 pastas  [⚙] (?) (i)  |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -60,7 +60,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Favoritos | Estrela na árvore e no editor; filtro `Favoritos` reduz a árvore aos textos marcados, mantendo as pastas onde estão. |
 | Busca | Filtra a própria árvore: mantém as pastas que contêm resultados (abertas) e destaca o termo. Quando a correspondência é só no conteúdo, o item mostra um trecho. Contagem de resultados ao lado do filtro. Limpar a busca restaura a árvore. |
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
-| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira. |
+| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Confirmação | Diálogo modal somente para o que não tem volta: excluir definitivamente e esvaziar a lixeira, informando o que vai junto (subpastas, textos, favoritos). Botão de confirmar em vermelho. Excluir comum vai para a lixeira, sem diálogo. |
 
@@ -299,8 +299,8 @@ O aplicativo fica na bandeja do sistema, com a dica "CSTM".
 | --- | --- |
 | Fechar a janela (X ou Alt+F4) | Oculta a janela e grava as pendências, sem confirmação; os rascunhos que não puderem ser gravados ficam em memória |
 | Clique esquerdo no ícone | Abre o cadastro: restaura, mostra e foca a janela |
-| Clique direito no ícone | Menu: **Abrir cadastro**, **Configurações**, separador, **Sair** |
-| Configurações | Mostra a janela de cadastro e abre o diálogo de configurações |
+| Clique direito no ícone | Menu: **Abrir cadastro**, **Configurações**, **Ajuda**, **Sobre o CSTM**, separador, **Sair** |
+| Configurações, Ajuda ou Sobre o CSTM | Mostra a janela de cadastro já com a página escolhida na área do editor |
 | Sair | Grava as pendências e encerra; se algo não puder ser gravado, mostra a janela e pede confirmação ("Sair sem salvar?") |
 | Executar o aplicativo de novo | Não cria outra instância; traz a janela existente |
 | Windows iniciando o CSTM ao entrar na sessão (opção Iniciar com o Windows) | Não cria outra instância nem mostra a janela |
@@ -474,35 +474,42 @@ Os cenários de posição (normal, borda direita, borda inferior e coluna grande
 | Busca sem resultados | "Nenhum texto encontrado." |
 | Falha ao carregar | Mensagem de erro do backend no lugar da lista |
 
-## Tela 3 — Configurações (diálogo na janela `main`)
+## Tela 3 — Configurações (página na janela `main`)
 
 Protótipo visual navegável: [`docs/prototipo/configuracoes.html`](prototipo/configuracoes.html) (abre direto no navegador; estados e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
 
-Atalho atual:
+As Configurações, a Ajuda (Tela 4) e o Sobre (Tela 5) são páginas que ocupam a área do editor no cadastro, no lugar do texto ou da pasta selecionada; a árvore continua à esquerda e funciona normalmente.
 
 ```text
-+------------------------------------------------+
-| Configurações                              [X] |
-|                                                |
-| Atalho do menu de colagem                      |
-| Abre o menu de colagem em qualquer programa.   |
-|                                                |
-| [ Alt + Q                        ] [ Alterar ] |
-|                                                |
-| [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
-+------------------------------------------------+
++--------------------------------------------------------------------------------+
+| CSTM                                                                           |
++-------------------------------+------------------------------------------------+
+| [ Buscar... ] [+ Novo v] [...]|  Configurações                                 |
+| ( Favoritos )                 |                                                |
+|                               |  Atalho do menu de colagem                     |
+| v Trabalho                    |  Abre o menu de colagem em qualquer programa.  |
+|   Saudação formal          *  |  [ Alt + Q                     ] [ Alterar ]   |
+| > Pessoal                     |  [ Restaurar padrão (Alt+Q) ]                  |
+| Telefone                   *  |  --------------------------------------------  |
+|                               |  Navegação nas pastas                          |
+|                               |  ...                                           |
+|-------------------------------|                                                |
+| Lixeira                     3 |                                                |
++-------------------------------+------------------------------------------------+
+| (v) Todas as alterações salvas              9 textos · 4 pastas  [⚙] (?) (i)  |
++--------------------------------------------------------------------------------+
 ```
 
-Com todas as opções (cada uma separada da anterior por uma linha):
+Página com todas as opções (cada uma separada da anterior por uma linha):
 
 ```text
 +------------------------------------------------+
-| Configurações                              [X] |
+| Configurações                                  |
 |                                                |
 | Atalho do menu de colagem                      |
 | Abre o menu de colagem em qualquer programa.   |
 | [ Alt + Q                        ] [ Alterar ] |
-|                                                |
+| [ Restaurar padrão (Alt+Q) ]                   |
 | ---------------------------------------------- |
 | Navegação nas pastas                           |
 | Como as pastas se abrem no menu de colagem.    |
@@ -525,8 +532,6 @@ Com todas as opções (cada uma separada da anterior por uma linha):
 |      que gerenciadores de senha marcam como    |
 |      sensível não é guardado.                  |
 |      [ Limpar histórico ]                      |
-|                                                |
-| [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
 +------------------------------------------------+
 ```
 
@@ -544,35 +549,42 @@ Gravando um novo atalho:
 
 ```text
 +------------------------------------------------+
-| Configurações                              [X] |
+| Configurações                                  |
 |                                                |
 | Atalho do menu de colagem                      |
 | Abre o menu de colagem em qualquer programa.   |
-|                                                |
 | [ Pressione o novo atalho...    ] [Cancelar]   |
 | Esc cancela e mantém o atalho atual.           |
-|                                                |
-| [ Restaurar padrão (Alt+Q) ]        [ Fechar ] |
+| [ Restaurar padrão (Alt+Q) ]  (desabilitado)   |
 +------------------------------------------------+
 ```
 
+### Páginas na área do editor
+
+- A barra inferior tem, à direita dos totais, três botões de ícone: **Configurações** (engrenagem), **Ajuda** (`?`) e **Sobre o CSTM** (`i`). O botão da página aberta fica marcado (pressionado).
+- Clicar num desses botões abre a página no lugar do editor; clicar de novo no botão da página aberta volta ao editor.
+- Também voltam ao editor: selecionar um item na árvore (inclusive a Lixeira), criar um texto ou uma pasta e qualquer ação que abra um item no editor. Os rascunhos não são afetados; o salvamento automático continua.
+- `F1`, em qualquer ponto do cadastro, abre a Ajuda.
+- Com uma página aberta, os atalhos da árvore (`Ctrl+N`, `Delete`, `Ctrl+C`/`X`/`V`/`Z`) valem quando o foco está na árvore; nos campos e textos da página, as teclas ficam com a página (por exemplo, `Ctrl+C` copia o texto selecionado da Ajuda).
+- A página rola quando não cabe na altura da janela; o conteúdo tem largura máxima de leitura, alinhado à esquerda.
+
 ### Estrutura
 
-- Diálogo modal sobre a janela de cadastro, com título "Configurações" e botão de fechar. Tem cinco configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o tema, a inicialização com o Windows e o histórico do clipboard. Se não couberem na altura da janela, o conteúdo do diálogo rola.
+- Página com título "Configurações", sem botão de fechar (ver Páginas na área do editor). Tem cinco configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o tema, a inicialização com o Windows e o histórico do clipboard.
 - **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho, sem mexer nas demais opções. Os modos estão descritos em Tela 2, Navegação nas pastas.
 - **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
 - **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
 - **Histórico do clipboard:** interruptor "Guardar o histórico do clipboard", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.
 - O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
-- "Restaurar padrão (Alt+Q)" fica à esquerda, desabilitado quando o atalho já é o padrão ou durante a gravação; "Fechar" à direita.
+- "Restaurar padrão (Alt+Q)" fica logo abaixo do campo do atalho, desabilitado quando o atalho já é o padrão ou durante a gravação.
 
 ### Como abrir
 
 | Origem | Ação |
 | --- | --- |
 | Barra inferior do cadastro | Botão de engrenagem à direita dos totais |
-| Menu da bandeja | Item **Configurações**: mostra a janela e abre o diálogo |
-| Aviso de atalho indisponível | Ação **Alterar atalho** |
+| Menu da bandeja | Item **Configurações**: mostra a janela já na página |
+| Aviso de atalho indisponível | Ação **Alterar atalho** abre a página |
 
 ### Comportamento
 
@@ -582,7 +594,7 @@ Gravando um novo atalho:
 | Pressionar modificadores | O campo mostra os modificadores pressionados (`Ctrl` + `…`) |
 | Combinação válida | Vira o novo atalho imediatamente; aparece "Atalho alterado." |
 | Combinação inválida | Mostra a regra ("Use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço.") e continua aguardando |
-| `Esc`, "Cancelar", fechar o diálogo ou ocultar a janela | Encerra a gravação e reativa o atalho atual |
+| `Esc`, "Cancelar", sair da página ou ocultar a janela | Encerra a gravação e reativa o atalho atual |
 | Restaurar padrão | Volta para `Alt+Q` |
 
 Regras das combinações: `Ctrl` ou `Alt` obrigatório, `Shift` opcional, sem `Win`; tecla principal entre letras, números, `F1`–`F12` e `Espaço`. A tecla é a física (independe do layout do teclado).
@@ -594,6 +606,68 @@ Regras das combinações: `Ctrl` ou `Alt` obrigatório, `Shift` opcional, sem `W
 | Atalho em uso por outro programa | Faixa de erro: "Não foi possível usar Ctrl+Shift+V: outro programa pode estar usando esse atalho. O atalho Alt+Q continua valendo." |
 | Combinação com `Ctrl+Alt` | Aceita, com faixa de aviso: "Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no teclado ABNT2)." |
 | Atalho atual indisponível ao iniciar | O aviso do cadastro informa o atalho configurado e oferece "Alterar atalho" |
+
+## Tela 4 — Ajuda (página na janela `main`)
+
+Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html) (abas, atalho configurado, bandeja e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
+
+```text
++------------------------------------------------+
+| Ajuda                                          |
+|                                                |
+|  Básico   Avançado                             |
+|  ======                                        |
+| O CSTM guarda os textos que você digita toda   |
+| hora e os cola em qualquer programa. Para      |
+| começar:                                       |
+|                                                |
+| (1) Crie um texto                              |
+|     Na árvore, à esquerda, clique em Novo ›    |
+|     Novo texto (ou Ctrl+N).                    |
+| (2) Escreva o título e o conteúdo              |
+|     ...                                        |
++------------------------------------------------+
+```
+
+- Página na área do editor (ver Tela 3, Páginas na área do editor), com o título "Ajuda" e duas abas (`TabList` do Fluent UI): **Básico**, selecionada ao abrir, e **Avançado**.
+- **Básico:** uma frase de introdução e passos curtos e numerados de onde clicar para começar: criar um texto; escrever título e conteúdo (salva sozinho); organizar em pastas; pressionar o atalho em qualquer programa para abrir o menu de colagem junto ao mouse; clicar no texto para colar, ou no botão Copiar para só copiar; fechar a janela sem perder o atalho, que continua valendo pela bandeja.
+- **Avançado:** seções curtas, com título: Busca; Favoritos e Mais usados; Menu de colagem pelo teclado; Histórico do clipboard; Organizar a árvore; Lixeira; Importar e exportar; Configurações; Limites do Windows.
+- O texto cita o atalho configurado (por exemplo, "pressione Alt+Q" ou o atalho escolhido nas Configurações). Teclas aparecem como teclas (`kbd`), e nomes de botões e menus em negrito.
+- O conteúdo fica em `src/helpContent.ts`, num lugar só; ele é atualizado na mesma entrega de toda mudança visível ao usuário.
+- **Primeira execução:** enquanto a configuração `help_shown` não existe, o cadastro abre na Ajuda, aba Básico, e o CSTM grava a chave; nas execuções seguintes, abre normalmente. Vale também para quem atualiza de uma versão anterior. Iniciado pelo Windows, o CSTM fica na bandeja, e a Ajuda aparece quando a janela for mostrada. A apresentação da biblioteca vazia ("Bem-vindo ao CSTM") continua aparecendo no editor depois que a Ajuda é fechada.
+
+## Tela 5 — Sobre o CSTM (página na janela `main`)
+
+Protótipo visual navegável: [`docs/prototipo/sobre.html`](prototipo/sobre.html). O protótipo é estático e não faz parte do aplicativo.
+
+```text
++------------------------------------------------+
+| [ícone]  CSTM                                  |
+|          Clipboard, Snippets & Text Manager ·  |
+|          versão 0.14.0                         |
+|                                                |
+| Cadastre os textos que você digita toda hora,  |
+| organize-os em pastas e cole-os em qualquer    |
+| programa pelo menu de colagem. O CSTM também   |
+| guarda o histórico do que você copia.          |
+|                                                |
+| Código-fonte                                   |
+| github.com/marinsgabriel1997/CSTM              |
+|                                                |
+| Pasta dos dados                                |
+| C:\Users\voce\AppData\Roaming\com.gabriel.cstm |
+| [ Abrir pasta ]                                |
+|                                                |
+| Licença MIT · © 2026 Gabriel de Marins         |
++------------------------------------------------+
+```
+
+- Página na área do editor (ver Tela 3, Páginas na área do editor), aberta pelo botão `i` da barra inferior ou pelo item **Sobre o CSTM** da bandeja.
+- Cabeçalho com o ícone do aplicativo, o nome, "Clipboard, Snippets & Text Manager" e a versão instalada (a do aplicativo, igual à de `package.json`).
+- O link do repositório abre <https://github.com/marinsgabriel1997/CSTM> no navegador padrão.
+- "Pasta dos dados" mostra o caminho da pasta de dados (onde fica o `cstm.db`), com o botão **Abrir pasta**, que a abre no Explorer.
+- Rodapé: "Licença MIT · © 2026 Gabriel de Marins".
+- Falhas ao abrir o link ou a pasta aparecem numa faixa de erro abaixo do item.
 
 ## Ícone do aplicativo
 

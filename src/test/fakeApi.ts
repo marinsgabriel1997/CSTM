@@ -5,6 +5,7 @@ import type {
   Api,
   ClipboardItem,
   Folder,
+  Page,
   PickerColumn,
   PickerNavigation,
   PickerSubcolumn,
@@ -53,7 +54,15 @@ export function createFakeApi() {
   const closeListeners = new Set<() => void>();
   const quitListeners = new Set<() => void>();
   const pickerListeners = new Set<(main: PickerColumn) => void>();
-  const settingsListeners = new Set<() => void>();
+  const pageListeners = new Set<(page: Page) => void>();
+  /** Primeira execução (Ajuda abre sozinha), versão e pedidos de abrir o link e a pasta. */
+  const about = {
+    helpPending: false,
+    version: "0.14.0",
+    dataDir: "C:\\Users\\ana\\AppData\\Roaming\\com.gabriel.cstm",
+    opened: [] as ("repository" | "dataFolder")[],
+    failure: null as string | null,
+  };
   const shortcut: ShortcutStatus = { shortcut: DEFAULT_SHORTCUT, registered: true };
   /** Atalhos que o "Windows" recusa, como se outro programa os usasse. */
   const takenShortcuts = new Set<string>();
@@ -404,7 +413,22 @@ export function createFakeApi() {
     hideWindow: async () => {},
     showWindow: async () => {},
     exitApp: async () => {},
-    onSettingsRequested: async (onOpen) => subscribe(settingsListeners, onOpen),
+    onPageRequested: async (onOpen) => subscribe(pageListeners, onOpen),
+    takeHelpPrompt: async () => {
+      const pending = about.helpPending;
+      about.helpPending = false;
+      return pending;
+    },
+    getVersion: async () => about.version,
+    getDataDir: async () => about.dataDir,
+    openRepository: async () => {
+      if (about.failure) throw about.failure;
+      about.opened.push("repository");
+    },
+    openDataFolder: async () => {
+      if (about.failure) throw about.failure;
+      about.opened.push("dataFolder");
+    },
     getShortcut: async () => ({ ...shortcut }),
     setShortcut: async (value) => {
       if (takenShortcuts.has(value)) throw "o atalho não pôde ser registrado: HotKey already registered";
@@ -557,9 +581,9 @@ export function createFakeApi() {
     pickerListeners.forEach((listener) => listener(main));
   }
 
-  /** Simula o item "Configurações" da bandeja. */
-  function requestSettings() {
-    settingsListeners.forEach((listener) => listener());
+  /** Simula os itens "Configurações", "Ajuda" e "Sobre o CSTM" da bandeja. */
+  function requestPage(page: Page) {
+    pageListeners.forEach((listener) => listener(page));
   }
 
   return {
@@ -587,6 +611,7 @@ export function createFakeApi() {
     requestClose,
     requestQuit,
     openPicker,
-    requestSettings,
+    requestPage,
+    about,
   };
 }

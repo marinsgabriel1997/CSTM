@@ -503,7 +503,9 @@ describe("atalho do menu de colagem", () => {
     expect(alert).toHaveTextContent("O atalho Alt+Q não pôde ser registrado");
 
     await user.click(within(alert).getByRole("button", { name: "Alterar atalho" }));
-    expect(await screen.findByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Configurações" })).toBeInTheDocument();
+    // Com as Configurações abertas, o aviso some.
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("o aviso pode ser fechado", async () => {
@@ -526,7 +528,7 @@ describe("atalho do menu de colagem", () => {
 describe("configurações", () => {
   async function openSettings(user: User) {
     await user.click(await screen.findByRole("button", { name: "Configurações" }));
-    return within(await screen.findByRole("dialog", { name: "Configurações" }));
+    return within(await screen.findByRole("region", { name: "Configurações" }));
   }
 
   function shortcutField() {
@@ -552,7 +554,7 @@ describe("configurações", () => {
 
     expect(click).toBeChecked();
     expect(await fake.api.getPickerNavigation()).toBe("click");
-    // A escolha persiste: o diálogo de uma nova sessão a mostra.
+    // A escolha persiste: a página de uma nova sessão a mostra.
     cleanup();
     renderApp();
     dialog = await openSettings(user);
@@ -732,7 +734,7 @@ describe("configurações", () => {
     expect(fake.shortcut.shortcut).toBe("Alt+KeyW");
   });
 
-  it("Esc cancela a gravação, mantém o diálogo aberto e reativa o atalho", async () => {
+  it("Esc cancela a gravação, mantém a página aberta e reativa o atalho", async () => {
     const user = userEvent.setup();
     renderApp();
     const dialog = await openSettings(user);
@@ -740,20 +742,20 @@ describe("configurações", () => {
 
     await user.keyboard("{Escape}");
 
-    expect(screen.getByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Configurações" })).toBeInTheDocument();
     expect(shownKeys()).toEqual(["Alt", "Q"]);
     await waitFor(() => expect(fake.shortcut).toEqual({ shortcut: "Alt+KeyQ", registered: true }));
   });
 
-  it("fechar o diálogo durante a gravação reativa o atalho", async () => {
+  it("sair da página durante a gravação reativa o atalho", async () => {
     const user = userEvent.setup();
     renderApp();
     const dialog = await openSettings(user);
     await user.click(dialog.getByRole("button", { name: "Alterar" }));
 
-    await user.click(dialog.getByRole("button", { name: "Fechar configurações" }));
+    await user.click(screen.getByRole("button", { name: "Configurações" }));
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Configurações" })).not.toBeInTheDocument());
     await waitFor(() => expect(fake.shortcut.registered).toBe(true));
   });
 
@@ -790,9 +792,9 @@ describe("configurações", () => {
     renderApp();
     await screen.findByText("Nenhum texto ainda");
 
-    act(() => fake.requestSettings());
+    act(() => fake.requestPage("settings"));
 
-    expect(await screen.findByRole("dialog", { name: "Configurações" })).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Configurações" })).toBeInTheDocument();
   });
 });
 

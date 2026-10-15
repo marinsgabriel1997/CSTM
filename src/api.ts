@@ -1,5 +1,6 @@
 // Único ponto de acesso do frontend ao backend: cada função chama um comando Tauri.
 // Em caso de falha, a promessa é rejeitada com a mensagem de erro do backend.
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -23,6 +24,9 @@ export interface ShortcutStatus {
 
 /** Como as pastas se abrem no menu de colagem: ao passar o mouse (cascata) ou ao clicar. */
 export type PickerNavigation = "cascade" | "click";
+
+/** Páginas que ocupam a área do editor no cadastro. */
+export type Page = "settings" | "help" | "about";
 
 /** Tema das janelas: `system` segue o Windows. */
 export type ThemeChoice = "system" | "light" | "dark";
@@ -158,8 +162,19 @@ export const api = {
   /** Mostra a janela, mesmo oculta ou minimizada, e lhe dá o foco. */
   showWindow: () => invoke<void>("show_main_window"),
   exitApp: () => invoke<void>("exit_app"),
-  /** Abre o diálogo de configurações a pedido da bandeja. Devolve a função que remove o aviso. */
-  onSettingsRequested: async (onOpen: () => void) => listen("settings-requested", () => onOpen()),
+  /** Abre uma página a pedido da bandeja. Devolve a função que remove o aviso. */
+  onPageRequested: async (onOpen: (page: Page) => void) =>
+    listen<Page>("page-requested", (event) => onOpen(event.payload)),
+  /** Se a Ajuda deve abrir sozinha: `true` só na primeira vez que é perguntado. */
+  takeHelpPrompt: () => invoke<boolean>("take_help_prompt"),
+  /** Versão do aplicativo instalado. */
+  getVersion: () => getVersion(),
+  /** Pasta onde ficam o banco e os demais dados. */
+  getDataDir: () => invoke<string>("get_data_dir"),
+  /** Abre o repositório do CSTM no navegador. */
+  openRepository: () => invoke<void>("open_repository"),
+  /** Abre a pasta dos dados no Explorer. */
+  openDataFolder: () => invoke<void>("open_data_folder"),
   /** Tema escolhido nas Configurações; `system` enquanto nada foi escolhido. */
   getTheme: () => invoke<ThemeChoice>("get_theme"),
   /** Grava o tema; as duas janelas recebem `onThemeChanged`. */

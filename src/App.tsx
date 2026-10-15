@@ -10,13 +10,15 @@ import {
 } from "react";
 
 import { includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
-import { api, errorMessage, type Folder, type ShortcutStatus, type Snippet, type TrashItem } from "./api";
+import { api, errorMessage, type Folder, type Page, type ShortcutStatus, type Snippet, type TrashItem } from "./api";
+import AboutPage from "./components/AboutPage";
 import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
+import HelpPage from "./components/HelpPage";
 import LibraryTree, { type DropTarget, type SelectMode } from "./components/LibraryTree";
 import MoveDialog from "./components/MoveDialog";
 import { SelectionPanel, TrashPanel } from "./components/Panels";
-import SettingsDialog from "./components/SettingsDialog";
+import SettingsPage from "./components/SettingsPage";
 import StatusBar from "./components/StatusBar";
 import TreePane from "./components/TreePane";
 import { DraftStore } from "./drafts";
@@ -31,7 +33,7 @@ import {
 } from "./operations";
 import { clampTreeWidth, loadPreferences, savePreferences, TREE_WIDTH } from "./preferences";
 import { searchTerms } from "./search";
-import { shortcutLabel } from "./shortcut";
+import { DEFAULT_SHORTCUT, shortcutLabel } from "./shortcut";
 import {
   exportFailure,
   exportNotice,
@@ -159,9 +161,9 @@ interface Marked {
  * Registra um aviso da janela nativa e devolve a limpeza para o `useEffect`. O registro é
  * assíncrono, então a remoção também cobre o efeito desfeito antes de ele terminar.
  */
-function listenWindow(
-  subscribe: (handler: () => void) => Promise<() => void>,
-  handler: () => void,
+function listenWindow<Args extends unknown[]>(
+  subscribe: (handler: (...args: Args) => void) => Promise<() => void>,
+  handler: (...args: Args) => void,
 ): () => void {
   let unlisten: (() => void) | undefined;
   let disposed = false;
@@ -212,10 +214,12 @@ function App() {
   // Atalho do menu de colagem; `null` até carregar (ou fora do Tauri).
   const [shortcut, setShortcut] = useState<ShortcutStatus | null>(null);
   const [shortcutWarningDismissed, setShortcutWarningDismissed] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Página aberta no lugar do editor (Configurações, Ajuda ou Sobre); `null` mostra o editor.
+  const [page, setPage] = useState<Page | null>(null);
   const toasterId = useId("notices");
   const { dispatchToast } = useToastController(toasterId);
   const treeRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const contentRef = useRef<HTMLTextAreaElement>(null);
   // Campo do editor que recebe o foco após a próxima renderização.
@@ -282,7 +286,30 @@ function App() {
     [store],
   );
 
+  // Na primeira execução do aplicativo, a Ajuda abre sozinha.
+  useEffect(() => {
+    let current = true;
+    api.takeHelpPrompt().then(
+      (first) => current && first && setPage("help"),
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
+
   useEffect(() => savePreferences(preferences), [preferences]);
+
+  // F1 abre a Ajuda de qualquer lugar da janela.
+  useEffect(() => {
+    const listener = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "F1") return;
+      event.preventDefault();
+      setPage("help");
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   useEffect(() => {
     const listener = (event: globalThis.KeyboardEvent) => itemShortcut.current(event);
@@ -307,7 +334,8 @@ function App() {
     [store],
   );
 
-  useEffect(() => listenWindow(api.onSettingsRequested, () => setSettingsOpen(true)), []);
+  // O pedido da bandeja sempre abre a página, sem alternar.
+  useEffect(() => listenWindow(api.onPageRequested, (requested) => setPage(requested)), []);
 
   // "Sair" na bandeja grava o que estiver pendente e pede confirmação se algo não puder ser gravado.
   useEffect(
@@ -339,9 +367,9 @@ function App() {
     focusRequest.current = null;
   });
 
-  // O atalho fica sem registro também durante a gravação de um novo, com o diálogo aberto.
+  // O atalho fica sem registro também durante a gravação de um novo, com a página de Configurações aberta.
   const shortcutWarning =
-    shortcut && !shortcut.registered && !shortcutWarningDismissed && !settingsOpen
+    shortcut && !shortcut.registered && !shortcutWarningDismissed && page !== "settings"
       ? `O atalho ${shortcutLabel(shortcut.shortcut)} não pôde ser registrado; outro programa pode estar usando-o.`
       : null;
 
@@ -434,7 +462,12 @@ function App() {
     }
   }
 
+  function togglePage(target: Page) {
+    setPage((current) => (current === target ? null : target));
+  }
+
   function select(item: ItemRef | null) {
+    setPage(null);
     store.open(item?.kind === "snippet" ? item.id : null);
     setSelection(item);
     setMulti([]);
@@ -452,6 +485,7 @@ function App() {
     }
     // O editor dá lugar ao painel da seleção: as pendências são gravadas.
     store.open(null);
+    setPage(null);
     setSelection(focus);
     setMulti(items);
     setTrashOpen(false);
@@ -510,6 +544,7 @@ function App() {
   function newFolder(parentId: number | null = targetFolder()) {
     clearFilters();
     reveal(parentId);
+    setPage(null);
     setRenamingFolder(null);
     setNewFolderIn(parentId);
   }
@@ -1020,7 +1055,7 @@ function App() {
   }
 
   function handleKeyDown(event: KeyboardEvent) {
-    if (confirmation || moving || settingsOpen || !event.ctrlKey || event.altKey) return;
+    if (confirmation || moving || !event.ctrlKey || event.altKey) return;
     const key = event.key.toLowerCase();
     if (key === "n") {
       event.preventDefault();
@@ -1036,7 +1071,9 @@ function App() {
 
   /** Ctrl+C, Ctrl+X, Ctrl+V e Ctrl+Z sobre os itens; nos campos de texto, ficam com o próprio campo. */
   function handleItemShortcut(event: globalThis.KeyboardEvent) {
-    if (confirmation || moving || settingsOpen || event.defaultPrevented) return;
+    if (confirmation || moving || event.defaultPrevented) return;
+    // Com uma página aberta, Ctrl+C e afins valem para o texto dela, não para os itens da árvore.
+    if (page && event.target instanceof Node && paneRef.current?.contains(event.target)) return;
     if (!event.ctrlKey || event.altKey || event.shiftKey || isEditable(event.target as EventTarget)) return;
     const key = event.key.toLowerCase();
     if (!["c", "x", "v", "z"].includes(key)) return;
@@ -1074,7 +1111,21 @@ function App() {
   const movingParents = new Set((moving ?? []).map((item) => parentOf(item, folders, displaySnippets) ?? null));
 
   let editor;
-  if (trashOpen) {
+  if (page === "settings" && shortcut) {
+    editor = (
+      <SettingsPage
+        shortcut={shortcut}
+        onShortcutChange={(status) => {
+          setShortcut(status);
+          setShortcutWarningDismissed(false);
+        }}
+      />
+    );
+  } else if (page === "help") {
+    editor = <HelpPage shortcut={shortcutLabel(shortcut?.shortcut ?? DEFAULT_SHORTCUT)} />;
+  } else if (page === "about") {
+    editor = <AboutPage />;
+  } else if (trashOpen) {
     editor = (
       <TrashPanel
         items={trash}
@@ -1237,7 +1288,7 @@ function App() {
             setPreferences((current) => ({ ...current, treeWidth: clampTreeWidth(current.treeWidth + delta) }));
           }}
         />
-        <main className={styles.editorPane}>{editor}</main>
+        <main ref={paneRef} className={styles.editorPane}>{editor}</main>
       </div>
       <StatusBar
         drafts={[...drafts.values()]}
@@ -1246,7 +1297,9 @@ function App() {
         snippetCount={snippets.length}
         folderCount={folders.length}
         onRetry={(id) => void store.retry(id)}
-        onOpenSettings={shortcut ? () => setSettingsOpen(true) : undefined}
+        page={page}
+        onTogglePage={togglePage}
+        canOpenSettings={shortcut !== null}
       />
       {moving && moving.length > 0 && (
         <MoveDialog
@@ -1265,16 +1318,6 @@ function App() {
         />
       )}
       <ConfirmDialog confirmation={confirmation} onCancel={() => setConfirmation(null)} />
-      {settingsOpen && shortcut && (
-        <SettingsDialog
-          shortcut={shortcut}
-          onShortcutChange={(status) => {
-            setShortcut(status);
-            setShortcutWarningDismissed(false);
-          }}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
       <Toaster toasterId={toasterId} position="bottom-end" offset={TOASTER_OFFSET} />
       {(error || shortcutWarning) && (
         <div className={styles.messages}>
@@ -1283,7 +1326,7 @@ function App() {
             <ErrorMessage
               intent="warning"
               message={shortcutWarning}
-              action={{ label: "Alterar atalho", onClick: () => setSettingsOpen(true) }}
+              action={{ label: "Alterar atalho", onClick: () => setPage("settings") }}
               onClose={() => setShortcutWarningDismissed(true)}
             />
           )}

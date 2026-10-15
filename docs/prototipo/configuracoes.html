@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <title>CSTM — Protótipo das configurações</title>
 <!--
-  Protótipo estático do diálogo de configurações (docs/telas.md).
+  Protótipo estático da página de configurações (Tela 3 de docs/telas.md), aberta na área
+  do editor do cadastro. As páginas Ajuda e Sobre têm protótipos próprios (ajuda.html e sobre.html).
   Não faz parte do aplicativo: abre direto no navegador, sem build.
   O gravador de atalho funciona no navegador (combinações reservadas pelo navegador
   ou pelo Windows podem não chegar à página). Estados selecionáveis na barra superior
@@ -136,19 +137,13 @@
   }
   .icon-button:hover, .icon-button.pressed { background: var(--hover); color: var(--text); }
 
-  /* ---------- Diálogo ---------- */
-  .overlay { position: absolute; inset: 0; background: var(--overlay); display: grid; place-items: center; }
-  .dialog {
-    width: 480px;
-    border-radius: 8px;
-    background: var(--layer);
-    border: 1px solid var(--stroke-strong);
-    box-shadow: var(--shadow);
-    padding: 24px;
-    /* Como no aplicativo, o conteúdo rola quando não cabe na altura da janela. */
-    max-height: calc(100% - 32px);
-    overflow-y: auto;
-  }
+  /* ---------- Página na área do editor ---------- */
+  .editor.page-host { padding: 0; overflow-y: auto; color: var(--text); font-size: 14px; }
+  .editor { min-height: 0; }
+  .content { min-height: 0; }
+  .page { max-width: 600px; padding: 24px 32px 32px; }
+  .restore-row { margin-top: 10px; }
+  a.icon-button { text-decoration: none; }
   .dialog-head { display: flex; align-items: center; margin-bottom: 20px; }
   .dialog-head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
   .dialog-head .icon-button { margin-left: auto; }
@@ -263,12 +258,14 @@
   <div class="titlebar">CSTM</div>
   <div class="content">
     <div class="tree">Árvore de pastas e textos</div>
-    <div class="editor">Editor</div>
+    <div class="editor" id="editor">Editor</div>
   </div>
   <div class="statusbar">
     <span>✓ Todas as alterações salvas</span>
     <span class="totals">9 textos · 4 pastas</span>
     <button class="icon-button" id="gear" title="Configurações" aria-label="Configurações">⚙</button>
+    <a class="icon-button" href="ajuda.html" title="Ajuda (F1)" aria-label="Ajuda">?</a>
+    <a class="icon-button" href="sobre.html" title="Sobre o CSTM" aria-label="Sobre o CSTM">i</a>
   </div>
   <div id="layer"></div>
 </div>
@@ -286,7 +283,8 @@
     erro: { label: "Atalho em uso", note: "O Windows recusou a combinação; o atalho anterior continua valendo." },
     altgr: { label: "Aviso Ctrl+Alt", note: "Aceito, com aviso sobre o AltGr." },
     alterado: { label: "Atalho alterado", note: "O novo atalho vale imediatamente." },
-    bandeja: { label: "Pela bandeja", note: "O item Configurações mostra a janela de cadastro e abre o diálogo." },
+    bandeja: { label: "Pela bandeja", note: "O item Configurações mostra a janela de cadastro já na página. Ajuda e Sobre o CSTM fazem o mesmo com as suas páginas." },
+    editor: { label: "Fechada (editor)", note: "Clicar de novo na engrenagem, selecionar um item na árvore ou criar um texto ou pasta volta ao editor. Clique na engrenagem para abrir a página." },
     limpar: { label: "Limpar histórico", note: "\"Limpar histórico\" pede confirmação ali mesmo, sem outro diálogo. Cancelar volta ao botão." },
     limpo: { label: "Histórico limpo", note: "Os itens foram apagados; o botão fica desabilitado até haver itens de novo. A opção continua ligada." },
     "historico-desligado": { label: "Histórico desligado", note: "Desligar para de guardar na hora, sem apagar o que já foi guardado; a pasta Histórico some do menu de colagem." },
@@ -321,12 +319,16 @@
     $("window").className = `window ${document.body.className}`;
     renderBar();
     const recording = state === "gravando" || state === "invalida";
-    $("gear").classList.toggle("pressed", state !== "bandeja");
-
-    if (state === "bandeja") {
-      $("layer").innerHTML = `<div class="tray-menu"><div>Abrir cadastro</div><div class="on">Configurações</div><hr /><div>Sair</div></div>`;
+    $("gear").classList.toggle("pressed", state !== "editor");
+    $("layer").innerHTML = state === "bandeja"
+      ? `<div class="tray-menu"><div>Abrir cadastro</div><div class="on">Configurações</div><div>Ajuda</div><div>Sobre o CSTM</div><hr /><div>Sair</div></div>`
+      : "";
+    if (state === "editor") {
+      $("editor").className = "editor";
+      $("editor").textContent = "Editor do texto selecionado";
       return;
     }
+    $("editor").className = "editor page-host";
 
     const field = recording
       ? pending.length
@@ -341,10 +343,9 @@
     if (state === "erro") lines = `<div class="bar error">Não foi possível usar ${message ?? "Ctrl+Shift+V"}: outro programa pode estar usando esse atalho. O atalho ${label(shortcut)} continua valendo.</div>`;
     if (state === "altgr") lines += `<div class="bar warning">Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no teclado ABNT2).</div>`;
 
-    $("layer").innerHTML = `
-      <div class="overlay">
-        <div class="dialog" role="dialog" aria-label="Configurações">
-          <div class="dialog-head"><h2>Configurações</h2><button class="icon-button" aria-label="Fechar">✕</button></div>
+    $("editor").innerHTML = `
+        <section class="page" aria-label="Configurações">
+          <div class="dialog-head"><h2>Configurações</h2></div>
           <div class="setting-title">Atalho do menu de colagem</div>
           <div class="setting-help">Abre o menu de colagem em qualquer programa.</div>
           <div class="shortcut-row">
@@ -354,6 +355,7 @@
               : `<button class="button" id="change">Alterar</button>`}
           </div>
           ${lines}
+          <div class="restore-row"><button class="button" id="restore" ${isDefault || recording ? "disabled" : ""}>Restaurar padrão (Alt+Q)</button></div>
           <div class="setting-sep"></div>
           <div class="setting-title" id="nav-title">Navegação nas pastas</div>
           <div class="setting-help">Como as pastas se abrem no menu de colagem. Vale a partir da próxima abertura do menu.</div>
@@ -378,12 +380,7 @@
             ? `<div class="confirm bar warning">Apagar os ${historyCount} itens do histórico? Não é possível desfazer.
                  <div class="buttons"><button class="button danger" id="confirm-clear">Limpar</button><button class="button" id="cancel-clear">Cancelar</button></div></div>`
             : `<div class="history-actions"><button class="button" id="clear" ${historyCount === 0 ? "disabled" : ""}>Limpar histórico</button>${state === "limpo" ? `<span class="line success">Histórico limpo.</span>` : ""}</div>`}
-          <div class="dialog-actions" style="justify-content: space-between">
-            <button class="button" id="restore" ${isDefault || recording ? "disabled" : ""}>Restaurar padrão (Alt+Q)</button>
-            <button class="button primary">Fechar</button>
-          </div>
-        </div>
-      </div>`;
+        </section>`;
     document.querySelectorAll('input[name="nav"]').forEach((input) => {
       input.addEventListener("change", () => { navMode = input.value; });
     });
@@ -439,7 +436,8 @@
     }
   });
 
-  $("gear").addEventListener("click", () => go("atual"));
+  // A engrenagem alterna entre a página e o editor.
+  $("gear").addEventListener("click", () => setState(state === "editor" ? "atual" : "editor"));
 
   function setState(next) {
     state = next;

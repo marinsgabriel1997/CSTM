@@ -35,6 +35,13 @@
 - Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis; apresentar o Marco final para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.
 - Não realizar commit ou push sem autorização explícita específica para a operação.
 
+## Delegação a subagentes
+
+- O agente principal atua como orquestrador: define e edita contratos, planos e documentação, divide o trabalho em tarefas, revisa os resultados e executa as validações finais.
+- A implementação é delegada a subagentes, escolhidos conforme a complexidade: Haiku para tarefas mecânicas e bem delimitadas (ajustes pontuais, renomeações, testes simples, verificações); Sonnet para tarefas que exigem raciocínio sobre o código (componentes, integração, diagnóstico de falhas).
+- Cada tarefa delegada tem escopo fechado: objetivo, arquivos que podem ser alterados, contratos e convenções a seguir, o que não deve ser tocado e critério de conclusão verificável. Subagentes não decidem escopo, arquitetura ou contratos, não editam planos nem documentação e não fazem commit.
+- O orquestrador revisa o diff de cada tarefa antes de seguir; alterações fora do escopo pedido são descartadas e a tarefa é refeita.
+
 ## Planos
 
 - Manter planos ativos em `planos/` e concluídos em `planos/executados/`. Nomear novos planos no formato `NNN-nome-descritivo.md`, por exemplo `001-autenticacao.md`, com ID numérico sequencial, permanente e não reutilizável; o ID não representa prioridade.
@@ -73,6 +80,7 @@
 ## Documentação, fontes e governança
 
 - Atualizar a documentação diretamente afetada e separar conhecimento técnico permanente de contexto transitório da conversa.
+- Toda mudança visível ao usuário (funcionalidade, atalho, nome de botão ou fluxo) atualiza na mesma entrega o conteúdo da Ajuda do aplicativo, em `src/helpContent.ts`.
 - Código e configuração representam o estado implementado; `docs/mvp.md` orienta o escopo pretendido; o plano aprovado define a entrega em andamento.
 - Este `AGENTS.md` define comportamento e processo do agente. Não transformar sugestões ou decisões abertas da documentação em contratos confirmados.
 - Identificar conflitos entre fontes antes de prosseguir na parte afetada; não presumir que documentação descreve fielmente o código atual.

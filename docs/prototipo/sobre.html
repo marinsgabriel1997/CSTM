@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>CSTM — Protótipo do Sobre</title>
+<!--
+  Protótipo estático da página Sobre (Tela 5 de docs/telas.md), na área do editor do cadastro.
+  Não faz parte do aplicativo: abre direto no navegador, sem build.
+  Estados pela barra superior ou pela URL: sobre.html#estado=sobre&tema=escuro
+-->
+<style>
+  :root {
+    --font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  }
+
+  .theme-light {
+    --base: #eef0f3;
+    --layer: #ffffff;
+    --stroke: rgba(0, 0, 0, 0.08);
+    --stroke-strong: rgba(0, 0, 0, 0.14);
+    --text: #1a1a1a;
+    --text-2: #5d5d5d;
+    --text-3: #8b8b8b;
+    --hover: rgba(0, 0, 0, 0.04);
+    --accent: #005fb8;
+    --on-accent: #ffffff;
+    --danger: #c42b1c;
+    --danger-bg: #fde7e9;
+    --warning: #8a5300;
+    --warning-bg: #fff4ce;
+    --success: #0f7b0f;
+    --overlay: rgba(0, 0, 0, 0.3);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.14), 0 0 1px rgba(0, 0, 0, 0.2);
+    --control: #ffffff;
+    --keycap: #f3f3f3;
+  }
+
+  .theme-dark {
+    --base: #1c1c1c;
+    --layer: #2b2b2b;
+    --stroke: rgba(255, 255, 255, 0.07);
+    --stroke-strong: rgba(255, 255, 255, 0.12);
+    --text: #ffffff;
+    --text-2: #c8c8c8;
+    --text-3: #9a9a9a;
+    --hover: rgba(255, 255, 255, 0.05);
+    --accent: #60cdff;
+    --on-accent: #000000;
+    --danger: #ff99a4;
+    --danger-bg: #442726;
+    --warning: #fce100;
+    --warning-bg: #433519;
+    --success: #6ccb5f;
+    --overlay: rgba(0, 0, 0, 0.5);
+    --shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 1px rgba(0, 0, 0, 0.6);
+    --control: #2d2d2d;
+    --keycap: #3a3a3a;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 24px 40px;
+    font-family: var(--font);
+    font-size: 14px;
+    background: #d9dce1;
+    color: #1a1a1a;
+  }
+
+  /* ---------- Painel do protótipo ---------- */
+  .proto-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    max-width: 900px;
+    margin: 0 auto 10px;
+  }
+  .proto-bar button {
+    font: inherit;
+    font-size: 12.5px;
+    padding: 4px 10px;
+    border: 1px solid #b9bdc4;
+    border-radius: 999px;
+    background: #f4f5f7;
+    cursor: pointer;
+  }
+  .proto-bar button.on { background: #1f2937; color: #fff; border-color: #1f2937; }
+  .proto-bar .sep { width: 1px; height: 20px; background: #b9bdc4; margin: 0 6px; }
+  .proto-note { max-width: 900px; margin: 0 auto 14px; font-size: 13px; color: #374151; min-height: 20px; }
+
+  /* ---------- Janela de cadastro ao fundo ---------- */
+  .window {
+    position: relative;
+    width: 900px;
+    height: 560px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-rows: 32px 1fr 28px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--base);
+    color: var(--text);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  }
+  .titlebar { display: flex; align-items: center; padding-left: 12px; font-size: 12px; color: var(--text-2); }
+  .content { display: grid; grid-template-columns: 290px 1fr; }
+  .tree { border-right: 1px solid var(--stroke); padding: 12px; color: var(--text-3); font-size: 13px; }
+  .editor { background: var(--layer); padding: 24px; color: var(--text-3); font-size: 13px; }
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 6px 0 12px;
+    font-size: 12px;
+    color: var(--text-2);
+    border-top: 1px solid var(--stroke);
+  }
+  .statusbar .totals { margin-left: auto; color: var(--text-3); }
+  .icon-button {
+    width: 24px;
+    height: 24px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-2);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .icon-button:hover, .icon-button.pressed { background: var(--hover); color: var(--text); }
+
+  /* ---------- Página na área do editor ---------- */
+  .editor.page-host { padding: 0; overflow-y: auto; color: var(--text); font-size: 14px; }
+  .editor { min-height: 0; }
+  .content { min-height: 0; }
+  .page { max-width: 600px; padding: 24px 32px 32px; }
+  .restore-row { margin-top: 10px; }
+  .dialog-head { display: flex; align-items: center; margin-bottom: 20px; }
+  .dialog-head h2 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; }
+  .dialog-head .icon-button { margin-left: auto; }
+  .setting-title { font-weight: 600; }
+  .setting-help { margin-top: 2px; font-size: 12.5px; color: var(--text-2); }
+  .shortcut-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .shortcut-field {
+    flex: 1;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    border-bottom: 1px solid var(--text-3);
+    background: var(--control);
+  }
+  .shortcut-field { outline: none; }
+  .shortcut-field.recording { border-bottom: 2px solid var(--accent); }
+  .shortcut-field .placeholder { color: var(--text-3); }
+  kbd {
+    font: inherit;
+    font-size: 13px;
+    min-width: 26px;
+    padding: 2px 7px;
+    text-align: center;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    border-bottom-width: 2px;
+    background: var(--keycap);
+  }
+  .plus { color: var(--text-3); font-size: 12px; }
+  .button {
+    font: inherit;
+    padding: 5px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--stroke-strong);
+    background: var(--control);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .button.primary { background: var(--accent); color: var(--on-accent); border-color: transparent; }
+  .button:disabled { opacity: 0.45; cursor: default; }
+  .line { margin-top: 8px; font-size: 12.5px; }
+  .line.hint { color: var(--text-2); }
+  .line.success { color: var(--success); }
+  .bar { margin-top: 12px; padding: 8px 12px; border-radius: 4px; font-size: 13px; line-height: 1.4; }
+  .bar.error { background: var(--danger-bg); color: var(--text); border-left: 3px solid var(--danger); }
+  .bar.warning { background: var(--warning-bg); color: var(--text); border-left: 3px solid var(--warning); }
+  .dialog-actions { display: flex; justify-content: flex-end; margin-top: 24px; }
+  .setting-sep { height: 1px; margin: 20px 0 16px; background: var(--stroke); }
+  .radio-group { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+  .radio { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 4px; cursor: pointer; }
+  .radio:hover { background: var(--hover); }
+  .radio input { position: absolute; opacity: 0; }
+  .radio-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--text-2); background: var(--control);
+    display: grid; place-items: center; flex: none;
+  }
+  .radio input:checked + .radio-dot { border-color: var(--accent); }
+  .radio input:checked + .radio-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+  .radio input:focus-visible + .radio-dot { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .radio-note { margin-left: 4px; font-size: 12px; color: var(--text-3); }
+  .radio-group.row { flex-direction: row; gap: 12px; }
+  .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .switch input { position: absolute; opacity: 0; }
+  .switch-track {
+    width: 40px; height: 20px; border-radius: 10px; flex: none; position: relative;
+    border: 1px solid var(--text-2); background: var(--control);
+  }
+  .switch-track::after {
+    content: ""; position: absolute; top: 3px; left: 4px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--text-2); transition: left 0.1s;
+  }
+  .switch input:checked + .switch-track { background: var(--accent); border-color: transparent; }
+  .switch input:checked + .switch-track::after { left: 23px; background: var(--on-accent); }
+  .switch input:focus-visible + .switch-track { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .switch-help { margin: 4px 0 0 50px; font-size: 12px; color: var(--text-2); }
+  .history-actions { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 50px; }
+  .history-actions .line { margin-top: 0; }
+  .confirm { margin: 10px 0 0 50px; }
+  .confirm .buttons { display: flex; gap: 8px; margin-top: 8px; }
+  .button.danger { background: #c42b1c; color: #fff; border-color: transparent; }
+
+  /* ---------- Menu da bandeja (estado próprio) ---------- */
+  .tray-menu {
+    position: absolute;
+    right: 24px;
+    bottom: 40px;
+    width: 200px;
+    padding: 4px;
+    border-radius: 8px;
+    background: var(--layer);
+    border: 1px solid var(--stroke-strong);
+    box-shadow: var(--shadow);
+    font-size: 13px;
+  }
+  .tray-menu div { padding: 6px 10px; border-radius: 4px; }
+  .tray-menu .on { background: var(--hover); }
+  .tray-menu hr { border: none; border-top: 1px solid var(--stroke); margin: 4px 0; }
+
+  a.icon-button { text-decoration: none; }
+  .tabs { display: flex; gap: 4px; margin: 4px 0 20px; border-bottom: 1px solid var(--stroke); }
+  .tab {
+    font: inherit; padding: 8px 12px; border: none; background: transparent; color: var(--text-2);
+    cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab.on { color: var(--text); font-weight: 600; border-bottom-color: var(--accent); }
+  .steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+  .steps li { display: flex; gap: 12px; }
+  .num {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 13px;
+  }
+  .step-title { font-weight: 600; display: block; }
+  .step-text, .section p { color: var(--text-2); line-height: 1.5; }
+  .intro { color: var(--text-2); margin: 0 0 16px; line-height: 1.5; }
+  .section { margin-bottom: 18px; }
+  .section h3 { margin: 0 0 6px; font-size: 15px; }
+  .section p { margin: 0 0 6px; }
+  kbd { font-size: 12px; min-width: 0; padding: 0 5px; }
+  .about-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+  .app-icon { width: 64px; height: 64px; }
+  .about-name { font-family: var(--font-display); font-size: 24px; font-weight: 600; margin: 0; }
+  .about-sub { color: var(--text-2); }
+  .field-label { font-weight: 600; margin-top: 18px; }
+  .path {
+    margin-top: 4px; padding: 6px 10px; border-radius: 4px; background: var(--keycap);
+    font-family: Consolas, monospace; font-size: 12.5px; word-break: break-all;
+  }
+  .link { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .license { margin-top: 24px; color: var(--text-2); font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" id="states"></div>
+<div class="proto-note" id="note"></div>
+
+<div class="window" id="window">
+  <div class="titlebar">CSTM</div>
+  <div class="content">
+    <div class="tree">Árvore de pastas e textos</div>
+    <div class="editor page-host" id="editor"></div>
+  </div>
+  <div class="statusbar">
+    <span>✓ Todas as alterações salvas</span>
+    <span class="totals">9 textos · 4 pastas</span>
+    <a class="icon-button" href="configuracoes.html" title="Configurações" aria-label="Configurações">⚙</a>
+    <button class="icon-button" id="help" title="Ajuda (F1)" aria-label="Ajuda">?</button>
+    <button class="icon-button pressed" id="about" title="Sobre o CSTM" aria-label="Sobre o CSTM">i</button>
+  </div>
+  <div id="layer"></div>
+</div>
+
+<script>
+  let theme = "claro";
+  let state = "sobre";
+  
+  const $ = (id) => document.getElementById(id);
+  // Marcação do conteúdo: **negrito**, `tecla` e {atalho}.
+  function inline(text) {
+    const safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/{atalho}/g, shortcut);
+    return safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<kbd>$1</kbd>");
+  }
+  function bar(states, current, extra) {
+    const el = $("states");
+    el.innerHTML = "";
+    for (const [key, item] of Object.entries(states)) {
+      const b = document.createElement("button");
+      b.textContent = item.label;
+      b.className = key === current ? "on" : "";
+      b.onclick = () => setState(key);
+      el.appendChild(b);
+    }
+    el.insertAdjacentHTML("beforeend", `<span class="sep"></span>`);
+    for (const name of ["claro", "escuro"]) {
+      const b = document.createElement("button");
+      b.textContent = name === "claro" ? "Tema claro" : "Tema escuro";
+      b.className = name === theme ? "on" : "";
+      b.onclick = () => { theme = name; setState(current); };
+      el.appendChild(b);
+    }
+    $("note").textContent = states[current].note + (extra ?? "");
+    const cls = theme === "escuro" ? "theme-dark" : "theme-light";
+    document.body.className = cls;
+    $("window").className = `window ${cls}`;
+  }
+
+  const STATES = {
+    sobre: { label: "Sobre", note: "A versão vem do aplicativo instalado. O link abre o GitHub no navegador; Abrir pasta abre a pasta dos dados no Explorer." },
+    bandeja: { label: "Pela bandeja", note: "O item Sobre o CSTM da bandeja mostra a janela já na página." },
+    editor: { label: "Fechada (editor)", note: "Clicar de novo em i, selecionar um item na árvore ou criar um texto ou pasta volta ao editor." },
+  };
+  function setState(next) {
+    state = next;
+    location.hash = `estado=${next}&tema=${theme}`;
+    bar(STATES, next);
+    $("about").classList.toggle("pressed", next !== "editor");
+    $("layer").innerHTML = next === "bandeja"
+      ? `<div class="tray-menu"><div>Abrir cadastro</div><div>Configurações</div><div>Ajuda</div><div class="on">Sobre o CSTM</div><hr /><div>Sair</div></div>`
+      : "";
+    if (next === "editor") {
+      $("editor").className = "editor";
+      $("editor").textContent = "Editor do texto selecionado";
+      return;
+    }
+    $("editor").className = "editor page-host";
+    $("editor").innerHTML = `
+      <section class="page" aria-label="Sobre o CSTM">
+        <div class="about-head"><svg class="app-icon" viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="13" fill="#0F6CBD"/><rect x="16" y="13" width="32" height="40" rx="4" fill="#fff"/><rect x="24" y="9" width="16" height="9" rx="3" fill="#FFB900"/><rect x="21" y="26" width="22" height="3" rx="1.5" fill="#0F6CBD"/><rect x="21" y="34" width="22" height="3" rx="1.5" fill="#0F6CBD"/><rect x="21" y="42" width="14" height="3" rx="1.5" fill="#0F6CBD"/></svg>
+          <div><p class="about-name">CSTM</p><div class="about-sub">Clipboard, Snippets &amp; Text Manager · versão 0.14.0</div></div>
+        </div>
+        <p class="intro">Cadastre os textos que você digita toda hora, organize-os em pastas e cole-os em qualquer programa pelo menu de colagem. O CSTM também guarda o histórico do que você copia.</p>
+        <div class="field-label">Código-fonte</div>
+        <div><span class="link" id="repo">github.com/marinsgabriel1997/CSTM</span></div>
+        <div class="field-label">Pasta dos dados</div>
+        <div class="path">C:\\Users\\voce\\AppData\\Roaming\\com.gabriel.cstm</div>
+        <div style="margin-top: 8px"><button class="button" id="open-folder">Abrir pasta</button></div>
+        <div class="license">Licença MIT · © 2026 Gabriel de Marins</div>
+      </section>`;
+    $("repo").onclick = () => alert("No aplicativo, abre https://github.com/marinsgabriel1997/CSTM no navegador.");
+    $("open-folder").onclick = () => alert("No aplicativo, abre a pasta dos dados no Explorer.");
+  }
+  $("about").onclick = () => setState(state === "editor" ? "sobre" : "editor");
+  const params = new URLSearchParams(location.hash.slice(1));
+  theme = params.get("tema") === "escuro" ? "escuro" : "claro";
+  setState(STATES[params.get("estado")] ? params.get("estado") : "sobre");
+</script>
+</body>
+</html>

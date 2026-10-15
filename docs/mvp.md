@@ -37,14 +37,17 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
 ### 3. Execução em segundo plano
 
-- Ícone na bandeja do sistema com as opções: abrir cadastro, configurações, sair.
+- Ícone na bandeja do sistema com as opções: abrir cadastro, configurações, ajuda, sobre o CSTM, sair.
 - O monitor do histórico do clipboard funciona com a janela fechada.
 - Fechar a janela principal apenas a oculta; o atalho continua ativo.
 - Apenas uma instância do aplicativo por vez.
 
-### 4. Configurações
+### 4. Configurações, Ajuda e Sobre
 
-- Tela de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
+- Configurações, Ajuda e Sobre são páginas na área do editor do cadastro, abertas pelos botões da barra inferior (engrenagem, `?` e `i`), pela bandeja e, a Ajuda, por `F1`; sem janelas nem diálogos próprios.
+- Ajuda com as abas Básico (onde clicar para começar) e Avançado (demais funcionalidades), citando o atalho configurado; abre sozinha na primeira execução (configuração `help_shown`). O conteúdo fica em `src/helpContent.ts`.
+- Sobre com versão, descrição, link do repositório, pasta dos dados (com o botão de abri-la), licença MIT e autor. O link e a pasta são abertos pelo backend (`tauri-plugin-opener`), sem permissão de abrir URLs ou caminhos arbitrários no frontend.
+- Página de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
 - Navegação nas pastas do menu de colagem ("Abrir ao passar o mouse", padrão, ou "Clicar para abrir"); vale na próxima abertura do menu e é lembrada entre execuções.
 - Tema das janelas: seguir o Windows (padrão), claro ou escuro; vale na hora e é lembrado entre execuções.
 - Iniciar com o Windows (desligado por padrão): o CSTM abre só na bandeja ao entrar no Windows, com o atalho ativo. A entrada fica na chave `Run` do usuário, que é a fonte da verdade (inclusive a desativação pelo Gerenciador de Tarefas); o desinstalador a remove.
@@ -116,6 +119,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `rusqlite_migration` | Migrações do esquema |
 | `tauri-plugin-global-shortcut` | Atalho global |
 | `tauri-plugin-clipboard-manager` | Leitura e escrita de texto no clipboard fora do Windows (no Windows, o módulo `clipboard` usa a API Win32) |
+| `tauri-plugin-opener` | Abrir o repositório no navegador e a pasta dos dados no Explorer (só pelo backend) |
 | `image` (features `png` e `bmp`) | Conversão das imagens do clipboard em PNG e miniatura, e de volta em bitmap ao colar |
 | `tauri-plugin-single-instance` | Instância única |
 | `tauri` (feature `tray-icon`) | Ícone na bandeja |
@@ -157,8 +161,8 @@ CREATE VIRTUAL TABLE snippets_fts USING fts5(
 );
 -- + gatilhos para manter snippets_fts sincronizada
 
--- Configurações do aplicativo (atalho, navegação nas pastas, tema, histórico do clipboard);
--- chaves ausentes usam o padrão
+-- Configurações do aplicativo (atalho, navegação nas pastas, tema, histórico do clipboard,
+-- Ajuda já mostrada); chaves ausentes usam o padrão
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL

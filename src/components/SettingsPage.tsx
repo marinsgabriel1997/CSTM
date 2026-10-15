@@ -1,13 +1,6 @@
 import {
   Button,
   Caption1,
-  Dialog,
-  DialogActions,
-  DialogBody,
-  DialogContent,
-  DialogSurface,
-  DialogTitle,
-  DialogTrigger,
   Divider,
   makeStyles,
   mergeClasses,
@@ -19,11 +12,11 @@ import {
   Text,
   tokens,
 } from "@fluentui/react-components";
-import { DismissRegular } from "@fluentui/react-icons";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import { api, errorMessage, type PickerNavigation, type ShortcutStatus, type ThemeChoice } from "../api";
 import { DEFAULT_SHORTCUT, recordKey, shortcutKeys, shortcutLabel, usesAltGr } from "../shortcut";
+import Page from "./Page";
 
 const useStyles = makeStyles({
   body: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalS },
@@ -75,21 +68,20 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForegroundOnBrand,
     ":hover": { backgroundColor: tokens.colorPaletteRedForeground1, color: tokens.colorNeutralForegroundOnBrand },
   },
-  actions: { justifyContent: "space-between" },
+  restore: { alignSelf: "flex-start", marginTop: tokens.spacingVerticalXS },
 });
 
-interface SettingsDialogProps {
-  /** Atalho atual; o diálogo informa as mudanças por `onShortcutChange`. */
+interface SettingsPageProps {
+  /** Atalho atual; a página informa as mudanças por `onShortcutChange`. */
   shortcut: ShortcutStatus;
   onShortcutChange: (status: ShortcutStatus) => void;
-  onClose: () => void;
 }
 
 /**
- * Diálogo de configurações: o atalho do menu de colagem, a navegação nas pastas dele, o
- * tema, a inicialização com o Windows e o histórico do clipboard.
+ * Página de configurações, na área do editor: o atalho do menu de colagem, a navegação nas
+ * pastas dele, o tema, a inicialização com o Windows e o histórico do clipboard.
  */
-function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogProps) {
+function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
   const styles = useStyles();
   const [recording, setRecording] = useState(false);
   // Modificadores já pressionados durante a gravação.
@@ -113,7 +105,7 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
   const [cleared, setCleared] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
-  // Espelho de `recording` para os avisos de janela e o fechamento do diálogo.
+  // Espelho de `recording` para os avisos de janela e a saída da página.
   const recordingRef = useRef(false);
 
   function stopRecording() {
@@ -132,7 +124,7 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
     return () => window.removeEventListener("blur", stopRecording);
   });
 
-  // Fechar o diálogo no meio da gravação também reativa o atalho.
+  // Sair da página no meio da gravação também reativa o atalho.
   useEffect(
     () => () => {
       if (recordingRef.current) void api.resumeShortcut().catch(() => undefined);
@@ -281,205 +273,178 @@ function SettingsDialog({ shortcut, onShortcutChange, onClose }: SettingsDialogP
   const keys = recording ? (pressed.length ? [...pressed, "…"] : []) : shortcutKeys(shortcut.shortcut);
 
   return (
-    <Dialog
-      open
-      onOpenChange={(_, data) => {
-        // Durante a gravação, Esc pertence ao campo: cancela a gravação, não o diálogo.
-        if (data.open || (recording && data.type === "escapeKeyDown")) return;
-        stopRecording();
-        onClose();
-      }}
-    >
-      <DialogSurface>
-        <DialogBody>
-          <DialogTitle
-            action={
-              <DialogTrigger action="close">
-                <Button appearance="subtle" aria-label="Fechar configurações" icon={<DismissRegular />} />
-              </DialogTrigger>
-            }
-          >
-            Configurações
-          </DialogTitle>
-          <DialogContent className={styles.body}>
-            <Text className={styles.title}>Atalho do menu de colagem</Text>
-            <Caption1 className={styles.help}>Abre o menu de colagem em qualquer programa.</Caption1>
-            <div className={styles.row}>
-              <div
-                ref={fieldRef}
-                className={mergeClasses(styles.field, recording && styles.recording)}
-                role="textbox"
-                aria-readonly
-                aria-label="Atalho"
-                aria-description={recording ? "Pressione o novo atalho" : undefined}
-                tabIndex={0}
-                onKeyDown={onKeyDown}
-                onKeyUp={onKeyUp}
-              >
-                {keys.length === 0 ? (
-                  <Text className={styles.placeholder}>Pressione o novo atalho…</Text>
-                ) : (
-                  keys.map((key, index) => (
-                    <span key={`${index}-${key}`}>
-                      {index > 0 && <span className={styles.plus}>+ </span>}
-                      <kbd className={styles.key}>{key}</kbd>
-                    </span>
-                  ))
-                )}
-              </div>
-              {recording ? (
-                <Button onClick={stopRecording}>Cancelar</Button>
-              ) : (
-                <Button onClick={() => void startRecording()}>Alterar</Button>
-              )}
+    <Page title="Configurações" className={styles.body}>
+      <Text className={styles.title}>Atalho do menu de colagem</Text>
+      <Caption1 className={styles.help}>Abre o menu de colagem em qualquer programa.</Caption1>
+      <div className={styles.row}>
+        <div
+          ref={fieldRef}
+          className={mergeClasses(styles.field, recording && styles.recording)}
+          role="textbox"
+          aria-readonly
+          aria-label="Atalho"
+          aria-description={recording ? "Pressione o novo atalho" : undefined}
+          tabIndex={0}
+          onKeyDown={onKeyDown}
+          onKeyUp={onKeyUp}
+        >
+          {keys.length === 0 ? (
+            <Text className={styles.placeholder}>Pressione o novo atalho…</Text>
+          ) : (
+            keys.map((key, index) => (
+              <span key={`${index}-${key}`}>
+                {index > 0 && <span className={styles.plus}>+ </span>}
+                <kbd className={styles.key}>{key}</kbd>
+              </span>
+            ))
+          )}
+        </div>
+        {recording ? (
+          <Button onClick={stopRecording}>Cancelar</Button>
+        ) : (
+          <Button onClick={() => void startRecording()}>Alterar</Button>
+        )}
+      </div>
+      {recording && (
+        <Caption1 className={styles.hint}>
+          {invalid
+            ? "Use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço."
+            : "Esc cancela e mantém o atalho atual."}
+        </Caption1>
+      )}
+      <Button
+        className={styles.restore}
+        disabled={recording || shortcut.shortcut === DEFAULT_SHORTCUT}
+        onClick={() => void apply(DEFAULT_SHORTCUT)}
+      >
+        Restaurar padrão ({shortcutLabel(DEFAULT_SHORTCUT)})
+      </Button>
+      {changed && <Caption1 className={styles.success}>Atalho alterado.</Caption1>}
+      {refused && (
+        <MessageBar intent="error">
+          <MessageBarBody>
+            Não foi possível usar {shortcutLabel(refused)}: outro programa pode estar usando esse atalho. O
+            atalho {shortcutLabel(shortcut.shortcut)} continua valendo.
+          </MessageBarBody>
+        </MessageBar>
+      )}
+      {!recording && usesAltGr(shortcut.shortcut) && (
+        <MessageBar intent="warning">
+          <MessageBarBody>
+            Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no
+            teclado ABNT2).
+          </MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Text id="navigation-title" className={styles.title}>
+        Navegação nas pastas
+      </Text>
+      <Caption1 className={styles.help}>
+        Como as pastas se abrem no menu de colagem. Vale a partir da próxima abertura do menu.
+      </Caption1>
+      <RadioGroup
+        aria-labelledby="navigation-title"
+        value={navigation ?? ""}
+        disabled={navigation === null}
+        onChange={(_, data) => void changeNavigation(data.value as PickerNavigation)}
+      >
+        <Radio
+          value="cascade"
+          label={
+            <>
+              Abrir ao passar o mouse <Caption1 className={styles.hint}>padrão</Caption1>
+            </>
+          }
+        />
+        <Radio value="click" label="Clicar para abrir" />
+      </RadioGroup>
+      {navigationError && (
+        <MessageBar intent="error">
+          <MessageBarBody>Não foi possível salvar a navegação nas pastas: {navigationError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Text id="theme-title" className={styles.title}>
+        Tema
+      </Text>
+      <RadioGroup
+        aria-labelledby="theme-title"
+        layout="horizontal"
+        value={theme ?? ""}
+        disabled={theme === null}
+        onChange={(_, data) => void changeTheme(data.value as ThemeChoice)}
+      >
+        <Radio value="system" label="Seguir o Windows" />
+        <Radio value="light" label="Claro" />
+        <Radio value="dark" label="Escuro" />
+      </RadioGroup>
+      {themeError && (
+        <MessageBar intent="error">
+          <MessageBarBody>Não foi possível salvar o tema: {themeError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Switch
+        className={styles.switch}
+        label="Iniciar com o Windows"
+        checked={autostart ?? false}
+        disabled={autostart === null && !autostartError}
+        onChange={(_, data) => void changeAutostart(data.checked)}
+      />
+      <Caption1 className={styles.switchHelp}>Abre na bandeja ao entrar no Windows, com o atalho já ativo.</Caption1>
+      {autostartError && (
+        <MessageBar intent="error">
+          <MessageBarBody>{autostartError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Switch
+        className={styles.switch}
+        label="Guardar o histórico do clipboard"
+        checked={monitoring ?? false}
+        disabled={monitoring === null && !historyError}
+        onChange={(_, data) => void changeMonitoring(data.checked)}
+      />
+      <Caption1 className={styles.switchHelp}>
+        Guarda no computador os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e
+        imagens) e os mostra na pasta Histórico do menu de colagem. O que gerenciadores de senha marcam como
+        sensível não é guardado.
+      </Caption1>
+      {confirmingClear ? (
+        <MessageBar intent="warning" layout="multiline">
+          <MessageBarBody className={styles.confirm}>
+            Apagar {historyCount === 1 ? "o item" : `os ${historyCount} itens`} do histórico? Não é possível
+            desfazer.
+            <div className={styles.confirmButtons}>
+              <Button className={styles.danger} onClick={() => void clearHistory()}>
+                Limpar
+              </Button>
+              <Button onClick={() => setConfirmingClear(false)}>Cancelar</Button>
             </div>
-            {recording && (
-              <Caption1 className={styles.hint}>
-                {invalid
-                  ? "Use Ctrl ou Alt (com Shift, se quiser) e uma letra, número, F1–F12 ou Espaço."
-                  : "Esc cancela e mantém o atalho atual."}
-              </Caption1>
-            )}
-            {changed && <Caption1 className={styles.success}>Atalho alterado.</Caption1>}
-            {refused && (
-              <MessageBar intent="error">
-                <MessageBarBody>
-                  Não foi possível usar {shortcutLabel(refused)}: outro programa pode estar usando esse atalho. O
-                  atalho {shortcutLabel(shortcut.shortcut)} continua valendo.
-                </MessageBarBody>
-              </MessageBar>
-            )}
-            {!recording && usesAltGr(shortcut.shortcut) && (
-              <MessageBar intent="warning">
-                <MessageBarBody>
-                  Atalhos com Ctrl+Alt podem bloquear caracteres digitados com AltGr (por exemplo, AltGr+Q digita “/” no
-                  teclado ABNT2).
-                </MessageBarBody>
-              </MessageBar>
-            )}
-            <Divider className={styles.section} />
-            <Text id="navigation-title" className={styles.title}>
-              Navegação nas pastas
-            </Text>
-            <Caption1 className={styles.help}>
-              Como as pastas se abrem no menu de colagem. Vale a partir da próxima abertura do menu.
-            </Caption1>
-            <RadioGroup
-              aria-labelledby="navigation-title"
-              value={navigation ?? ""}
-              disabled={navigation === null}
-              onChange={(_, data) => void changeNavigation(data.value as PickerNavigation)}
-            >
-              <Radio
-                value="cascade"
-                label={
-                  <>
-                    Abrir ao passar o mouse <Caption1 className={styles.hint}>padrão</Caption1>
-                  </>
-                }
-              />
-              <Radio value="click" label="Clicar para abrir" />
-            </RadioGroup>
-            {navigationError && (
-              <MessageBar intent="error">
-                <MessageBarBody>Não foi possível salvar a navegação nas pastas: {navigationError}</MessageBarBody>
-              </MessageBar>
-            )}
-            <Divider className={styles.section} />
-            <Text id="theme-title" className={styles.title}>
-              Tema
-            </Text>
-            <RadioGroup
-              aria-labelledby="theme-title"
-              layout="horizontal"
-              value={theme ?? ""}
-              disabled={theme === null}
-              onChange={(_, data) => void changeTheme(data.value as ThemeChoice)}
-            >
-              <Radio value="system" label="Seguir o Windows" />
-              <Radio value="light" label="Claro" />
-              <Radio value="dark" label="Escuro" />
-            </RadioGroup>
-            {themeError && (
-              <MessageBar intent="error">
-                <MessageBarBody>Não foi possível salvar o tema: {themeError}</MessageBarBody>
-              </MessageBar>
-            )}
-            <Divider className={styles.section} />
-            <Switch
-              className={styles.switch}
-              label="Iniciar com o Windows"
-              checked={autostart ?? false}
-              disabled={autostart === null && !autostartError}
-              onChange={(_, data) => void changeAutostart(data.checked)}
-            />
-            <Caption1 className={styles.switchHelp}>Abre na bandeja ao entrar no Windows, com o atalho já ativo.</Caption1>
-            {autostartError && (
-              <MessageBar intent="error">
-                <MessageBarBody>{autostartError}</MessageBarBody>
-              </MessageBar>
-            )}
-            <Divider className={styles.section} />
-            <Switch
-              className={styles.switch}
-              label="Guardar o histórico do clipboard"
-              checked={monitoring ?? false}
-              disabled={monitoring === null && !historyError}
-              onChange={(_, data) => void changeMonitoring(data.checked)}
-            />
-            <Caption1 className={styles.switchHelp}>
-              Guarda no computador os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e
-              imagens) e os mostra na pasta Histórico do menu de colagem. O que gerenciadores de senha marcam como
-              sensível não é guardado.
-            </Caption1>
-            {confirmingClear ? (
-              <MessageBar intent="warning" layout="multiline">
-                <MessageBarBody className={styles.confirm}>
-                  Apagar {historyCount === 1 ? "o item" : `os ${historyCount} itens`} do histórico? Não é possível
-                  desfazer.
-                  <div className={styles.confirmButtons}>
-                    <Button className={styles.danger} onClick={() => void clearHistory()}>
-                      Limpar
-                    </Button>
-                    <Button onClick={() => setConfirmingClear(false)}>Cancelar</Button>
-                  </div>
-                </MessageBarBody>
-              </MessageBar>
-            ) : (
-              <div className={styles.historyActions}>
-                <Button
-                  disabled={!historyCount}
-                  onClick={() => {
-                    setCleared(false);
-                    setConfirmingClear(true);
-                  }}
-                >
-                  Limpar histórico
-                </Button>
-                {cleared && <Caption1 className={styles.success}>Histórico limpo.</Caption1>}
-              </div>
-            )}
-            {historyError && (
-              <MessageBar intent="error">
-                <MessageBarBody>{historyError}</MessageBarBody>
-              </MessageBar>
-            )}
-          </DialogContent>
-          <DialogActions className={styles.actions} fluid>
-            <Button
-              disabled={recording || shortcut.shortcut === DEFAULT_SHORTCUT}
-              onClick={() => void apply(DEFAULT_SHORTCUT)}
-            >
-              Restaurar padrão ({shortcutLabel(DEFAULT_SHORTCUT)})
-            </Button>
-            <DialogTrigger action="close">
-              <Button appearance="primary">Fechar</Button>
-            </DialogTrigger>
-          </DialogActions>
-        </DialogBody>
-      </DialogSurface>
-    </Dialog>
+          </MessageBarBody>
+        </MessageBar>
+      ) : (
+        <div className={styles.historyActions}>
+          <Button
+            disabled={!historyCount}
+            onClick={() => {
+              setCleared(false);
+              setConfirmingClear(true);
+            }}
+          >
+            Limpar histórico
+          </Button>
+          {cleared && <Caption1 className={styles.success}>Histórico limpo.</Caption1>}
+        </div>
+      )}
+      {historyError && (
+        <MessageBar intent="error">
+          <MessageBarBody>{historyError}</MessageBarBody>
+        </MessageBar>
+      )}
+    </Page>
   );
 }
 
-export default SettingsDialog;
+export default SettingsPage;

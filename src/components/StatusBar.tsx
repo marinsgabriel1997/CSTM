@@ -3,11 +3,13 @@ import {
   CheckmarkCircle16Regular,
   ErrorCircle16Regular,
   Info16Regular,
+  QuestionCircle16Regular,
   Settings16Regular,
   Warning16Regular,
 } from "@fluentui/react-icons";
-import type { ReactNode } from "react";
+import type { ReactElement, ReactNode } from "react";
 
+import type { Page } from "../api";
 import type { Draft } from "../drafts";
 
 const useStyles = makeStyles({
@@ -52,16 +54,30 @@ interface StatusBarProps {
   snippetCount: number;
   folderCount: number;
   onRetry: (id: number) => void;
-  /** Abre as configurações; sem ela, o botão não aparece. */
-  onOpenSettings?: () => void;
+  /** Página aberta na área do editor, para marcar o botão dela. */
+  page: Page | null;
+  /** Abre a página ou, se já está aberta, volta ao editor. */
+  onTogglePage: (page: Page) => void;
+  /** Sem atalho carregado (fora do Tauri), as configurações não aparecem. */
+  canOpenSettings: boolean;
 }
 
 function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-/** Estado do salvamento (à esquerda), totais da biblioteca e acesso às configurações (à direita). */
-function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry, onOpenSettings }: StatusBarProps) {
+/** Estado do salvamento (à esquerda), totais da biblioteca e acesso às páginas Configurações, Ajuda e Sobre (à direita). */
+function StatusBar({
+  drafts,
+  openId,
+  titleOf,
+  snippetCount,
+  folderCount,
+  onRetry,
+  page,
+  onTogglePage,
+  canOpenSettings,
+}: StatusBarProps) {
   const styles = useStyles();
   const open = drafts.find((draft) => draft.id === openId);
   const failed = drafts.find((draft) => draft.status === "error");
@@ -120,6 +136,19 @@ function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry
     );
   }
 
+  // O botão da página aberta fica marcado como pressionado.
+  const pageButton = (target: Page, label: string, icon: ReactElement, title = label) => (
+    <Button
+      appearance={page === target ? "secondary" : "subtle"}
+      size="small"
+      aria-label={label}
+      aria-pressed={page === target}
+      title={title}
+      icon={icon}
+      onClick={() => onTogglePage(target)}
+    />
+  );
+
   return (
     <footer className={styles.bar}>
       <div className={styles.status} role="status" aria-label="Estado do salvamento">
@@ -128,16 +157,9 @@ function StatusBar({ drafts, openId, titleOf, snippetCount, folderCount, onRetry
           {plural(snippetCount, "texto", "textos")} · {plural(folderCount, "pasta", "pastas")}
         </Caption1>
       </div>
-      {onOpenSettings && (
-        <Button
-          appearance="subtle"
-          size="small"
-          aria-label="Configurações"
-          title="Configurações"
-          icon={<Settings16Regular />}
-          onClick={onOpenSettings}
-        />
-      )}
+      {canOpenSettings && pageButton("settings", "Configurações", <Settings16Regular />)}
+      {pageButton("help", "Ajuda", <QuestionCircle16Regular />, "Ajuda (F1)")}
+      {pageButton("about", "Sobre o CSTM", <Info16Regular />)}
     </footer>
   );
 }

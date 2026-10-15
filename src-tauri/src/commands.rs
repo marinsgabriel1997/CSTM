@@ -1,5 +1,6 @@
 //! Comandos Tauri expostos ao frontend. Apenas delegam aos módulos `db`, `picker`, `paste`,
-//! `transfer`, `tray`, `theme`, `autostart` e `clipboard_history`; os erros chegam ao
+//! `transfer`, `tray`, `theme`, `autostart` e `clipboard_history` (e ao `tauri-plugin-opener`,
+//! para o link e a pasta do Sobre); os erros chegam ao
 //! frontend como mensagens prontas para exibição.
 
 use std::path::PathBuf;
@@ -8,6 +9,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 use rusqlite::Connection;
 use tauri::{AppHandle, Manager, State};
 use tauri_plugin_dialog::{DialogExt, FileDialogBuilder, FilePath};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::autostart;
 use crate::cascade::{PlacedColumn, Subcolumn};
@@ -296,6 +298,43 @@ pub fn set_clipboard_monitoring(app: AppHandle, state: Db, enabled: bool) -> Com
     clipboard_history::set_enabled(enabled);
     clipboard_history::notify(&app);
     Ok(enabled)
+}
+
+/// Se a Ajuda deve abrir sozinha (só na primeira execução); a partir daí, não abre mais.
+#[tauri::command]
+pub fn take_help_prompt(state: Db) -> CommandResult<bool> {
+    respond(settings::take_help_prompt(&lock(&state)))
+}
+
+/// Pasta onde ficam o banco e os demais dados do usuário.
+#[tauri::command]
+pub fn get_data_dir(app: AppHandle) -> CommandResult<String> {
+    app.path()
+        .app_data_dir()
+        .map(|path| path.display().to_string())
+        .map_err(|error| error.to_string())
+}
+
+// O frontend não abre URLs nem caminhos: só estes dois destinos fixos, pelo backend.
+
+/// Repositório do CSTM; o mesmo endereço está em `bundle.homepage` de `tauri.conf.json`, que só vale ao empacotar.
+const REPOSITORY_URL: &str = "https://github.com/marinsgabriel1997/CSTM";
+
+/// Abre o repositório no navegador padrão.
+#[tauri::command]
+pub fn open_repository(app: AppHandle) -> CommandResult<()> {
+    app.opener()
+        .open_url(REPOSITORY_URL, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+/// Abre a pasta dos dados no Explorer.
+#[tauri::command]
+pub fn open_data_folder(app: AppHandle) -> CommandResult<()> {
+    let path = get_data_dir(app.clone())?;
+    app.opener()
+        .open_path(path, None::<&str>)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

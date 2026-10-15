@@ -1,8 +1,9 @@
 [package]
 name = "cstm"
-version = "0.13.0"
+version = "0.14.0"
 description = "CSTM - Clipboard, Snippets & Text Manager"
 authors = ["Gabriel de Marins <contato.gabrielmarins@gmail.com>"]
+license = "MIT"
 edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,6 +28,7 @@ tauri-plugin-single-instance = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
 image = { version = "0.25", default-features = false, features = ["png", "bmp"] }
 
 [target.'cfg(windows)'.dependencies]
