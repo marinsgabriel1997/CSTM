@@ -2,7 +2,7 @@
 
 # CSTM
 
-**Seus textos, atalhos e área de transferência em um só lugar.**
+**Seus textos e sua área de transferência, a um atalho de distância.**
 
 [![Versão](https://img.shields.io/github/v/release/marinsgabriel1997/CSTM?label=vers%C3%A3o)](https://github.com/marinsgabriel1997/CSTM/releases/latest)
 [![Licença](https://img.shields.io/github/license/marinsgabriel1997/CSTM?label=licen%C3%A7a)](LICENSE)
