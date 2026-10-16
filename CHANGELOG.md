@@ -6,6 +6,13 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.17.1] - 2026-10-16
+
+### Added
+
+- Política de segurança (`SECURITY.md`), com as versões que recebem correção e o reporte privado de vulnerabilidades pelo GitHub.
+- Atualizações mensais das dependências pelo Dependabot, em pull requests revisados antes de entrar no projeto.
+
 ## [0.17.0] - 2026-10-16
 
 ### Added

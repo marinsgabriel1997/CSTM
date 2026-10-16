@@ -2,7 +2,7 @@
 
 # CSTM
 
-**Seus textos e sua área de transferência, a um atalho de distância.**
+**Seus textos, atalhos e área de transferência em um só lugar.**
 
 [![Versão](https://img.shields.io/github/v/release/marinsgabriel1997/CSTM?label=vers%C3%A3o)](https://github.com/marinsgabriel1997/CSTM/releases/latest)
 [![Licença](https://img.shields.io/github/license/marinsgabriel1997/CSTM?label=licen%C3%A7a)](LICENSE)
@@ -12,7 +12,7 @@
 
 </div>
 
-Organize e reutilize textos, acesse seu histórico de cópias e cole conteúdos rapidamente em qualquer aplicativo. Com um atalho global (`Alt+Q`), busca instantânea, pastas, favoritos e modos de colagem com formatação, o CSTM simplifica tarefas repetitivas no Windows.
+Organize e reutilize textos, acesse seu histórico de cópias e cole conteúdos rapidamente em qualquer aplicativo. Com um atalho global (`Alt+Q`), busca instantânea, pastas, favoritos e modos de colagem com formatação, o CSTM simplifica tarefas repetitivas no Windows, sem depender de serviços na nuvem.
 
 Não é só um gerenciador de clipboard nem um expansor de texto: o CSTM reúne num menu flutuante, aberto junto ao cursor do mouse, os textos que você digita toda hora (respostas prontas, assinaturas, modelos de e-mail, trechos de código) e tudo o que você copiou recentemente.
 
@@ -23,6 +23,7 @@ Não é só um gerenciador de clipboard nem um expansor de texto: o CSTM reúne 
 - **Organização simples:** pastas, favoritos e os textos mais usados à mão.
 - **Busca instantânea** por título e conteúdo.
 - **Cole no formato certo:** escreva seus textos em markdown e cole convertendo para texto sem formatação, texto formatado (e-mail, Word) ou Google Chat. No histórico, o que você copiou também pode ser convertido, venha de onde vier.
+- **Seus dados no seu computador:** sem conta e sem nuvem.
 
 ## Instalação
 
@@ -56,7 +57,6 @@ Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db`.
 
 - Editor que alterna entre markdown e visualização formatada, para escrever sem precisar conhecer a sintaxe. O banco continua guardando markdown.
 - Interface em inglês, com escolha do idioma no aplicativo, e documentação em inglês.
-- Cópia opcional dos dados na nuvem do próprio usuário (por exemplo, Google Drive), para backup e para usar em mais de um computador.
 
 Fora do escopo, por ora: expansão automática por abreviação, variáveis nos textos (data, hora, cursor) e Linux/macOS. Detalhes em [docs/produto.md](docs/produto.md#fora-do-escopo).
 
