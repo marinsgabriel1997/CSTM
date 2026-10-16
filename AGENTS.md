@@ -34,7 +34,7 @@
 - Antes da implementação, resolver as pendências identificáveis, apresentar o plano completo com fases e Marco final e aguardar aprovação explícita. Silêncio não equivale a aprovação.
 - Mudanças relevantes de escopo, arquitetura ou contratos exigem revisão do plano e novo aceite.
 - Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis; apresentar o Marco final para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.
-- Não realizar commit ou push sem autorização explícita específica para a operação.
+- Não realizar commit sem autorização explícita específica para a operação. Push e pull seguem a seção Envio ao GitHub.
 
 ## Delegação a subagentes
 
@@ -125,9 +125,14 @@
 - Antes de pedir autorização para commit, revisar as alterações da entrega e apresentar a mensagem proposta. Registrar mudanças diferentes em linhas próprias, cada uma com o formato completo.
 - Após a autorização, preparar versão e release, executar as validações finais e realizar apenas o commit autorizado. Autorização de commit não autoriza push.
 
+## Envio ao GitHub
+
+- Não executar `git push` nem `git pull` por iniciativa própria. O envio acontece somente na publicação de uma release, depois de o usuário aprovar aquela publicação; a aprovação vale uma única vez e não autoriza envios seguintes.
+- Não perguntar ao usuário se deseja enviar ao GitHub; ele decide quando enviar.
+
 ## Publicação de releases
 
-- Publicar no GitHub com o GitHub CLI (`gh`), a partir da 0.16.0; versões anteriores não têm tag nem release. Push, tag e publicação exigem autorização explícita do usuário para a operação.
+- Publicar no GitHub com o GitHub CLI (`gh`), a partir da 0.16.0; versões anteriores não têm tag nem release. Push, tag e publicação acontecem somente quando o usuário aprova a publicação daquela versão (ver Envio ao GitHub).
 - Publicar somente versões fechadas no `CHANGELOG.md`, a partir do commit de entrega já enviado a `origin/main`.
 - Marcar o commit de entrega com tag anotada `vX.Y.Z` (`git tag -a vX.Y.Z -m "CSTM X.Y.Z"`) e enviá-la com `git push origin vX.Y.Z`. Tags publicadas não são movidas, apagadas nem reaproveitadas; um erro numa versão publicada é corrigido numa nova versão.
 - Gerar o instalador com `npm run tauri -- build` no commit da tag, com a árvore de trabalho limpa, e copiá-lo para `releases/` (ignorado pelo git) com o nome gerado pelo Tauri, `CSTM_X.Y.Z_x64-setup.exe`.
