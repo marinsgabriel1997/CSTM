@@ -417,7 +417,7 @@ Busca:
 | --- | --- |
 | `↑` / `↓`; `Home` / `End` com a busca vazia | Move a seleção (o foco fica no campo de busca); a primeira linha selecionável começa selecionada |
 | `Enter` ou clique num texto | Fecha o menu e cola o texto no programa anterior, no modo de colagem padrão (Tela 3) |
-| Botão de modo de colagem num texto | Fecha o menu e cola o texto no programa anterior naquele modo; o resto é igual à colagem padrão (conta como uso e restaura o clipboard anterior) |
+| Botão de modo de colagem num texto | Fecha o menu e cola o texto no programa anterior naquele modo; o resto é igual à colagem padrão (conta como uso e segue a configuração Depois de colar, Tela 3) |
 | `Enter` ou clique num item do Histórico | Fecha o menu e cola o item no programa anterior: o texto com a formatação, se havia (o programa escolhe o formato que aceita), ou a imagem. Depois, o texto que estava no clipboard volta, como na colagem de um texto cadastrado. O item sobe para o topo do Histórico |
 | Botão de modo de colagem num item de texto do Histórico | Fecha o menu e cola o item convertido para aquele modo (ver Modos de colagem); o resto é igual à colagem do item |
 | Botão Copiar, ou `Ctrl+C` com um texto selecionado | Fecha o menu e deixa o texto no clipboard (num texto cadastrado, no modo de colagem padrão), sem colar e sem restaurar o conteúdo anterior; o foco volta ao programa anterior. Conta como uso, como a colagem. Com um trecho da busca selecionado, `Ctrl+C` copia o trecho, como em qualquer campo. Num item do Histórico, deixa o item no clipboard (com todos os formatos) e o sobe para o topo |
@@ -537,6 +537,16 @@ Página com todas as opções (cada uma separada da anterior por uma linha):
 | ( ) Formatado                                  |
 | ( ) Google Chat                                |
 | ---------------------------------------------- |
+| Depois de colar                                |
+| O que fica na área de transferência depois que |
+| o CSTM cola um texto.                          |
+| (o) Manter o que foi colado  padrão            |
+|     Se a colagem falhar, é só pressionar       |
+|     Ctrl+V.                                    |
+| ( ) Restaurar o conteúdo anterior              |
+|     Devolve o que estava copiado, com a        |
+|     formatação e imagens.                      |
+| ---------------------------------------------- |
 | Tema                                           |
 | (o) Seguir o Windows  ( ) Claro  ( ) Escuro    |
 | ---------------------------------------------- |
@@ -590,9 +600,10 @@ Gravando um novo atalho:
 
 ### Estrutura
 
-- Página com título "Configurações", sem botão de fechar (ver Páginas na área do editor). Tem seis configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o modo de colagem padrão, o tema, a inicialização com o Windows e o histórico do clipboard.
+- Página com título "Configurações", sem botão de fechar (ver Páginas na área do editor). Tem sete configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o modo de colagem padrão, o que fazer depois de colar, o tema, a inicialização com o Windows e o histórico do clipboard.
 - **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho, sem mexer nas demais opções. Os modos estão descritos em Tela 2, Navegação nas pastas.
 - **Modo de colagem padrão:** opções exclusivas (`RadioGroup`, rótulo "Modo de colagem padrão"): **Markdown** (padrão, cola o conteúdo como está, como antes desta opção existir), **Sem formatação**, **Formatado** e **Google Chat**. Vale para `Enter`, clique e Copiar nos textos cadastrados do menu de colagem; os outros três modos aparecem como botões na linha selecionada (Tela 2). A escolha é gravada ao selecionar e vale na próxima abertura do menu. Não afeta o Histórico, que cola o original com `Enter`, clique e Copiar e oferece os quatro modos em botões.
+- **Depois de colar:** opções exclusivas (`RadioGroup`, rótulo "Depois de colar"), cada uma com uma explicação abaixo: **Manter o que foi colado** (padrão, também para quem já usava o CSTM; "Se a colagem falhar, é só pressionar Ctrl+V.") e **Restaurar o conteúdo anterior** ("Devolve o que estava copiado, com a formatação e imagens."). Com Manter, o texto colado fica na área de transferência e não entra no Histórico. Com Restaurar, 500 ms depois da colagem o CSTM devolve o que estava copiado antes (texto, formatação HTML/RTF ou imagem), se nenhum outro programa tiver copiado algo nesse intervalo; arquivos copiados no Explorer e formatos que o CSTM não lê não voltam. Vale para a colagem de textos cadastrados e de itens do Histórico, por `Enter`, clique ou botões de modo; Copiar não restaura em nenhuma das opções. A escolha é gravada ao selecionar e vale na próxima colagem.
 - **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
 - **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
 - **Histórico do clipboard:** interruptor "Guardar o histórico do clipboard", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.

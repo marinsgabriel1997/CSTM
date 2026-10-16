@@ -30,6 +30,7 @@ pub struct TextContent {
 }
 
 impl TextContent {
+    #[cfg(test)]
     pub fn plain(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
@@ -289,9 +290,20 @@ pub fn set_owner(window: isize) {
     platform::OWNER.store(window, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// Texto atual do clipboard, se houver.
-pub fn read_text(app: &AppHandle) -> Option<String> {
-    platform::read_text(app)
+/// Cópia bruta dos formatos do clipboard, para devolvê-los depois com `restore`.
+pub use platform::Snapshot;
+
+/// Copia os bytes do texto (com HTML/RTF), da imagem (PNG ou DIB) que estiverem no
+/// clipboard, sem decodificar nada nem aplicar os filtros do histórico (tamanho,
+/// conteúdo sensível). `None` se o clipboard não abriu ou não há nenhum desses formatos.
+pub fn snapshot() -> Option<Snapshot> {
+    platform::snapshot()
+}
+
+/// Devolve ao clipboard uma cópia feita por `snapshot`; o CSTM é o dono, então o
+/// histórico ignora a escrita.
+pub fn restore(app: &AppHandle, snapshot: &Snapshot) -> Result<(), String> {
+    platform::restore(app, snapshot).map_err(|error| format!("não foi possível restaurar: {error}"))
 }
 
 /// Substitui o conteúdo do clipboard por todos os formatos do item.
@@ -445,13 +457,6 @@ mod platform {
         None
     }
 
-    pub fn read_text(_app: &AppHandle) -> Option<String> {
-        let _open = open(None)?;
-        let mut budget = usize::MAX;
-        let raw = data(CF_UNICODETEXT, &mut budget).ok()??;
-        Some(text_from_utf16(&raw))
-    }
-
     fn set(format: u32, bytes: &[u8]) -> windows::core::Result<()> {
         unsafe {
             let memory = GlobalAlloc(GMEM_MOVEABLE, bytes.len().max(1))?;
@@ -496,14 +501,46 @@ mod platform {
         })
     }
 
-    pub fn write(_app: &AppHandle, content: &Content) -> Result<(), String> {
-        let formats = formats(content)?;
+    /// Substitui o conteúdo do clipboard pelos formatos dados.
+    fn replace(formats: &[(u32, Vec<u8>)]) -> Result<(), String> {
         let _open = open(owner()).ok_or("o clipboard está em uso por outro programa")?;
         unsafe { EmptyClipboard() }.map_err(|error| error.message())?;
         for (format, bytes) in formats {
-            set(format, &bytes).map_err(|error| error.message())?;
+            set(*format, bytes).map_err(|error| error.message())?;
         }
         Ok(())
+    }
+
+    pub fn write(_app: &AppHandle, content: &Content) -> Result<(), String> {
+        replace(&formats(content)?)
+    }
+
+    /// Bytes brutos dos formatos que o CSTM sabe escrever de volta.
+    pub struct Snapshot(Vec<(u32, Vec<u8>)>);
+
+    pub fn snapshot() -> Option<Snapshot> {
+        let _open = open(None)?;
+        let mut budget = usize::MAX;
+        let mut formats = Vec::new();
+        let mut take = |format: u32| {
+            if let Ok(Some(bytes)) = data(format, &mut budget) {
+                formats.push((format, bytes));
+                true
+            } else {
+                false
+            }
+        };
+        take(CF_UNICODETEXT);
+        take(registered(w!("HTML Format")));
+        take(registered(w!("Rich Text Format")));
+        take(registered(w!("PNG")));
+        // O Windows sintetiza um a partir do outro: basta o primeiro disponível.
+        let _ = take(CF_DIBV5) || take(CF_DIB);
+        (!formats.is_empty()).then_some(Snapshot(formats))
+    }
+
+    pub fn restore(_app: &AppHandle, snapshot: &Snapshot) -> Result<(), String> {
+        replace(&snapshot.0)
     }
 }
 
@@ -515,8 +552,15 @@ mod platform {
 
     use super::Content;
 
-    pub fn read_text(app: &AppHandle) -> Option<String> {
-        app.clipboard().read_text().ok()
+    /// Sem cópia bruta fora do Windows.
+    pub struct Snapshot;
+
+    pub fn snapshot() -> Option<Snapshot> {
+        None
+    }
+
+    pub fn restore(_app: &AppHandle, _snapshot: &Snapshot) -> Result<(), String> {
+        Ok(())
     }
 
     pub fn write(app: &AppHandle, content: &Content) -> Result<(), String> {

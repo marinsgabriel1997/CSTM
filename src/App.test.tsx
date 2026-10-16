@@ -579,6 +579,35 @@ describe("configurações", () => {
     expect(await fake.api.getPasteFormat()).toBe("chat");
   });
 
+  it("oferece Depois de colar, mantendo o que foi colado como padrão, e grava a escolha", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+
+    const keep = await dialog.findByRole("radio", { name: /Manter o que foi colado/ });
+    expect(dialog.getByRole("radiogroup", { name: "Depois de colar" })).toBeInTheDocument();
+    await waitFor(() => expect(keep).toBeChecked());
+
+    await user.click(dialog.getByRole("radio", { name: /Restaurar o conteúdo anterior/ }));
+
+    expect(dialog.getByRole("radio", { name: /Restaurar o conteúdo anterior/ })).toBeChecked();
+    expect(await fake.api.getAfterPaste()).toBe("restore");
+  });
+
+  it("mostra o erro quando não consegue salvar Depois de colar", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    const restore = await dialog.findByRole("radio", { name: /Restaurar o conteúdo anterior/ });
+    await waitFor(() => expect(restore).toBeEnabled());
+    vi.spyOn(api, "setAfterPaste").mockRejectedValueOnce("falhou");
+
+    await user.click(restore);
+
+    expect(await dialog.findByText(/Não foi possível salvar a opção Depois de colar/)).toBeInTheDocument();
+    expect(await fake.api.getAfterPaste()).toBe("keep");
+  });
+
   it("oferece o tema, seguindo o Windows como padrão, e grava a escolha", async () => {
     const user = userEvent.setup();
     renderApp();

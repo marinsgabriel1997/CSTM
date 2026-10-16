@@ -2,6 +2,7 @@
 // backend usados pela interface: validação, ordenação manual, busca por prefixo e lixeira.
 import type { ItemRef } from "../actions";
 import type {
+  AfterPaste,
   Api,
   ClipboardItem,
   Folder,
@@ -71,6 +72,7 @@ export function createFakeApi() {
   const takenShortcuts = new Set<string>();
   let navigation: PickerNavigation = "cascade";
   let pasteFormat: PasteFormat = "markdown";
+  let afterPaste: AfterPaste = "keep";
   let theme: ThemeChoice = "system";
   const themeListeners = new Set<(theme: ThemeChoice) => void>();
   /** Inicialização com o Windows, como no registro; `failure` simula a recusa do Windows. */
@@ -492,6 +494,11 @@ export function createFakeApi() {
       picker.readies += 1;
     },
     hidePicker: async () => {},
+    getAfterPaste: async () => afterPaste,
+    setAfterPaste: async (value) => {
+      afterPaste = value;
+      return afterPaste;
+    },
     getPasteFormat: async () => pasteFormat,
     setPasteFormat: async (value) => {
       pasteFormat = value;

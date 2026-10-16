@@ -210,6 +210,7 @@
   .radio input:checked + .radio-dot::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
   .radio input:focus-visible + .radio-dot { outline: 2px solid var(--accent); outline-offset: 2px; }
   .radio-note { margin-left: 4px; font-size: 12px; color: var(--text-3); }
+  .radio-help { margin: -4px 0 4px 32px; font-size: 12px; color: var(--text-2); }
   .radio-group.row { flex-direction: row; gap: 12px; }
   .switch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
   .switch input { position: absolute; opacity: 0; }
@@ -371,6 +372,15 @@
             <label class="radio"><input type="radio" name="paste" value="plain" /><span class="radio-dot"></span>Sem formatação</label>
             <label class="radio"><input type="radio" name="paste" value="rich" /><span class="radio-dot"></span>Formatado</label>
             <label class="radio"><input type="radio" name="paste" value="chat" /><span class="radio-dot"></span>Google Chat</label>
+          </div>
+          <div class="setting-sep"></div>
+          <div class="setting-title" id="after-title">Depois de colar</div>
+          <div class="setting-help">O que fica na área de transferência depois que o CSTM cola um texto.</div>
+          <div class="radio-group" role="radiogroup" aria-labelledby="after-title">
+            <label class="radio"><input type="radio" name="after" value="keep" checked /><span class="radio-dot"></span>Manter o que foi colado<span class="radio-note">padrão</span></label>
+            <div class="radio-help">Se a colagem falhar, é só pressionar Ctrl+V.</div>
+            <label class="radio"><input type="radio" name="after" value="restore" /><span class="radio-dot"></span>Restaurar o conteúdo anterior</label>
+            <div class="radio-help">Devolve o que estava copiado, com a formatação e imagens.</div>
           </div>
           <div class="setting-sep"></div>
           <div class="setting-title" id="theme-title">Tema</div>

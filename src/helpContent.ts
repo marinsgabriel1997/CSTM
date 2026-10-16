@@ -115,14 +115,14 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
   {
     title: "Configurações",
     paragraphs: [
-      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, tema, iniciar com o Windows e histórico do clipboard.",
+      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, o que fazer depois de colar, tema, iniciar com o Windows e histórico do clipboard.",
     ],
   },
   {
     title: "Limites do Windows",
     paragraphs: [
-      "Programas abertos como administrador não recebem a colagem do CSTM; nesse caso, use **Copiar** e cole com `Ctrl+V`.",
-      "Depois de colar, o CSTM devolve ao clipboard o texto que estava nele; outros formatos, como imagens, não voltam.",
+      "Programas abertos como administrador, e alguns outros, não recebem a colagem do CSTM, e o Windows não avisa. O texto escolhido continua na área de transferência: se a colagem falhar, é só pressionar `Ctrl+V`. Também dá para usar o botão **Copiar**, à direita do texto selecionado no menu de colagem, e colar com `Ctrl+V`.",
+      "Em **Configurações** › **Depois de colar**, **Restaurar o conteúdo anterior** devolve à área de transferência, logo depois da colagem, o que estava copiado antes (texto, formatação e imagens; arquivos copiados no Explorer não voltam). Com essa opção, uma colagem que falhou não fica disponível para `Ctrl+V`.",
     ],
   },
 ];

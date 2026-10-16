@@ -6,6 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-16
+
+### Added
+
+- Opção **Depois de colar** nas Configurações: **Manter o que foi colado** deixa o texto colado na área de transferência, para colar de novo com `Ctrl+V` quando um programa não recebe a colagem; **Restaurar o conteúdo anterior** devolve o que estava copiado antes.
+
+### Changed
+
+- Depois de colar, o texto colado passa a ficar na área de transferência (**Manter o que foi colado**, o novo padrão, também para quem atualiza). Para voltar ao comportamento anterior, escolha **Restaurar o conteúdo anterior**.
+- A restauração devolve o que estava copiado com a formatação (HTML e RTF) e imagens, não só o texto.
+
 ## [0.16.0] - 2026-10-15
 
 ### Added

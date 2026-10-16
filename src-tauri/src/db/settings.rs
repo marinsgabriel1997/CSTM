@@ -38,6 +38,28 @@ pub const THEME_DARK: &str = "dark";
 /// Modo de colagem padrão dos textos cadastrados (ver `markdown::PasteFormat`).
 pub const PASTE_FORMAT: &str = "paste_format";
 
+/// O que fazer com o clipboard depois de colar: `keep` ou `restore`.
+pub const AFTER_PASTE: &str = "after_paste";
+
+/// Destino do clipboard depois da colagem: manter o item colado ou devolver o conteúdo
+/// que havia antes.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AfterPaste {
+    #[default]
+    Keep,
+    Restore,
+}
+
+impl AfterPaste {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Keep => "keep",
+            Self::Restore => "restore",
+        }
+    }
+}
+
 /// Se o histórico do clipboard está ligado: `on` ou `off`.
 pub const CLIPBOARD_HISTORY: &str = "clipboard_history";
 
@@ -96,6 +118,18 @@ pub fn get_paste_format(conn: &Connection) -> Result<PasteFormat> {
 
 pub fn set_paste_format(conn: &Connection, format: PasteFormat) -> Result<()> {
     set_setting(conn, PASTE_FORMAT, format.as_str())
+}
+
+/// Destino do clipboard após colar; vale `Keep` se nada foi gravado ou o valor é inválido.
+pub fn get_after_paste(conn: &Connection) -> Result<AfterPaste> {
+    Ok(match get_setting(conn, AFTER_PASTE)?.as_deref() {
+        Some("restore") => AfterPaste::Restore,
+        _ => AfterPaste::Keep,
+    })
+}
+
+pub fn set_after_paste(conn: &Connection, value: AfterPaste) -> Result<()> {
+    set_setting(conn, AFTER_PASTE, value.as_str())
 }
 
 /// Histórico do clipboard; ligado enquanto nada foi gravado.
@@ -219,6 +253,33 @@ mod tests {
         let conn = open_in_memory().unwrap();
         set_setting(&conn, PASTE_FORMAT, "rtf").unwrap();
         assert_eq!(get_paste_format(&conn).unwrap(), PasteFormat::Markdown);
+    }
+
+    #[test]
+    fn after_paste_defaults_to_keep_and_round_trips() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_after_paste(&conn).unwrap(), AfterPaste::Keep);
+
+        for value in [AfterPaste::Restore, AfterPaste::Keep] {
+            set_after_paste(&conn, value).unwrap();
+            assert_eq!(get_after_paste(&conn).unwrap(), value);
+        }
+        set_after_paste(&conn, AfterPaste::Restore).unwrap();
+        assert_eq!(
+            get_setting(&conn, AFTER_PASTE).unwrap().as_deref(),
+            Some("restore")
+        );
+        assert_eq!(
+            serde_json::to_string(&AfterPaste::Restore).unwrap(),
+            "\"restore\""
+        );
+    }
+
+    #[test]
+    fn invalid_saved_after_paste_falls_back_to_keep() {
+        let conn = open_in_memory().unwrap();
+        set_setting(&conn, AFTER_PASTE, "always").unwrap();
+        assert_eq!(get_after_paste(&conn).unwrap(), AfterPaste::Keep);
     }
 
     #[test]

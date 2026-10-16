@@ -27,6 +27,8 @@ export type PickerNavigation = "cascade" | "click";
 
 /** Como um texto cadastrado é colado: sem marcação, como markdown (fonte), como rich text ou na sintaxe do Google Chat. */
 export type PasteFormat = "plain" | "markdown" | "rich" | "chat";
+/** O que fica no clipboard depois de colar: o texto colado ou o conteúdo anterior restaurado. */
+export type AfterPaste = "keep" | "restore";
 
 /** Páginas que ocupam a área do editor no cadastro. */
 export type Page = "settings" | "help" | "about";
@@ -228,6 +230,9 @@ export const api = {
   /** Modo de colagem padrão; `markdown` enquanto nada foi escolhido. Vale na próxima abertura do menu. */
   getPasteFormat: () => invoke<PasteFormat>("get_paste_format"),
   setPasteFormat: (format: PasteFormat) => invoke<PasteFormat>("set_paste_format", { format }),
+  /** O que fica no clipboard depois da colagem; `keep` enquanto nada foi escolhido. */
+  getAfterPaste: () => invoke<AfterPaste>("get_after_paste"),
+  setAfterPaste: (value: AfterPaste) => invoke<AfterPaste>("set_after_paste", { value }),
   /** Fecha o menu e cola o texto escolhido no programa anterior; sem `format`, vale o modo padrão. */
   chooseSnippet: (id: number, format?: PasteFormat) => invoke<void>("choose_snippet", { id, format }),
   /** Fecha o menu e deixa o texto no clipboard, sem colar. Conta como uso. */

@@ -64,10 +64,10 @@
 - A arquitetura separa banco/migrações (`db`), comandos (`commands`), menu (`picker`), colagem Windows (`paste`), bandeja (`tray`) e os demais módulos descritos em `docs/produto.md`. Criar módulos novos somente no escopo aprovado.
 - As janelas planejadas são `main` para cadastro e `picker` para seleção flutuante; a presença no documento não comprova sua existência no código.
 - Respeitar os contratos aprovados para pastas, snippets, busca, ordenação, favoritos e persistência SQLite.
-- Preservar a intenção do fluxo de colagem: guardar a janela ativa, selecionar o texto, ocultar o menu, restaurar foco, colar e restaurar o texto anterior do clipboard.
+- Preservar a intenção do fluxo de colagem: guardar a janela ativa, selecionar o texto, ocultar o menu, restaurar foco, colar e, conforme a configuração "Depois de colar" (plano 084), manter o que foi colado (padrão) ou restaurar o conteúdo anterior do clipboard.
 - Considerar as limitações documentadas de UIPI, entrada simulada e perda de formatos não textuais do clipboard ao definir comportamento e critérios de aceite.
 - O atalho padrão é `Alt+Q`, configurável pelo usuário na tela de configurações (p55), e o menu abre junto ao cursor do mouse (p50); mudar esses comportamentos exige nova aprovação.
-- O clipboard é restaurado 500 ms após o `Ctrl+V` simulado e somente se ainda contiver o texto colado (p60); mudar esse intervalo exige nova validação no Windows.
+- Com "Restaurar o conteúdo anterior", o clipboard é restaurado 500 ms após o `Ctrl+V` simulado e somente se ainda contiver o texto colado (p60); mudar esse intervalo exige nova validação no Windows.
 - Não adicionar funcionalidades paralelas, substituir a arquitetura ou reescrever módulos inteiros quando uma alteração limitada resolver a tarefa.
 
 ## Qualidade e nomenclatura
@@ -116,6 +116,7 @@
 - Respeitar os processos oficiais de atualização de lockfiles e arquivos derivados; não inventar um mecanismo de sincronização inexistente.
 - Antes de cada commit de entrega, atualizar a versão: PATCH para correções, refatoração, documentação ou manutenção; MINOR para funcionalidades compatíveis; MAJOR para quebra externa que exija adaptação.
 - Migrações internas e remoção de legado não exigem MAJOR por si só; usar o menor incremento aplicável.
+- Builds de teste (instaladores para o Marco, em `releases/teste/`) não repetem a versão publicada: usam a próxima versão da entrega com o sufixo `-teste-<plano>`, por exemplo `0.17.0-teste-084`, aplicada só no build com `npm run tauri -- build --config '{"version":"0.17.0-teste-084"}'`, sem alterar os arquivos de versão.
 - Manter mudanças notáveis em `CHANGELOG.md`, sob `## [Unreleased]` durante o trabalho.
 - Antes do commit de entrega, fechar a release em `## [versão] - YYYY-MM-DD`, com a versão declarada e data local; ordenar da mais recente para a mais antiga.
 - Descrever o efeito das mudanças para humanos, sem copiar mensagens de commit nem usar descrições vagas.

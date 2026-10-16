@@ -49,8 +49,8 @@ Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db`.
 
 ### Limitações conhecidas
 
-- Programas abertos como administrador não recebem a colagem; use **Copiar** e cole com `Ctrl+V`.
-- Depois de colar, só o texto que estava no clipboard é restaurado; imagens e outros formatos não voltam.
+- Programas abertos como administrador, e alguns outros, não recebem a colagem, e o Windows não avisa. O texto escolhido continua na área de transferência: basta pressionar `Ctrl+V`. Também dá para usar o botão **Copiar**, à direita do texto selecionado no menu de colagem (ou `Ctrl+C`), e colar com `Ctrl+V`.
+- Com a opção **Depois de colar** › **Restaurar o conteúdo anterior**, o que estava copiado volta depois da colagem, com formatação e imagens, mas arquivos copiados no Explorer não voltam.
 
 ## Roadmap
 
@@ -107,7 +107,7 @@ A formatação do frontend não é imposta pelo projeto; fica a cargo do editor.
 
 ### Instaladores locais
 
-Cada build sobrescreve o instalador em `src-tauri/target/`, por isso as cópias ficam em `releases/` (fora do Git), sem substituir arquivos existentes: `releases/CSTM_<versão>_x64-setup.exe` para as versões publicadas e `releases/teste/CSTM_<versão>-teste-<plano>-<AAAAMMDD-HHMM>_x64-setup.exe` para os builds de teste.
+Cada build sobrescreve o instalador em `src-tauri/target/`, por isso as cópias ficam em `releases/` (fora do Git), sem substituir arquivos existentes: `releases/CSTM_<versão>_x64-setup.exe` para as versões publicadas e `releases/teste/CSTM_<próxima versão>-teste-<plano>-<AAAAMMDD-HHMM>_x64-setup.exe` para os builds de teste. Um build de teste leva a próxima versão com o sufixo do plano (por exemplo, `0.17.0-teste-084`), aplicada só no build: `npm run tauri -- build --config '{"version":"0.17.0-teste-084"}'`.
 
 ## Contribuindo
 

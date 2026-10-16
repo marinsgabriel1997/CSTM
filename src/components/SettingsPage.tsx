@@ -15,6 +15,7 @@ import {
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
 import {
+  type AfterPaste,
   api,
   errorMessage,
   type PasteFormat,
@@ -76,6 +77,9 @@ const useStyles = makeStyles({
     ":hover": { backgroundColor: tokens.colorPaletteRedForeground1, color: tokens.colorNeutralForegroundOnBrand },
   },
   restore: { alignSelf: "flex-start", marginTop: tokens.spacingVerticalXS },
+  // Opção com explicação logo abaixo do rótulo.
+  optionLabel: { display: "flex", flexDirection: "column" },
+  optionDescription: { color: tokens.colorNeutralForeground2 },
 });
 
 interface SettingsPageProps {
@@ -103,6 +107,9 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
   // Modo de colagem padrão; `null` até carregar.
   const [pasteFormat, setPasteFormat] = useState<PasteFormat | null>(null);
   const [pasteFormatError, setPasteFormatError] = useState<string | null>(null);
+  // O que fica no clipboard depois de colar; `null` até carregar.
+  const [afterPaste, setAfterPaste] = useState<AfterPaste | null>(null);
+  const [afterPasteError, setAfterPasteError] = useState<string | null>(null);
   // Tema e inicialização com o Windows; `null` até carregar.
   const [theme, setTheme] = useState<ThemeChoice | null>(null);
   const [themeError, setThemeError] = useState<string | null>(null);
@@ -151,6 +158,10 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
     api.getPasteFormat().then(
       (value) => current && setPasteFormat(value),
       (reason) => current && setPasteFormatError(errorMessage(reason)),
+    );
+    api.getAfterPaste().then(
+      (value) => current && setAfterPaste(value),
+      (reason) => current && setAfterPasteError(errorMessage(reason)),
     );
     api.getTheme().then(
       (value) => current && setTheme(value),
@@ -202,6 +213,16 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       setPasteFormat(await api.setPasteFormat(value));
     } catch (reason) {
       setPasteFormatError(errorMessage(reason));
+    }
+  }
+
+  // A escolha vale na próxima colagem.
+  async function changeAfterPaste(value: AfterPaste) {
+    setAfterPasteError(null);
+    try {
+      setAfterPaste(await api.setAfterPaste(value));
+    } catch (reason) {
+      setAfterPasteError(errorMessage(reason));
     }
   }
 
@@ -416,6 +437,47 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       {pasteFormatError && (
         <MessageBar intent="error">
           <MessageBarBody>Não foi possível salvar o modo de colagem: {pasteFormatError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Text id="after-paste-title" className={styles.title}>
+        Depois de colar
+      </Text>
+      <Caption1 className={styles.help}>
+        O que fica na área de transferência depois que o CSTM cola um texto.
+      </Caption1>
+      <RadioGroup
+        aria-labelledby="after-paste-title"
+        value={afterPaste ?? ""}
+        disabled={afterPaste === null}
+        onChange={(_, data) => void changeAfterPaste(data.value as AfterPaste)}
+      >
+        <Radio
+          value="keep"
+          label={
+            <span className={styles.optionLabel}>
+              <span>
+                Manter o que foi colado <Caption1 className={styles.hint}>padrão</Caption1>
+              </span>
+              <Caption1 className={styles.optionDescription}>Se a colagem falhar, é só pressionar Ctrl+V.</Caption1>
+            </span>
+          }
+        />
+        <Radio
+          value="restore"
+          label={
+            <span className={styles.optionLabel}>
+              <span>Restaurar o conteúdo anterior</span>
+              <Caption1 className={styles.optionDescription}>
+                Devolve o que estava copiado, com a formatação e imagens.
+              </Caption1>
+            </span>
+          }
+        />
+      </RadioGroup>
+      {afterPasteError && (
+        <MessageBar intent="error">
+          <MessageBarBody>Não foi possível salvar a opção Depois de colar: {afterPasteError}</MessageBarBody>
         </MessageBar>
       )}
       <Divider className={styles.section} />

@@ -58,6 +58,7 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 - Tema das janelas: seguir o Windows (padrão), claro ou escuro; vale na hora e é lembrado entre execuções.
 - Iniciar com o Windows (desligado por padrão): o CSTM abre só na bandeja ao entrar no Windows, com o atalho ativo. A entrada fica na chave `Run` do usuário, que é a fonte da verdade (inclusive a desativação pelo Gerenciador de Tarefas); o desinstalador a remove.
 - Modo de colagem padrão (Markdown, padrão; Sem formatação; Formatado; Google Chat), usado por `Enter` e Copiar nos textos cadastrados.
+- Depois de colar: manter o que foi colado na área de transferência (padrão), para colar de novo com `Ctrl+V` se a colagem falhar, ou restaurar o conteúdo anterior.
 - Histórico do clipboard (ligado por padrão): desligar para de guardar na hora, sem apagar o que já foi guardado; "Limpar histórico" apaga todos os itens, com confirmação.
 
 ### 5. Importação e exportação
@@ -79,18 +80,18 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 2. Exibir o menu na posição do cursor, ajustado aos limites do monitor.
 3. Usuário escolhe o texto.
 4. Ocultar o menu e reativar a janela guardada (`SetForegroundWindow`).
-5. Salvar o conteúdo atual do clipboard (somente texto).
+5. Com "Restaurar o conteúdo anterior", salvar o conteúdo atual do clipboard (texto com HTML e RTF, ou imagem).
 6. Copiar o texto escolhido para o clipboard, convertido para o modo de colagem (no modo Formatado, HTML e texto; um item do histórico sem modo vai com todos os seus formatos), e simular `Ctrl+V` (`SendInput`).
-7. Após 500 ms, restaurar o texto anterior do clipboard, se o clipboard ainda contiver o texto colado (`GetClipboardSequenceNumber`).
+7. Com "Restaurar o conteúdo anterior", após 500 ms, devolver o conteúdo salvo ao clipboard, se ele ainda contiver o texto colado (`GetClipboardSequenceNumber`). Com "Manter o que foi colado" (padrão), o texto colado fica no clipboard.
 8. Incrementar o contador de uso do texto (um item do histórico sobe para o topo).
 
-Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam soltas. Se a janela guardada não puder ser reativada, o texto apenas fica no clipboard, sem `Ctrl+V` e sem restauração. Se o clipboard não tinha texto antes, o texto colado permanece nele.
+Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam soltas. Se a janela guardada não puder ser reativada, o texto apenas fica no clipboard, sem `Ctrl+V` e sem restauração. Se não havia nada que o CSTM consiga ler no clipboard (vazio, ou só arquivos copiados no Explorer), o texto colado permanece nele.
 
 ### Limitações conhecidas
 
 - Programas executados como administrador não recebem a colagem se o CSTM não estiver elevado (UIPI); o Windows não informa a falha.
 - Alguns programas podem ignorar entrada simulada (jogos, acesso remoto, certos terminais).
-- Somente conteúdo de texto do clipboard é restaurado; formatos ricos anteriores podem ser perdidos.
+- Com "Restaurar o conteúdo anterior", voltam texto, HTML, RTF e imagem; arquivos copiados no Explorer e formatos próprios de outros programas se perdem.
 - O histórico do clipboard fica no banco sem criptografia; o que os programas não marcam como sensível é guardado. Por isso há a opção de desligá-lo e o botão de limpar.
 - A leitura da formatação HTML do histórico reconhece tags de formatação (negrito, itálico, listas, links etc.); negrito só por estilo CSS, como no Google Docs, não é reconhecido.
 - Colar uma imagem do histórico depende de o programa de destino aceitar `CF_DIB` ou PNG; colar a formatação depende de ele aceitar HTML ou RTF.

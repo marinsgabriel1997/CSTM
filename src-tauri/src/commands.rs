@@ -18,7 +18,7 @@ use crate::clipboard_history;
 use crate::db::clipboard::{self as history, HistoryItem};
 use crate::db::folders::{self, Folder};
 use crate::db::items::{self, ItemRef, TrashItem};
-use crate::db::settings;
+use crate::db::settings::{self, AfterPaste};
 use crate::db::snippets::{self, Snippet};
 use crate::main_window;
 use crate::markdown::{self, PasteFormat};
@@ -248,6 +248,23 @@ pub fn set_paste_format(state: Db, format: PasteFormat) -> CommandResult<PasteFo
     Ok(format)
 }
 
+#[tauri::command]
+pub fn get_after_paste(state: Db) -> CommandResult<AfterPaste> {
+    respond(settings::get_after_paste(&lock(&state)))
+}
+
+/// Grava o que fazer com o clipboard depois de colar e devolve o valor gravado.
+#[tauri::command]
+pub fn set_after_paste(state: Db, value: AfterPaste) -> CommandResult<AfterPaste> {
+    respond(settings::set_after_paste(&lock(&state), value))?;
+    Ok(value)
+}
+
+/// Configuração de restauração do clipboard; se não puder ser lida, a colagem mantém o item.
+fn after_paste(state: &Db) -> AfterPaste {
+    settings::get_after_paste(&lock(state)).unwrap_or_default()
+}
+
 /// Conteúdo do texto cadastrado convertido para o modo pedido (ou o padrão configurado).
 fn snippet_content(state: &Db, id: i64, format: Option<PasteFormat>) -> CommandResult<Content> {
     let conn = lock(state);
@@ -291,7 +308,7 @@ pub async fn choose_snippet(
     format: Option<PasteFormat>,
 ) -> CommandResult<()> {
     let content = snippet_content(&state, id, format)?;
-    if paste::paste(&app, &content)? {
+    if paste::paste(&app, &content, after_paste(&state))? {
         // O texto já foi colado; uma falha no contador não deve aparecer como erro.
         let _ = snippets::record_use(&lock(&state), id);
     }
@@ -334,7 +351,7 @@ pub async fn paste_clipboard_item(
     format: Option<PasteFormat>,
 ) -> CommandResult<()> {
     let content = history_content(&state, id, format)?;
-    paste::paste(&app, &content)?;
+    paste::paste(&app, &content, after_paste(&state))?;
     touch_history_item(&app, &state, id);
     Ok(())
 }

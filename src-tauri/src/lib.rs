@@ -80,6 +80,8 @@ pub fn run() {
             commands::set_picker_navigation,
             commands::get_paste_format,
             commands::set_paste_format,
+            commands::get_after_paste,
+            commands::set_after_paste,
             commands::layout_picker,
             commands::picker_ready,
             commands::get_shortcut,

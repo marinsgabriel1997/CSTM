@@ -1,13 +1,15 @@
 //! Colagem do item escolhido (um texto cadastrado ou um item do histórico) no programa que
 //! estava ativo quando o menu abriu: reativa essa janela, troca o clipboard pelo item,
-//! simula `Ctrl+V` e devolve o texto anterior. A cópia faz o mesmo sem o `Ctrl+V`,
+//! simula `Ctrl+V` e, conforme a configuração, devolve o conteúdo anterior (texto com
+//! HTML/RTF ou imagem) ou mantém o item colado. A cópia faz o mesmo sem o `Ctrl+V`,
 //! deixando o item no clipboard.
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use tauri::{AppHandle, Manager};
 
-use crate::clipboard::{self, Content, TextContent};
+use crate::clipboard::{self, Content};
+use crate::db::settings::AfterPaste;
 use crate::picker;
 
 /// Estado da colagem, gerenciado pelo Tauri.
@@ -19,9 +21,9 @@ pub struct PasteState {
     running: Mutex<()>,
 }
 
-/// Texto a devolver ao clipboard: o anterior, se havia texto e se o clipboard ainda
+/// Conteúdo a devolver ao clipboard: o anterior, se foi capturado e se o clipboard ainda
 /// contém o que o CSTM escreveu (o número de sequência do Windows não mudou).
-fn text_to_restore(previous: Option<String>, written: u32, current: u32) -> Option<String> {
+fn content_to_restore<T>(previous: Option<T>, written: u32, current: u32) -> Option<T> {
     previous.filter(|_| written == current)
 }
 
@@ -40,7 +42,8 @@ fn lock_target(app: &AppHandle) -> MutexGuard<'_, Option<isize>> {
 
 /// Cola o item na janela guardada e fecha o menu. Se a janela não puder ser reativada,
 /// o item apenas fica no clipboard, para ser colado manualmente. Retorna se colou.
-pub fn paste(app: &AppHandle, content: &Content) -> Result<bool, String> {
+/// Com `AfterPaste::Restore`, o clipboard anterior volta depois da colagem.
+pub fn paste(app: &AppHandle, content: &Content, after: AfterPaste) -> Result<bool, String> {
     let state = app.state::<PasteState>();
     let _running = state
         .inner()
@@ -57,18 +60,27 @@ pub fn paste(app: &AppHandle, content: &Content) -> Result<bool, String> {
         return Ok(false);
     }
 
-    // Só o texto anterior volta depois da colagem; outros formatos se perdem (p60).
-    let previous = clipboard::read_text(app);
+    // Restaurar devolve uma cópia bruta de texto (com HTML/RTF) ou imagem, sem decodificar
+    // nada antes do `Ctrl+V`; arquivos do Explorer e outros formatos não voltam. Só se
+    // copia quando vai restaurar. Sem nada copiado, o item colado fica no clipboard.
+    let previous = match after {
+        AfterPaste::Restore => clipboard::snapshot(),
+        AfterPaste::Keep => None,
+    };
     clipboard::write(app, content)?;
     let written = platform::clipboard_sequence();
     platform::wait_for_modifiers_release();
     if !platform::send_ctrl_v() {
         return Ok(false);
     }
-    std::thread::sleep(platform::RESTORE_DELAY);
-    if let Some(text) = text_to_restore(previous, written, platform::clipboard_sequence()) {
-        // A colagem já aconteceu; uma falha aqui só deixa o texto colado no clipboard.
-        let _ = clipboard::write(app, &Content::Text(TextContent::plain(text)));
+    if after == AfterPaste::Restore {
+        std::thread::sleep(platform::RESTORE_DELAY);
+        if let Some(previous) =
+            content_to_restore(previous, written, platform::clipboard_sequence())
+        {
+            // A colagem já aconteceu; uma falha aqui só deixa o item colado no clipboard.
+            let _ = clipboard::restore(app, &previous);
+        }
     }
     Ok(true)
 }
@@ -216,20 +228,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn restores_the_previous_text_when_the_clipboard_is_untouched() {
+    fn restores_the_previous_content_when_the_clipboard_is_untouched() {
+        let previous = Content::Text(clipboard::TextContent::plain("anterior"));
         assert_eq!(
-            text_to_restore(Some("anterior".into()), 7, 7),
-            Some("anterior".into())
+            content_to_restore(Some(previous.clone()), 7, 7),
+            Some(previous)
         );
     }
 
     #[test]
     fn keeps_what_was_copied_after_the_paste() {
-        assert_eq!(text_to_restore(Some("anterior".into()), 7, 8), None);
+        assert_eq!(content_to_restore(Some("anterior"), 7, 8), None);
     }
 
     #[test]
-    fn keeps_the_pasted_text_when_there_was_no_text_before() {
-        assert_eq!(text_to_restore(None, 7, 7), None);
+    fn keeps_the_pasted_content_when_nothing_was_captured_before() {
+        assert_eq!(content_to_restore(None::<&str>, 7, 7), None);
     }
 }
