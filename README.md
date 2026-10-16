@@ -2,7 +2,7 @@
 
 # CSTM
 
-**Seus textos de todo dia, colados em qualquer programa com um atalho.**
+**Seus textos, atalhos e área de transferência em um só lugar.**
 
 [![Versão](https://img.shields.io/github/v/release/marinsgabriel1997/CSTM?label=vers%C3%A3o)](https://github.com/marinsgabriel1997/CSTM/releases/latest)
 [![Licença](https://img.shields.io/github/license/marinsgabriel1997/CSTM?label=licen%C3%A7a)](LICENSE)
@@ -12,20 +12,18 @@
 
 </div>
 
-O CSTM é um aplicativo para Windows que guarda os textos que você digita toda hora (respostas prontas, assinaturas, modelos de e-mail, trechos de código) e os cola em qualquer programa por um menu flutuante aberto com `Alt+Q`, junto ao cursor do mouse. Ele também guarda o histórico do clipboard e converte textos em markdown para o formato de destino na hora de colar.
+Organize e reutilize textos, acesse seu histórico de cópias e cole conteúdos rapidamente em qualquer aplicativo. Com um atalho global (`Alt+Q`), busca instantânea, pastas, favoritos e modos de colagem com formatação, o CSTM simplifica tarefas repetitivas no Windows, sem depender de serviços na nuvem.
+
+Não é só um gerenciador de clipboard nem um expansor de texto: o CSTM reúne num menu flutuante, aberto junto ao cursor do mouse, os textos que você digita toda hora (respostas prontas, assinaturas, modelos de e-mail, trechos de código) e tudo o que você copiou recentemente.
 
 ## Funcionalidades
 
-- **Menu de colagem por atalho global:** `Alt+Q` (configurável) abre o menu em qualquer programa; escolha o texto com o mouse ou o teclado e ele é colado no programa em que você estava, com o clipboard anterior restaurado.
-- **Pastas, favoritos e mais usados:** organize os textos em pastas e subpastas, marque favoritos e encontre rápido os mais colados.
-- **Navegação em cascata:** as pastas abrem em colunas ao lado, como os submenus do Windows, cada uma com busca própria; ou, se preferir, ao clicar.
-- **Busca instantânea:** por título e conteúdo, sem diferenciar acentos, no cadastro e no menu.
-- **Modos de colagem:** escreva em markdown e cole como markdown, sem formatação, formatado (Word, Outlook, Gmail, Teams) ou na sintaxe do Google Chat.
-- **Histórico do clipboard:** os últimos 100 itens copiados em qualquer programa, com formatação e imagens, também com os modos de colagem; ignora o que os gerenciadores de senha marcam como sensível.
-- **Cadastro como um gerenciador de arquivos:** seleção múltipla, arrastar e soltar, recortar/copiar/colar, desfazer e lixeira.
-- **Importação e exportação:** arquivos `.txt`, pastas do disco e backup JSON completo.
-- **Sempre à mão:** roda na bandeja do sistema, pode iniciar com o Windows e segue o tema claro ou escuro.
-- **Seus dados no seu computador:** tudo fica num banco SQLite local, sem conta nem nuvem.
+- **Cole em qualquer programa:** `Alt+Q` abre um menu junto ao mouse; escolha o texto e ele é colado onde você estava.
+- **Histórico do que você copiou:** os últimos 100 itens copiados, com textos, formatação e imagens.
+- **Organização simples:** pastas, favoritos e os textos mais usados à mão.
+- **Busca instantânea** por título e conteúdo.
+- **Cole no formato certo:** escreva seus textos em markdown e cole convertendo para texto sem formatação, texto formatado (e-mail, Word) ou Google Chat. No histórico, o que você copiou também pode ser convertido, venha de onde vier.
+- **Seus dados no seu computador:** sem conta e sem nuvem.
 
 ## Instalação
 
@@ -57,6 +55,7 @@ Os dados ficam em `%APPDATA%\com.gabriel.cstm\cstm.db`.
 
 ## Roadmap
 
+- Editor que alterna entre markdown e visualização formatada, para escrever sem precisar conhecer a sintaxe. O banco continua guardando markdown.
 - Interface em inglês, com escolha do idioma no aplicativo, e documentação em inglês.
 
 Fora do escopo, por ora: expansão automática por abreviação, variáveis nos textos (data, hora, cursor) e Linux/macOS. Detalhes em [docs/produto.md](docs/produto.md#fora-do-escopo).
