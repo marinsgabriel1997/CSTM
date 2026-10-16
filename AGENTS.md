@@ -125,6 +125,16 @@
 - Antes de pedir autorização para commit, revisar as alterações da entrega e apresentar a mensagem proposta. Registrar mudanças diferentes em linhas próprias, cada uma com o formato completo.
 - Após a autorização, preparar versão e release, executar as validações finais e realizar apenas o commit autorizado. Autorização de commit não autoriza push.
 
+## Publicação de releases
+
+- Publicar no GitHub com o GitHub CLI (`gh`), a partir da 0.16.0; versões anteriores não têm tag nem release. Push, tag e publicação exigem autorização explícita do usuário para a operação.
+- Publicar somente versões fechadas no `CHANGELOG.md`, a partir do commit de entrega já enviado a `origin/main`.
+- Marcar o commit de entrega com tag anotada `vX.Y.Z` (`git tag -a vX.Y.Z -m "CSTM X.Y.Z"`) e enviá-la com `git push origin vX.Y.Z`. Tags publicadas não são movidas, apagadas nem reaproveitadas; um erro numa versão publicada é corrigido numa nova versão.
+- Gerar o instalador com `npm run tauri -- build` no commit da tag, com a árvore de trabalho limpa, e copiá-lo para `releases/` (ignorado pelo git) com o nome gerado pelo Tauri, `CSTM_X.Y.Z_x64-setup.exe`.
+- Anexar à release o instalador e `SHA256SUMS.txt`, com uma linha `<sha256>  <arquivo>` por ativo (formato do `sha256sum`).
+- Título `CSTM X.Y.Z`. Notas: o conteúdo da seção `## [X.Y.Z]` do `CHANGELOG.md`, sem o cabeçalho, seguido de `**Alterações:** https://github.com/marinsgabriel1997/CSTM/compare/vANTERIOR...vX.Y.Z` quando houver tag anterior.
+- Criar a release como rascunho (`gh release create vX.Y.Z <ativos> --draft --verify-tag --title "CSTM X.Y.Z" --notes-file <notas>`), apresentar o link ao usuário e publicar só após aceite, com `gh release edit vX.Y.Z --draft=false --latest`. Versões com sufixo (`-beta.1`, `-rc.1`) saem com `--prerelease`, sem `--latest`.
+
 ## Referências situacionais
 
 | Documento | Quando consultar |
