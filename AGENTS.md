@@ -3,10 +3,10 @@
 ## Contexto e escopo
 
 - CSTM é um aplicativo desktop para cadastrar, organizar e colar textos reutilizáveis por meio de um menu flutuante e atalho global.
-- O MVP tem como alvo Windows. Expansão por abreviação, transformações de texto, variáveis e suporte a Linux/macOS estão fora do escopo documentado. O histórico do clipboard (plano 077) guarda textos, formatação HTML/RTF e imagens; o cadastro continua só com textos.
+- O produto tem como alvo o Windows; o MVP foi concluído e `docs/produto.md` descreve as funcionalidades atuais. Expansão por abreviação, transformações de texto, variáveis e suporte a Linux/macOS estão fora do escopo documentado. O histórico do clipboard (plano 077) guarda textos, formatação HTML/RTF e imagens; o cadastro continua só com textos.
 - A stack atual é React 19, TypeScript 6, Vite 8, Fluent UI React v9, Tauri 2 e Rust edição 2024. A interface usa componentes, tokens e `makeStyles` do Fluent UI.
-- `src/` contém o frontend; `src-tauri/` contém o backend e a configuração desktop; `docs/mvp.md` descreve o escopo e a arquitetura pretendidos.
-- Não tratar funcionalidades, dependências ou módulos previstos no MVP como já implementados.
+- `src/` contém o frontend; `src-tauri/` contém o backend e a configuração desktop; `docs/produto.md` descreve as funcionalidades, o escopo e a arquitetura.
+- Não tratar como implementado o que só estiver em planos ou no roadmap do README.
 
 ## Ambiente e comandos
 
@@ -61,7 +61,7 @@
 ## Arquitetura e contratos
 
 - Preservar a divisão frontend/backend e a comunicação por comandos Tauri. O frontend não deve executar SQL.
-- A arquitetura prevista no MVP separa banco/migrações (`db`), comandos (`commands`), menu (`picker`), colagem Windows (`paste`) e bandeja (`tray`). Implementar esses módulos somente no escopo aprovado.
+- A arquitetura separa banco/migrações (`db`), comandos (`commands`), menu (`picker`), colagem Windows (`paste`), bandeja (`tray`) e os demais módulos descritos em `docs/produto.md`. Criar módulos novos somente no escopo aprovado.
 - As janelas planejadas são `main` para cadastro e `picker` para seleção flutuante; a presença no documento não comprova sua existência no código.
 - Respeitar os contratos aprovados para pastas, snippets, busca, ordenação, favoritos e persistência SQLite.
 - Preservar a intenção do fluxo de colagem: guardar a janela ativa, selecionar o texto, ocultar o menu, restaurar foco, colar e restaurar o texto anterior do clipboard.
@@ -82,7 +82,7 @@
 
 - Atualizar a documentação diretamente afetada e separar conhecimento técnico permanente de contexto transitório da conversa.
 - Toda mudança visível ao usuário (funcionalidade, atalho, nome de botão ou fluxo) atualiza na mesma entrega o conteúdo da Ajuda do aplicativo, em `src/helpContent.ts`.
-- Código e configuração representam o estado implementado; `docs/mvp.md` orienta o escopo pretendido; o plano aprovado define a entrega em andamento.
+- Código e configuração representam o estado implementado; `docs/produto.md` orienta o escopo do produto; o plano aprovado define a entrega em andamento.
 - Este `AGENTS.md` define comportamento e processo do agente. Não transformar sugestões ou decisões abertas da documentação em contratos confirmados.
 - Identificar conflitos entre fontes antes de prosseguir na parte afetada; não presumir que documentação descreve fielmente o código atual.
 - Manter regras comuns neste arquivo da raiz. Não criar instruções aninhadas sem necessidade de escopo distinto e aprovação dessa organização.
@@ -139,7 +139,7 @@
 
 | Documento | Quando consultar |
 | --- | --- |
-| `docs/mvp.md` | Antes de alterar escopo, arquitetura, persistência, picker, atalho ou colagem, ler este documento e esclarecer decisões abertas relevantes. |
+| `docs/produto.md` | Antes de alterar escopo, arquitetura, persistência, picker, atalho ou colagem, ler este documento e esclarecer decisões abertas relevantes; atualizá-lo quando uma entrega mudar funcionalidades, módulos ou dependências. |
 | `docs/telas.md` | Antes de alterar layout, navegação ou fluxos de uma tela, ler o desenho aprovado e o protótipo correspondente em `docs/prototipo/`; novas telas são desenhadas ali antes de serem implementadas. |
 | `package.json` | Antes de executar scripts ou atualizar a versão do produto, ler scripts e metadados atuais. |
 | `src-tauri/Cargo.toml` | Antes de alterar dependências, configuração Rust ou versão do backend, ler este manifesto. |

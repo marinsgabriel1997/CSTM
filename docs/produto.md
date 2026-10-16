@@ -1,11 +1,13 @@
-# CSTM — Escopo do MVP
+# CSTM — Produto e arquitetura
 
 ## Objetivo
 
 Cadastrar textos reutilizáveis (snippets) e colá-los rapidamente em qualquer programa
 por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 
-## Funcionalidades do MVP
+Este documento descreve as funcionalidades do produto, o que fica fora do escopo e a arquitetura. O código e a configuração representam o estado implementado; mudanças de escopo passam por um plano em `planos/`.
+
+## Funcionalidades
 
 ### 1. Cadastro de textos
 
@@ -16,6 +18,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Ordenação manual dentro de cada pasta, por arrastar e soltar ou pelo menu, e ordenação pontual por nome, mais usados ou uso recente.
 - Operações de árvore como num gerenciador de arquivos: seleção múltipla, recortar, copiar e colar (que também duplica), desfazer (Ctrl+Z) e navegação por teclado.
 - O editor mostra quantas vezes o texto foi usado e quando foi usado pela última vez.
+- A janela abre, na primeira vez, proporcional à área útil do monitor (75% × 80%, entre 1000 × 650 e 1600 × 1000) e lembra posição, tamanho e maximização; uma posição salva fora das telas volta ao tamanho inicial.
 
 ### 2. Menu de colagem
 
@@ -25,6 +28,8 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Navegação nas pastas configurável: em cascata (padrão), o conteúdo de uma pasta abre numa coluna ao lado quando o mouse passa sobre ela ou ao clicar, como os submenus do Windows; no modo "Clicar para abrir", a lista é substituída pelo conteúdo da pasta. A busca mostra os resultados numa lista única nos dois modos.
 - A janela `picker` ocupa a área útil do monitor durante a abertura, recortada em volta das colunas visíveis; no modo cascata as colunas abrem dentro dela sem redimensioná-la, sempre dentro da área útil, e o menu volta a uma coluna a cada abertura.
 - Ao escolher um texto: o menu fecha, o foco volta ao programa anterior e o texto é colado. Um botão Copiar na linha selecionada (ou `Ctrl+C`) faz o mesmo sem colar, deixando o texto no clipboard.
+- Títulos longos ocupam até duas linhas; a dica mostra o título completo e o conteúdo.
+- Modos de colagem para textos em markdown: Markdown (como está), Sem formatação, Formatado (HTML gerado do markdown, com o texto limpo de reserva) e Google Chat (sintaxe do Chat). `Enter`, clique e Copiar usam o modo padrão das Configurações; os outros ficam em botões na linha selecionada. O conteúdo é sempre guardado como markdown, e a conversão acontece só ao colar.
 - `Esc` ou clique fora fecha o menu sem colar.
 
 ### Histórico do clipboard
@@ -33,7 +38,8 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - O histórico aparece no menu de colagem, na pasta virtual Histórico, do mais recente para o mais antigo; escolher um item cola no programa anterior com todos os formatos, e o botão Copiar (ou `Ctrl+C`) o deixa no clipboard. O item usado sobe para o topo; copiar de novo algo já guardado também o sobe, sem repeti-lo.
 - Ligado por padrão, com a opção de desligar e o botão de limpar nas Configurações. Fica no banco e sobrevive a reinícios.
 - Não guarda o que o próprio CSTM escreve no clipboard (colagem, cópia e restauração), o que os programas marcam como sensível (`ExcludeClipboardContentFromMonitorProcessing`, `Clipboard Viewer Ignore` ou `CanIncludeInClipboardHistory` igual a zero, usados por gerenciadores de senha), itens vazios nem itens acima de 10 MB.
-- A busca não inclui o histórico, e o cadastro continua só com textos.
+- Nos textos do histórico, os quatro modos de colagem ficam em botões (`Enter` e Copiar colam o original). O item é lido primeiro como markdown: a formatação HTML que veio junto vira markdown e, sem ela, a sintaxe do Google Chat (`*x*`, `~x~`) também; o item guardado não muda.
+- A busca principal do menu não inclui o histórico (a coluna do Histórico tem busca própria), e o cadastro continua só com textos.
 
 ### 3. Execução em segundo plano
 
@@ -51,6 +57,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Navegação nas pastas do menu de colagem ("Abrir ao passar o mouse", padrão, ou "Clicar para abrir"); vale na próxima abertura do menu e é lembrada entre execuções.
 - Tema das janelas: seguir o Windows (padrão), claro ou escuro; vale na hora e é lembrado entre execuções.
 - Iniciar com o Windows (desligado por padrão): o CSTM abre só na bandeja ao entrar no Windows, com o atalho ativo. A entrada fica na chave `Run` do usuário, que é a fonte da verdade (inclusive a desativação pelo Gerenciador de Tarefas); o desinstalador a remove.
+- Modo de colagem padrão (Markdown, padrão; Sem formatação; Formatado; Google Chat), usado por `Enter` e Copiar nos textos cadastrados.
 - Histórico do clipboard (ligado por padrão): desligar para de guardar na hora, sem apagar o que já foi guardado; "Limpar histórico" apaga todos os itens, com confirmação.
 
 ### 5. Importação e exportação
@@ -59,7 +66,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 - Exportar a biblioteca inteira ou uma pasta como pastas com arquivos `.txt` (sem sobrescrever nada) ou como backup JSON completo (com ordem, favoritos, contador de uso e datas).
 - Os `.txt` são lidos e gravados em UTF-8; arquivos em outras codificações são ignorados e informados.
 
-## Fora do escopo do MVP
+## Fora do escopo
 
 - Expansão automática por abreviação.
 - Ferramentas de edição/transformação de texto.
@@ -73,7 +80,7 @@ por meio de um menu flutuante aberto por atalho global. Inspiração: ClipClip.
 3. Usuário escolhe o texto.
 4. Ocultar o menu e reativar a janela guardada (`SetForegroundWindow`).
 5. Salvar o conteúdo atual do clipboard (somente texto).
-6. Copiar o texto escolhido para o clipboard (um item do histórico vai com todos os seus formatos) e simular `Ctrl+V` (`SendInput`).
+6. Copiar o texto escolhido para o clipboard, convertido para o modo de colagem (no modo Formatado, HTML e texto; um item do histórico sem modo vai com todos os seus formatos), e simular `Ctrl+V` (`SendInput`).
 7. Após 500 ms, restaurar o texto anterior do clipboard, se o clipboard ainda contiver o texto colado (`GetClipboardSequenceNumber`).
 8. Incrementar o contador de uso do texto (um item do histórico sobe para o topo).
 
@@ -85,6 +92,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 - Alguns programas podem ignorar entrada simulada (jogos, acesso remoto, certos terminais).
 - Somente conteúdo de texto do clipboard é restaurado; formatos ricos anteriores podem ser perdidos.
 - O histórico do clipboard fica no banco sem criptografia; o que os programas não marcam como sensível é guardado. Por isso há a opção de desligá-lo e o botão de limpar.
+- A leitura da formatação HTML do histórico reconhece tags de formatação (negrito, itálico, listas, links etc.); negrito só por estilo CSS, como no Google Docs, não é reconhecido.
 - Colar uma imagem do histórico depende de o programa de destino aceitar `CF_DIB` ou PNG; colar a formatação depende de ele aceitar HTML ou RTF.
 
 ## Arquitetura
@@ -107,11 +115,13 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `paste` | Fluxo de colagem e simulação de `Ctrl+V` (Windows); cópia sem colar |
 | `clipboard` | Leitura e escrita do clipboard em vários formatos (texto, HTML, RTF, imagem) pela API Win32; conversão das imagens em PNG e miniatura |
 | `clipboard_history` | Monitor do clipboard: janela só de mensagens com `AddClipboardFormatListener`, numa thread própria, que grava as cópias no histórico; também é a dona do clipboard nas escritas do CSTM, para que elas sejam ignoradas |
+| `markdown` | Conversões dos modos de colagem (markdown para texto limpo, HTML e sintaxe do Google Chat) e leitura dos itens do histórico como markdown |
+| `main_window` | Tamanho inicial, validação e memória da posição e do tamanho da janela do cadastro |
 | `tray` | Ícone e menu da bandeja |
 | `theme` | Tema escolhido: gravação, aviso às janelas e barra de título do cadastro |
 | `autostart` | Iniciar com o Windows: entrada na chave `Run` do usuário e leitura da `StartupApproved` |
 
-### Dependências previstas
+### Dependências
 
 | Dependência | Uso |
 |---|---|
@@ -121,6 +131,8 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `tauri-plugin-clipboard-manager` | Leitura e escrita de texto no clipboard fora do Windows (no Windows, o módulo `clipboard` usa a API Win32) |
 | `tauri-plugin-opener` | Abrir o repositório no navegador e a pasta dos dados no Explorer (só pelo backend) |
 | `image` (features `png` e `bmp`) | Conversão das imagens do clipboard em PNG e miniatura, e de volta em bitmap ao colar |
+| `pulldown-cmark` | Leitura do markdown nos modos de colagem |
+| `htmd` | Conversão da formatação HTML do histórico em markdown |
 | `tauri-plugin-single-instance` | Instância única |
 | `tauri` (feature `tray-icon`) | Ícone na bandeja |
 | `windows` | `GetForegroundWindow`, `SetForegroundWindow`, `SendInput`, região da janela, registro (inicialização com o Windows) e clipboard (formatos, memória global e `AddClipboardFormatListener`) |
@@ -161,8 +173,8 @@ CREATE VIRTUAL TABLE snippets_fts USING fts5(
 );
 -- + gatilhos para manter snippets_fts sincronizada
 
--- Configurações do aplicativo (atalho, navegação nas pastas, tema, histórico do clipboard,
--- Ajuda já mostrada); chaves ausentes usam o padrão
+-- Configurações do aplicativo (atalho, navegação nas pastas, modo de colagem padrão, tema,
+-- histórico do clipboard, Ajuda já mostrada, estado da janela do cadastro); chaves ausentes usam o padrão
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -196,16 +208,3 @@ CREATE TABLE clipboard_items (
 - O link do repositório (`bundle.homepage`, <https://github.com/marinsgabriel1997/CSTM>) aparece na página final do instalador ("CSTM no GitHub") e em "Aplicativos instalados" do Windows.
 - Sem assinatura de código: o SmartScreen do Windows avisa ao executar o instalador.
 
-## Etapas
-
-Cada etapa termina com um commit funcional.
-
-1. **Base do projeto:** remover o exemplo do template; configurar rustfmt, clippy e ESLint.
-2. **Banco de dados:** conexão, migrações e operações de pastas e textos, com testes.
-3. **Tela de cadastro:** árvore de pastas, lista, editor, busca, favoritos.
-4. **Segundo plano:** bandeja, instância única, fechar para a bandeja.
-5. **Menu de colagem:** janela `picker`, atalho global, busca e navegação por teclado.
-5b. **Configurações:** tela de configurações com a troca do atalho.
-5c. **Menu em cascata:** colunas de pastas ao passar o mouse, janela transparente e opção de navegação nas Configurações.
-6. **Colagem:** foco na janela anterior, clipboard, `SendInput`, restauração do clipboard.
-7. **Acabamento:** ícone, metadados do executável, instalador NSIS e bloqueio do comportamento de navegador (menu de contexto e atalhos como F5) no build de release.
