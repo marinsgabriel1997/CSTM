@@ -2,7 +2,22 @@
 
 use rusqlite::{Connection, OptionalExtension};
 
+use serde::{Deserialize, Serialize};
+
 use super::Result;
+use crate::markdown::PasteFormat;
+
+/// Estado lembrado da janela principal. Posição em pixels físicos e tamanho em pixels
+/// lógicos, ambos do estado "normal" (não maximizado): é para ele que a janela volta
+/// quando o usuário a desmaximiza.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct MainWindowState {
+    pub x: i32,
+    pub y: i32,
+    pub width: f64,
+    pub height: f64,
+    pub maximized: bool,
+}
 
 /// Atalho global do menu de colagem, no formato do `tauri-plugin-global-shortcut`.
 pub const SHORTCUT: &str = "shortcut";
@@ -20,6 +35,9 @@ pub const THEME_SYSTEM: &str = "system";
 pub const THEME_LIGHT: &str = "light";
 pub const THEME_DARK: &str = "dark";
 
+/// Modo de colagem padrão dos textos cadastrados (ver `markdown::PasteFormat`).
+pub const PASTE_FORMAT: &str = "paste_format";
+
 /// Se o histórico do clipboard está ligado: `on` ou `off`.
 pub const CLIPBOARD_HISTORY: &str = "clipboard_history";
 
@@ -28,6 +46,9 @@ pub const OFF: &str = "off";
 
 /// Presente depois que a Ajuda abriu sozinha na primeira execução.
 pub const HELP_SHOWN: &str = "help_shown";
+
+/// Posição, tamanho e estado maximizado da janela principal, em JSON (ver `main_window`).
+pub const MAIN_WINDOW: &str = "main_window";
 
 /// Valor gravado para `key`, ou `None` se nunca foi definido.
 pub fn get_setting(conn: &Connection, key: &str) -> Result<Option<String>> {
@@ -66,6 +87,17 @@ pub fn get_theme(conn: &Connection) -> Result<String> {
     .to_string())
 }
 
+/// Modo de colagem padrão; vale Markdown (fonte) se nada foi gravado ou o valor é inválido.
+pub fn get_paste_format(conn: &Connection) -> Result<PasteFormat> {
+    Ok(get_setting(conn, PASTE_FORMAT)?
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_default())
+}
+
+pub fn set_paste_format(conn: &Connection, format: PasteFormat) -> Result<()> {
+    set_setting(conn, PASTE_FORMAT, format.as_str())
+}
+
 /// Histórico do clipboard; ligado enquanto nada foi gravado.
 pub fn get_clipboard_history(conn: &Connection) -> Result<bool> {
     Ok(get_setting(conn, CLIPBOARD_HISTORY)?.as_deref() != Some(OFF))
@@ -73,6 +105,18 @@ pub fn get_clipboard_history(conn: &Connection) -> Result<bool> {
 
 pub fn set_clipboard_history(conn: &Connection, enabled: bool) -> Result<()> {
     set_setting(conn, CLIPBOARD_HISTORY, if enabled { ON } else { OFF })
+}
+
+/// Estado salvo da janela principal; `None` se nunca foi gravado ou se o JSON é inválido
+/// (nesse caso a janela abre como na primeira vez).
+pub fn get_main_window(conn: &Connection) -> Result<Option<MainWindowState>> {
+    Ok(get_setting(conn, MAIN_WINDOW)?.and_then(|json| serde_json::from_str(&json).ok()))
+}
+
+pub fn set_main_window(conn: &Connection, state: &MainWindowState) -> Result<()> {
+    // Estruturas simples com números e booleano nunca falham ao serializar.
+    let json = serde_json::to_string(state).expect("MainWindowState é serializável");
+    set_setting(conn, MAIN_WINDOW, &json)
 }
 
 /// Se a Ajuda ainda deve abrir sozinha; marca-a como mostrada, para abrir uma vez só.
@@ -151,6 +195,33 @@ mod tests {
     }
 
     #[test]
+    fn paste_format_defaults_to_markdown_and_round_trips() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_paste_format(&conn).unwrap(), PasteFormat::Markdown);
+
+        for format in [
+            PasteFormat::Plain,
+            PasteFormat::Rich,
+            PasteFormat::Chat,
+            PasteFormat::Markdown,
+        ] {
+            set_paste_format(&conn, format).unwrap();
+            assert_eq!(get_paste_format(&conn).unwrap(), format);
+        }
+        assert_eq!(
+            get_setting(&conn, PASTE_FORMAT).unwrap().as_deref(),
+            Some("markdown")
+        );
+    }
+
+    #[test]
+    fn invalid_saved_paste_format_falls_back_to_markdown() {
+        let conn = open_in_memory().unwrap();
+        set_setting(&conn, PASTE_FORMAT, "rtf").unwrap();
+        assert_eq!(get_paste_format(&conn).unwrap(), PasteFormat::Markdown);
+    }
+
+    #[test]
     fn help_prompt_is_taken_only_once() {
         let conn = open_in_memory().unwrap();
         assert!(take_help_prompt(&conn).unwrap());
@@ -175,5 +246,26 @@ mod tests {
 
         set_clipboard_history(&conn, true).unwrap();
         assert!(get_clipboard_history(&conn).unwrap());
+    }
+
+    #[test]
+    fn main_window_round_trips_and_ignores_invalid_values() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_main_window(&conn).unwrap(), None);
+
+        let state = MainWindowState {
+            x: -1200,
+            y: 40,
+            width: 1152.0,
+            height: 659.0,
+            maximized: true,
+        };
+        set_main_window(&conn, &state).unwrap();
+        assert_eq!(get_main_window(&conn).unwrap(), Some(state));
+
+        set_setting(&conn, MAIN_WINDOW, "não é json").unwrap();
+        assert_eq!(get_main_window(&conn).unwrap(), None);
+        set_setting(&conn, MAIN_WINDOW, r#"{"x":1}"#).unwrap();
+        assert_eq!(get_main_window(&conn).unwrap(), None);
     }
 }

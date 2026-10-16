@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 use crate::picker::Area;
 
 /// Largura lógica das subcolunas.
-pub const SUB_WIDTH: f64 = 300.0;
+pub const SUB_WIDTH: f64 = 380.0;
 /// Intervalo lógico entre dois cartões.
 pub const GAP: f64 = 2.0;
 /// Quanto a sombra do cartão (`shadow16` do Fluent: desfoque de 16 px deslocado 8 px para
@@ -196,7 +196,7 @@ mod tests {
         Area {
             x,
             y,
-            width: 340,
+            width: 420,
             height: 440,
         }
     }
@@ -240,17 +240,17 @@ mod tests {
         assert_eq!(result.columns.len(), 1);
         assert_eq!((result.columns[0].x, result.columns[0].y), (100.0, 100.0));
         // Região: o cartão com a margem da sombra.
-        assert_eq!(result.region, vec![area(84, 92, 372, 472)]);
+        assert_eq!(result.region, vec![area(84, 92, 452, 472)]);
     }
 
     #[test]
     fn opens_to_the_right_with_the_top_of_the_main_column() {
         let result = arrange(main_at(100, 100), AREA, 1.0, &[sub(200.0)]);
 
-        assert_eq!(result.columns[1], placed(442.0, 100.0, 200.0));
+        assert_eq!(result.columns[1], placed(522.0, 100.0, 200.0));
         assert_eq!(
             result.region,
-            vec![area(84, 92, 372, 472), area(426, 92, 332, 232)]
+            vec![area(84, 92, 452, 472), area(506, 92, 412, 232)]
         );
     }
 
@@ -267,7 +267,7 @@ mod tests {
         for y in [0, 100, 500] {
             let result = arrange(main_at(100, y), AREA, 1.0, &[sub(200.0)]);
 
-            assert_eq!(on_screen(&result, AREA, 1, 1.0), (442.0, f64::from(y)));
+            assert_eq!(on_screen(&result, AREA, 1, 1.0), (522.0, f64::from(y)));
         }
     }
 
@@ -275,8 +275,8 @@ mod tests {
     fn short_content_keeps_the_content_height() {
         let result = arrange(main_at(100, 500), AREA, 1.0, &[sub(300.0)]);
 
-        assert_eq!(result.columns[1], placed(442.0, 500.0, 300.0));
-        assert_eq!(result.region[1], area(426, 492, 332, 332));
+        assert_eq!(result.columns[1], placed(522.0, 500.0, 300.0));
+        assert_eq!(result.region[1], area(506, 492, 412, 332));
     }
 
     #[test]
@@ -284,38 +284,38 @@ mod tests {
         let result = arrange(main_at(100, 500), AREA, 1.0, &[sub(900.0)]);
 
         // Do topo (500) à borda de baixo da área útil (1040).
-        assert_eq!(result.columns[1], placed(442.0, 500.0, 540.0));
+        assert_eq!(result.columns[1], placed(522.0, 500.0, 540.0));
         // A sombra de baixo é cortada pela borda da área útil.
-        assert_eq!(result.region[1], area(426, 492, 332, 548));
+        assert_eq!(result.region[1], area(506, 492, 412, 548));
     }
 
     #[test]
     fn tall_content_never_rises_above_the_main_column() {
         let result = arrange(main_at(100, 300), AREA, 1.0, &[sub(5000.0)]);
 
-        assert_eq!(result.columns[1], placed(442.0, 300.0, 740.0));
-        assert_eq!(result.region[1], area(426, 292, 332, 748));
+        assert_eq!(result.columns[1], placed(522.0, 300.0, 740.0));
+        assert_eq!(result.region[1], area(506, 292, 412, 748));
     }
 
     #[test]
     fn second_level_subcolumns_also_start_at_the_top_of_the_main_column() {
         let result = arrange(main_at(100, 200), AREA, 1.0, &[sub(300.0), sub(5000.0)]);
 
-        assert_eq!(result.columns[1], placed(442.0, 200.0, 300.0));
-        // À direita da primeira (442 + 300 + 2), no mesmo topo e limitada pela borda de baixo.
-        assert_eq!(result.columns[2], placed(744.0, 200.0, 840.0));
+        assert_eq!(result.columns[1], placed(522.0, 200.0, 300.0));
+        // À direita da primeira (522 + 380 + 2), no mesmo topo e limitada pela borda de baixo.
+        assert_eq!(result.columns[2], placed(904.0, 200.0, 840.0));
     }
 
     #[test]
     fn opens_to_the_left_without_room_on_the_right() {
         let result = arrange(main_at(1560, 100), AREA, 1.0, &[sub(200.0)]);
 
-        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1258.0, 100.0));
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1178.0, 100.0));
         // A principal não se mexe na tela.
         assert_eq!(on_screen(&result, AREA, 0, 1.0), (1560.0, 100.0));
         assert_eq!(
             result.region,
-            vec![area(1544, 92, 372, 472), area(1242, 92, 332, 232)]
+            vec![area(1544, 92, 376, 472), area(1162, 92, 412, 232)]
         );
     }
 
@@ -323,36 +323,36 @@ mod tests {
     fn goes_flush_right_and_hides_older_columns_when_neither_side_fits() {
         let narrow = area(0, 0, 700, 1040);
         let result = arrange(main_at(200, 0), narrow, 1.0, &[sub(200.0)]);
-        // Sem espaço à direita (542 + 300 > 700) nem à esquerda (200 - 302 < 0).
-        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 400.0);
+        // Sem espaço à direita (622 + 380 > 700) nem à esquerda (200 - 382 < 0).
+        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 320.0);
         // A coluna anterior da nova é a principal, que não sai de vista.
         assert!(!result.columns[0].hidden);
         assert_eq!(result.region.len(), 2);
 
         let result = arrange(main_at(200, 0), narrow, 1.0, &[sub(200.0), sub(200.0)]);
-        assert_eq!(on_screen(&result, narrow, 2, 1.0).0, 400.0);
+        assert_eq!(on_screen(&result, narrow, 2, 1.0).0, 320.0);
         // A segunda subcoluna cobre a principal, que sai de vista e da região.
         assert!(result.columns[0].hidden);
         assert!(!result.columns[1].hidden);
         assert!(!result.columns[2].hidden);
         assert_eq!(result.region.len(), 2);
-        assert!(result.region.iter().all(|r| r.x >= 384));
+        assert!(result.region.iter().all(|r| r.x >= 304));
     }
 
     #[test]
     fn the_left_side_is_refused_when_it_would_cover_open_columns() {
         let result = arrange(main_at(1500, 0), AREA, 1.0, &[sub(200.0), sub(200.0)]);
 
-        // A primeira vai à esquerda (1198). A segunda caberia à direita (1500), mas cobriria
-        // a principal; à esquerda (896) não cobre ninguém.
-        assert_eq!(on_screen(&result, AREA, 1, 1.0).0, 1198.0);
-        assert_eq!(on_screen(&result, AREA, 2, 1.0).0, 896.0);
+        // A primeira vai à esquerda (1118). A segunda caberia à direita (1500), mas cobriria
+        // a principal; à esquerda (736) não cobre ninguém.
+        assert_eq!(on_screen(&result, AREA, 1, 1.0).0, 1118.0);
+        assert_eq!(on_screen(&result, AREA, 2, 1.0).0, 736.0);
 
-        let narrow = area(0, 0, 1000, 1040);
-        let result = arrange(main_at(640, 0), narrow, 1.0, &[sub(200.0), sub(200.0)]);
-        // Primeira à esquerda (338). A segunda caberia à direita (640), mas cobriria a
+        let narrow = area(0, 0, 1220, 1040);
+        let result = arrange(main_at(800, 0), narrow, 1.0, &[sub(200.0), sub(200.0)]);
+        // Primeira à esquerda (418). A segunda caberia à direita (800), mas cobriria a
         // principal; à esquerda (36) não cobre ninguém.
-        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 338.0);
+        assert_eq!(on_screen(&result, narrow, 1, 1.0).0, 418.0);
         assert_eq!(on_screen(&result, narrow, 2, 1.0).0, 36.0);
         assert!(result.columns.iter().all(|c| !c.hidden));
     }
@@ -362,7 +362,7 @@ mod tests {
         let result = arrange(main_at(1560, 600), AREA, 1.0, &[sub(500.0)]);
 
         // À esquerda da principal, no topo dela e até a borda de baixo (1040 - 600).
-        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1258.0, 600.0));
+        assert_eq!(on_screen(&result, AREA, 1, 1.0), (1178.0, 600.0));
         assert_eq!(result.columns[1].height, 440.0);
         assert_eq!(on_screen(&result, AREA, 0, 1.0), (1560.0, 600.0));
     }
@@ -370,47 +370,47 @@ mod tests {
     #[test]
     fn works_in_physical_pixels_on_a_scaled_monitor() {
         let work_area = area(0, 0, 3840, 2080);
-        // Escala 2: a principal de 340 x 440 lógicos ocupa 680 x 880 físicos.
-        let result = arrange(area(200, 200, 680, 880), work_area, 2.0, &[sub(200.0)]);
+        // Escala 2: a principal de 420 x 440 lógicos ocupa 840 x 880 físicos.
+        let result = arrange(area(200, 200, 840, 880), work_area, 2.0, &[sub(200.0)]);
 
         // A principal está em y = 100 lógico.
-        assert_eq!(result.columns[1], placed(442.0, 100.0, 200.0));
-        // Região em pixels físicos: (442 - 16) * 2 = 852 e (100 - 8) * 2 = 184.
-        assert_eq!(result.region[1], area(852, 184, 664, 464));
+        assert_eq!(result.columns[1], placed(522.0, 100.0, 200.0));
+        // Região em pixels físicos: (522 - 16) * 2 = 1012 e (100 - 8) * 2 = 184.
+        assert_eq!(result.region[1], area(1012, 184, 824, 464));
 
         // A altura também é limitada pela borda de baixo, em lógicos (1040 - 100).
-        let tall = arrange(area(200, 200, 680, 880), work_area, 2.0, &[sub(5000.0)]);
+        let tall = arrange(area(200, 200, 840, 880), work_area, 2.0, &[sub(5000.0)]);
         assert_eq!(tall.columns[1].height, 940.0);
 
         // Perto da borda direita: abre à esquerda, e a principal continua no mesmo pixel.
-        let result = arrange(area(3120, 200, 680, 880), work_area, 2.0, &[sub(200.0)]);
-        assert_eq!(result.columns[0].x * 2.0, 3120.0);
-        assert_eq!(on_screen(&result, work_area, 1, 2.0).0, 1258.0);
+        let result = arrange(area(3000, 200, 840, 880), work_area, 2.0, &[sub(200.0)]);
+        assert_eq!(result.columns[0].x * 2.0, 3000.0);
+        assert_eq!(on_screen(&result, work_area, 1, 2.0).0, 1118.0);
     }
 
     #[test]
     fn rounds_the_region_outward_at_fractional_scales() {
         let work_area = area(0, 0, 2880, 1560);
-        // Escala 1,5: a principal de 340 x 440 lógicos em (200, 200).
-        let result = arrange(area(300, 300, 510, 660), work_area, 1.5, &[sub(201.0)]);
+        // Escala 1,5: a principal de 420 x 440 lógicos em (200, 200).
+        let result = arrange(area(300, 300, 630, 660), work_area, 1.5, &[sub(201.0)]);
 
-        // Subcoluna de 542 a 842 e de 200 a 401 lógicos; com a sombra, de 789 a 1287 e
+        // Subcoluna de 622 a 1002 e de 200 a 401 lógicos; com a sombra, de 909 a 1527 e
         // de 288 a 637,5 físicos, arredondados para fora.
-        assert_eq!(result.region[1], area(789, 288, 498, 350));
+        assert_eq!(result.region[1], area(909, 288, 618, 350));
     }
 
     #[test]
     fn respects_a_work_area_that_does_not_start_at_the_origin() {
         let work_area = area(-1280, 40, 1280, 944);
-        let result = arrange(area(-1280, 500, 340, 440), work_area, 1.0, &[sub(900.0)]);
+        let result = arrange(area(-1280, 500, 420, 440), work_area, 1.0, &[sub(900.0)]);
 
         // Cabe à direita, no topo da principal e até o limite de baixo da área útil (984 - 500).
-        assert_eq!(on_screen(&result, work_area, 1, 1.0), (-938.0, 500.0));
+        assert_eq!(on_screen(&result, work_area, 1, 1.0), (-858.0, 500.0));
         assert_eq!(result.columns[1].height, 484.0);
         // Relativas à janela, que começa em (-1280, 40).
         assert_eq!((result.columns[0].x, result.columns[0].y), (0.0, 460.0));
-        assert_eq!(result.region[0], area(0, 452, 356, 472));
-        assert_eq!(result.region[1], area(326, 452, 332, 492));
+        assert_eq!(result.region[0], area(0, 452, 436, 472));
+        assert_eq!(result.region[1], area(406, 452, 412, 492));
     }
 
     #[test]

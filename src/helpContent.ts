@@ -60,6 +60,21 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: "Textos no menu de colagem",
+    paragraphs: [
+      "Títulos longos ocupam até duas linhas. Para ler o título inteiro e o conteúdo, pare o mouse sobre o texto.",
+    ],
+  },
+  {
+    title: "Modos de colagem",
+    paragraphs: [
+      "Escreva os textos em markdown (`**negrito**`, `_itálico_`, `- listas`, `# títulos`) e escolha como colar: **Markdown** (como está), **Sem formatação** (sem as marcas), **Formatado** (negrito, listas e links de verdade, para Word, Outlook, Gmail e Teams) ou **Google Chat** (com a sintaxe do Chat: `*negrito*`, `_itálico_`, `~tachado~`).",
+      "`Enter` e **Copiar** usam o modo padrão, escolhido em **Configurações** › **Modo de colagem padrão**. Os outros três modos ficam em botões na linha do texto selecionado, no menu de colagem.",
+      "No **Histórico**, `Enter` e **Copiar** colam o item como foi copiado, e os quatro modos ficam em botões. Assim dá para colar no Chat um markdown copiado, tirar a formatação de um trecho ou colar formatada num e-mail uma mensagem do Chat: a formatação que veio junto e a sintaxe do Chat (`*negrito*`, `~tachado~`) são entendidas.",
+      "O Google Chat não tem títulos nem links com texto: os títulos viram negrito e os links aparecem como texto seguido do endereço.",
+    ],
+  },
+  {
     title: "Menu de colagem pelo teclado",
     paragraphs: [
       "`↑` e `↓` escolhem a linha, `Enter` cola, `Ctrl+C` copia sem colar e `Esc` fecha.",
@@ -100,7 +115,7 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
   {
     title: "Configurações",
     paragraphs: [
-      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, tema, iniciar com o Windows e histórico do clipboard.",
+      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, tema, iniciar com o Windows e histórico do clipboard.",
     ],
   },
   {

@@ -14,7 +14,14 @@ import {
 } from "@fluentui/react-components";
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { api, errorMessage, type PickerNavigation, type ShortcutStatus, type ThemeChoice } from "../api";
+import {
+  api,
+  errorMessage,
+  type PasteFormat,
+  type PickerNavigation,
+  type ShortcutStatus,
+  type ThemeChoice,
+} from "../api";
 import { DEFAULT_SHORTCUT, recordKey, shortcutKeys, shortcutLabel, usesAltGr } from "../shortcut";
 import Page from "./Page";
 
@@ -93,6 +100,9 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
   // Navegação nas pastas do menu; `null` até carregar.
   const [navigation, setNavigation] = useState<PickerNavigation | null>(null);
   const [navigationError, setNavigationError] = useState<string | null>(null);
+  // Modo de colagem padrão; `null` até carregar.
+  const [pasteFormat, setPasteFormat] = useState<PasteFormat | null>(null);
+  const [pasteFormatError, setPasteFormatError] = useState<string | null>(null);
   // Tema e inicialização com o Windows; `null` até carregar.
   const [theme, setTheme] = useState<ThemeChoice | null>(null);
   const [themeError, setThemeError] = useState<string | null>(null);
@@ -138,6 +148,10 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       (value) => current && setNavigation(value),
       (reason) => current && setNavigationError(errorMessage(reason)),
     );
+    api.getPasteFormat().then(
+      (value) => current && setPasteFormat(value),
+      (reason) => current && setPasteFormatError(errorMessage(reason)),
+    );
     api.getTheme().then(
       (value) => current && setTheme(value),
       (reason) => current && setThemeError(errorMessage(reason)),
@@ -178,6 +192,16 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       setNavigation(await api.setPickerNavigation(value));
     } catch (reason) {
       setNavigationError(errorMessage(reason));
+    }
+  }
+
+  // A escolha vale na próxima abertura do menu de colagem.
+  async function changePasteFormat(value: PasteFormat) {
+    setPasteFormatError(null);
+    try {
+      setPasteFormat(await api.setPasteFormat(value));
+    } catch (reason) {
+      setPasteFormatError(errorMessage(reason));
     }
   }
 
@@ -362,6 +386,36 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       {navigationError && (
         <MessageBar intent="error">
           <MessageBarBody>Não foi possível salvar a navegação nas pastas: {navigationError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Text id="paste-format-title" className={styles.title}>
+        Modo de colagem padrão
+      </Text>
+      <Caption1 className={styles.help}>
+        Como Enter e Copiar colam os textos no menu de colagem. Os outros modos ficam em botões na linha selecionada.
+      </Caption1>
+      <RadioGroup
+        aria-labelledby="paste-format-title"
+        value={pasteFormat ?? ""}
+        disabled={pasteFormat === null}
+        onChange={(_, data) => void changePasteFormat(data.value as PasteFormat)}
+      >
+        <Radio
+          value="markdown"
+          label={
+            <>
+              Markdown <Caption1 className={styles.hint}>padrão</Caption1>
+            </>
+          }
+        />
+        <Radio value="plain" label="Sem formatação" />
+        <Radio value="rich" label="Formatado" />
+        <Radio value="chat" label="Google Chat" />
+      </RadioGroup>
+      {pasteFormatError && (
+        <MessageBar intent="error">
+          <MessageBarBody>Não foi possível salvar o modo de colagem: {pasteFormatError}</MessageBarBody>
         </MessageBar>
       )}
       <Divider className={styles.section} />

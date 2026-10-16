@@ -6,6 +6,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-10-15
+
+### Added
+
+- Modos de colagem para textos escritos em markdown: **Markdown** (como está), **Sem formatação**, **Formatado** (rich text para Word, Outlook, Gmail e Teams) e **Google Chat** (com a sintaxe do Chat). O modo padrão, usado por `Enter` e **Copiar**, é escolhido nas Configurações e começa em Markdown, que cola como antes; os outros três ficam em botões na linha do texto selecionado no menu de colagem.
+- Modos de colagem também nos textos do Histórico do clipboard, em quatro botões na linha selecionada (`Enter` e **Copiar** continuam colando o original). O item é lido como markdown antes de converter: a formatação que veio junto (de um e-mail, documento ou da página do Chat) e a sintaxe do Google Chat (`*negrito*`, `~tachado~`) viram markdown, então dá para colar no Chat um markdown copiado ou colar formatada num e-mail uma mensagem do Chat.
+
+### Changed
+
+- A janela do cadastro abre, na primeira vez, proporcional à tela (75% da largura e 80% da altura da área útil, entre 1000 × 650 e 1600 × 1000) e passa a lembrar posição, tamanho e se estava maximizada. Antes, abria sempre em 1000 × 650, pequena em monitores 4K.
+- No menu de colagem, as colunas ficam mais largas (420 px a principal e 380 px as abertas ao lado), os títulos longos ocupam até duas linhas antes das reticências e a dica de um texto mostra o título completo antes do conteúdo.
+
 ## [0.15.0] - 2026-10-14
 
 ### Added

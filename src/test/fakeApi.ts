@@ -6,6 +6,7 @@ import type {
   ClipboardItem,
   Folder,
   Page,
+  PasteFormat,
   PickerColumn,
   PickerNavigation,
   PickerSubcolumn,
@@ -21,7 +22,7 @@ const TIMESTAMP = "2026-01-01T00:00:00.000Z";
 /** Coluna principal do menu de colagem quando a abertura não diz onde: no canto da janela. */
 /** Altura da área útil simulada do monitor, em pixels lógicos. */
 const WORK_AREA_HEIGHT = 1040;
-const DEFAULT_MAIN: PickerColumn = { x: 0, y: 0, width: 340, height: 440, hidden: false };
+const DEFAULT_MAIN: PickerColumn = { x: 0, y: 0, width: 420, height: 440, hidden: false };
 
 function required(value: string, field: string): string {
   const trimmed = value.trim();
@@ -69,6 +70,7 @@ export function createFakeApi() {
   /** Atalhos que o "Windows" recusa, como se outro programa os usasse. */
   const takenShortcuts = new Set<string>();
   let navigation: PickerNavigation = "cascade";
+  let pasteFormat: PasteFormat = "markdown";
   let theme: ThemeChoice = "system";
   const themeListeners = new Set<(theme: ThemeChoice) => void>();
   /** Inicialização com o Windows, como no registro; `failure` simula a recusa do Windows. */
@@ -80,6 +82,8 @@ export function createFakeApi() {
   /** Itens do histórico colados e copiados pelo menu, na ordem. */
   const historyPasted: number[] = [];
   const historyCopied: number[] = [];
+  // Modo pedido em cada colagem do histórico (undefined = original), em paralelo a historyPasted.
+  const historyPastedFormats: (PasteFormat | undefined)[] = [];
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
@@ -87,6 +91,8 @@ export function createFakeApi() {
   const picker = { readies: 0 };
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
+  /** Modo pedido em cada colagem de `delivered` (`undefined` = o padrão). */
+  const deliveredFormats: (PasteFormat | undefined)[] = [];
   /** Conteúdos copiados pelo menu de colagem, sem colar, na ordem. */
   const copied: string[] = [];
   /** Importações e exportações pedidas, na ordem. */
@@ -474,7 +480,7 @@ export function createFakeApi() {
         placed.push({
           x: parent.x + parent.width + 2,
           y: main.y,
-          width: 300,
+          width: 380,
           height: Math.min(column.contentHeight, WORK_AREA_HEIGHT - main.y),
           hidden: false,
         });
@@ -486,9 +492,15 @@ export function createFakeApi() {
       picker.readies += 1;
     },
     hidePicker: async () => {},
-    chooseSnippet: async (id) => {
+    getPasteFormat: async () => pasteFormat,
+    setPasteFormat: async (value) => {
+      pasteFormat = value;
+      return pasteFormat;
+    },
+    chooseSnippet: async (id, format) => {
       const snippet = findSnippet(id);
       delivered.push(snippet.content);
+      deliveredFormats.push(format);
       // Como no backend, a colagem conta como uso.
       snippet.useCount += 1;
       snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
@@ -501,7 +513,8 @@ export function createFakeApi() {
       snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
     },
     listClipboardHistory: async () => history.map((item) => ({ ...item })),
-    pasteClipboardItem: async (id) => {
+    pasteClipboardItem: async (id, format) => {
+      historyPastedFormats.push(format);
       historyPasted.push(id);
       toTop(id);
     },
@@ -594,11 +607,13 @@ export function createFakeApi() {
     folders,
     snippets,
     delivered,
+    deliveredFormats,
     copied,
     autostart,
     history,
     historyState,
     historyPasted,
+    historyPastedFormats,
     historyCopied,
     copyElsewhere,
     layouts,
@@ -606,6 +621,10 @@ export function createFakeApi() {
     /** Define a navegação nas pastas como se tivesse sido escolhida nas Configurações. */
     setNavigation: (value: PickerNavigation) => {
       navigation = value;
+    },
+    /** Define o modo de colagem padrão como se tivesse sido escolhido nas Configurações. */
+    setDefaultPasteFormat: (value: PasteFormat) => {
+      pasteFormat = value;
     },
     transfers,
     transfer,

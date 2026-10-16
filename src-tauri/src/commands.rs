@@ -13,13 +13,15 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::autostart;
 use crate::cascade::{PlacedColumn, Subcolumn};
-use crate::clipboard::{Content, TextContent};
+use crate::clipboard::{self, Content, TextContent};
 use crate::clipboard_history;
 use crate::db::clipboard::{self as history, HistoryItem};
 use crate::db::folders::{self, Folder};
 use crate::db::items::{self, ItemRef, TrashItem};
 use crate::db::settings;
 use crate::db::snippets::{self, Snippet};
+use crate::main_window;
+use crate::markdown::{self, PasteFormat};
 use crate::paste;
 use crate::picker::{self, ShortcutStatus};
 use crate::theme;
@@ -204,6 +206,7 @@ pub fn show_main_window(app: AppHandle) {
 
 #[tauri::command]
 pub fn exit_app(app: AppHandle) {
+    main_window::save(&app);
     app.exit(0);
 }
 
@@ -233,11 +236,62 @@ pub fn picker_ready(app: AppHandle) {
     picker::ready(&app);
 }
 
+#[tauri::command]
+pub fn get_paste_format(state: Db) -> CommandResult<PasteFormat> {
+    respond(settings::get_paste_format(&lock(&state)))
+}
+
+/// Grava o modo de colagem padrão e devolve o valor gravado.
+#[tauri::command]
+pub fn set_paste_format(state: Db, format: PasteFormat) -> CommandResult<PasteFormat> {
+    respond(settings::set_paste_format(&lock(&state), format))?;
+    Ok(format)
+}
+
+/// Conteúdo do texto cadastrado convertido para o modo pedido (ou o padrão configurado).
+fn snippet_content(state: &Db, id: i64, format: Option<PasteFormat>) -> CommandResult<Content> {
+    let conn = lock(state);
+    let snippet = respond(snippets::get_snippet(&conn, id))?;
+    let format = match format {
+        Some(format) => format,
+        None => respond(settings::get_paste_format(&conn))?,
+    };
+    Ok(converted_content(&snippet.content, format))
+}
+
+/// Conteúdo a escrever no clipboard para o markdown convertido ao modo pedido.
+fn converted_content(md: &str, format: PasteFormat) -> Content {
+    let converted = markdown::convert(md, format);
+    Content::Text(TextContent {
+        text: converted.text,
+        html: converted.html.as_deref().map(clipboard::html_format),
+        rtf: None,
+    })
+}
+
+/// Conteúdo do item do Histórico: o original sem `format`; com ele, os itens de texto
+/// passam por markdown e são convertidos ao modo pedido. Imagens não têm modos.
+fn history_content(state: &Db, id: i64, format: Option<PasteFormat>) -> CommandResult<Content> {
+    let content = respond(history::get(&lock(state), id))?;
+    Ok(match (format, content) {
+        (Some(format), Content::Text(item)) => {
+            let md = markdown::history_markdown(&item.text, item.html.as_deref());
+            converted_content(&md, format)
+        }
+        (_, content) => content,
+    })
+}
+
 // Assíncrono: a colagem aguarda o foco e a restauração do clipboard fora da thread principal.
 #[tauri::command]
-pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
-    let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
-    if paste::paste(&app, &Content::Text(TextContent::plain(snippet.content)))? {
+pub async fn choose_snippet(
+    app: AppHandle,
+    state: Db<'_>,
+    id: i64,
+    format: Option<PasteFormat>,
+) -> CommandResult<()> {
+    let content = snippet_content(&state, id, format)?;
+    if paste::paste(&app, &content)? {
         // O texto já foi colado; uma falha no contador não deve aparecer como erro.
         let _ = snippets::record_use(&lock(&state), id);
     }
@@ -246,9 +300,14 @@ pub async fn choose_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandRe
 
 // Assíncrono pelo mesmo motivo: a cópia aguarda o foco voltar ao programa anterior.
 #[tauri::command]
-pub async fn copy_snippet(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
-    let snippet = respond(snippets::get_snippet(&lock(&state), id))?;
-    paste::copy(&app, &Content::Text(TextContent::plain(snippet.content)))?;
+pub async fn copy_snippet(
+    app: AppHandle,
+    state: Db<'_>,
+    id: i64,
+    format: Option<PasteFormat>,
+) -> CommandResult<()> {
+    let content = snippet_content(&state, id, format)?;
+    paste::copy(&app, &content)?;
     // Copiar pelo menu é um uso do texto, como colar; uma falha no contador não é erro.
     let _ = snippets::record_use(&lock(&state), id);
     Ok(())
@@ -268,16 +327,26 @@ fn touch_history_item(app: &AppHandle, state: &Db, id: i64) {
 
 // Assíncronos como `choose_snippet` e `copy_snippet`.
 #[tauri::command]
-pub async fn paste_clipboard_item(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
-    let content = respond(history::get(&lock(&state), id))?;
+pub async fn paste_clipboard_item(
+    app: AppHandle,
+    state: Db<'_>,
+    id: i64,
+    format: Option<PasteFormat>,
+) -> CommandResult<()> {
+    let content = history_content(&state, id, format)?;
     paste::paste(&app, &content)?;
     touch_history_item(&app, &state, id);
     Ok(())
 }
 
 #[tauri::command]
-pub async fn copy_clipboard_item(app: AppHandle, state: Db<'_>, id: i64) -> CommandResult<()> {
-    let content = respond(history::get(&lock(&state), id))?;
+pub async fn copy_clipboard_item(
+    app: AppHandle,
+    state: Db<'_>,
+    id: i64,
+    format: Option<PasteFormat>,
+) -> CommandResult<()> {
+    let content = history_content(&state, id, format)?;
     paste::copy(&app, &content)?;
     touch_history_item(&app, &state, id);
     Ok(())

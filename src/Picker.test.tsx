@@ -418,14 +418,14 @@ describe("busca", () => {
     await waitFor(() => expect(optionNames()).toEqual(["=> Resposta padrãoE-mails", "Respostas rápidasPessoal"]));
     expect(list().getByRole("option", { name: /Resposta padrão/ })).toHaveAttribute(
       "title",
-      "Trabalho › E-mails\n\nObrigado pelo contato.",
+      "Resposta padrão\n\nTrabalho › E-mails\n\nObrigado pelo contato.",
     );
 
     await user.keyboard("{ArrowDown}{Enter}");
     expect(fake.delivered).toEqual(["Pode deixar."]);
   });
 
-  it("mantém título e pasta em uma linha, para não invadir as linhas vizinhas", async () => {
+  it("quebra o título em até 2 linhas e mantém a pasta em uma linha, para não invadir as linhas vizinhas", async () => {
     const user = userEvent.setup();
     const folder = await fake.api.createFolder(null, "Sistemas de Apoio");
     await fake.api.createSnippet(folder.id, "Plataforma Bry - Erro assinatura de coleta", "Texto");
@@ -435,9 +435,10 @@ describe("busca", () => {
     await user.keyboard("assinatura");
 
     const option = await list().findByRole("option", { name: /Plataforma Bry/ });
-    for (const text of ["Plataforma Bry - Erro assinatura de coleta", "Sistemas de Apoio"]) {
-      expect(getComputedStyle(within(option).getByText(text)).whiteSpace).toBe("nowrap");
-    }
+    const title = getComputedStyle(within(option).getByText("Plataforma Bry - Erro assinatura de coleta"));
+    expect(title.whiteSpace).not.toBe("nowrap");
+    expect(title.overflowWrap).toBe("anywhere");
+    expect(getComputedStyle(within(option).getByText("Sistemas de Apoio")).whiteSpace).toBe("nowrap");
   });
 
   it("informa quando nada é encontrado e não navega pastas com texto na busca", async () => {
@@ -479,7 +480,7 @@ describe("abertura", () => {
 
     act(() => fake.openPicker({ x: 500, y: 200 }));
 
-    expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px", width: "340px" });
+    expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px", width: "420px" });
     await waitFor(() => expect(fake.picker.readies).toBe(1));
 
     act(() => fake.openPicker({ x: 40, y: 600 }));
@@ -543,10 +544,10 @@ describe("cascata", () => {
       "E-mails",
       "Saudação formal",
     ]);
-    // O campo de busca (41 px), duas linhas de 32 px e a margem da lista.
-    expect(fake.layouts).toEqual([[{ contentHeight: 115 }]]);
+    // O campo de busca (41 px), a pasta E-mails (32 px), o texto Saudação formal (36 px, com o Copiar) e a margem da lista.
+    expect(fake.layouts).toEqual([[{ contentHeight: 41 + 32 + 36 + 10 }]]);
     // A posição vem do backend.
-    expect(column.parentElement).toHaveStyle({ left: "342px", width: "300px", height: "115px" });
+    expect(column.parentElement).toHaveStyle({ left: "422px", width: "380px", height: `${41 + 32 + 36 + 10}px` });
     // O foco continua na busca.
     expect(search()).toHaveFocus();
   });
@@ -693,8 +694,8 @@ describe("cascata", () => {
     await openRoot();
     const main = document.getElementById("picker-column-0");
     api.layoutPicker = vi.fn().mockResolvedValue([
-      { x: 300, y: 10, width: 340, height: 440, hidden: true },
-      { x: 0, y: 0, width: 300, height: 74, hidden: false },
+      { x: 300, y: 10, width: 420, height: 440, hidden: true },
+      { x: 0, y: 0, width: 380, height: 74, hidden: false },
     ]);
 
     await user.click(list().getByRole("option", { name: "Trabalho" }));
@@ -715,8 +716,8 @@ describe("cascata", () => {
     await hover(user, list().getByRole("option", { name: "Trabalho" }));
 
     const column = await screen.findByRole("listbox", { name: "Trabalho" });
-    // À direita da principal (500 + 340 + 2), com o topo no da principal.
-    expect(column.parentElement).toHaveStyle({ left: "842px", top: "200px" });
+    // À direita da principal (500 + 420 + 2), com o topo no da principal.
+    expect(column.parentElement).toHaveStyle({ left: "922px", top: "200px" });
     expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "500px", top: "200px" });
   });
 
@@ -786,13 +787,13 @@ describe("cascata", () => {
       await waitFor(() => expect(names("Trabalho")).toEqual(["Resposta padrãoE-mails"]));
       expect(sub("Trabalho").getByRole("option")).toHaveAttribute(
         "title",
-        "Trabalho › E-mails\n\nObrigado pelo contato.",
+        "Resposta padrão\n\nTrabalho › E-mails\n\nObrigado pelo contato.",
       );
 
       await user.clear(field("Trabalho"));
       await user.type(field("Trabalho"), "saud");
       await waitFor(() => expect(names("Trabalho")).toEqual(["Saudação formal"]));
-      expect(sub("Trabalho").getByRole("option")).toHaveAttribute("title", "Trabalho\n\nPrezado(a),");
+      expect(sub("Trabalho").getByRole("option")).toHaveAttribute("title", "Saudação formal\n\nTrabalho\n\nPrezado(a),");
     });
 
     it("em Favoritos filtra os textos da lista, com a pasta de cada um", async () => {
@@ -905,5 +906,170 @@ describe("cascata", () => {
 
       expect(await sub("Trabalho").findByText("Nenhum texto encontrado.")).toBeInTheDocument();
     });
+  });
+});
+
+describe("títulos longos", () => {
+  const longTitle = "Resposta padrão para pedidos de orçamento enviados pelo formulário do site";
+  const veryLongTitle = `${longTitle} ${longTitle} ${longTitle}`;
+
+  it("a dica de um texto da pasta tem o título e o conteúdo, separados por linha em branco", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("click");
+    const folder = await fake.api.createFolder(null, "Pasta");
+    await fake.api.createSnippet(folder.id, longTitle, "Conteúdo do texto.");
+    renderPicker();
+
+    await user.click(await list().findByRole("option", { name: "Pasta" }));
+
+    expect(await list().findByRole("option", { name: longTitle })).toHaveAttribute(
+      "title",
+      `${longTitle}\n\nConteúdo do texto.`,
+    );
+  });
+
+  it("a dica de um resultado da busca tem título, caminho e conteúdo", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("click");
+    const folder = await fake.api.createFolder(null, "Pasta");
+    await fake.api.createSnippet(folder.id, longTitle, "Conteúdo do texto.");
+    renderPicker();
+    await list().findByRole("option", { name: "Pasta" });
+
+    await user.type(search(), "orçamento");
+
+    expect(await list().findByRole("option", { name: new RegExp(longTitle) })).toHaveAttribute(
+      "title",
+      `${longTitle}\n\nPasta\n\nConteúdo do texto.`,
+    );
+  });
+
+  it("a altura pedida para a coluna conta 2 linhas nos títulos longos e 1 nos curtos", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    const folder = await fake.api.createFolder(null, "Pasta");
+    await fake.api.createSnippet(folder.id, "Curto", "a");
+    await fake.api.createSnippet(folder.id, longTitle, "b");
+    await fake.api.createSnippet(folder.id, veryLongTitle, "c");
+    // Uma palavra só, maior que a linha, também para em 2 linhas.
+    await fake.api.createSnippet(folder.id, "x".repeat(200), "d");
+    renderPicker();
+
+    await hover(user, await list().findByRole("option", { name: "Pasta" }));
+
+    await screen.findByRole("listbox", { name: "Pasta" });
+    // Busca (41 px), um texto de uma linha de 36 px (com o Copiar), três de 52 px (2 linhas de 20 px mais 12 px) e a margem da lista.
+    expect(fake.layouts).toEqual([[{ contentHeight: 41 + 36 + 3 * 52 + 10 }]]);
+  });
+
+  it("textos de título curto têm linhas de 36 px (com o Copiar)", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    const folder = await fake.api.createFolder(null, "Pasta");
+    await fake.api.createSnippet(folder.id, "Um", "a");
+    await fake.api.createSnippet(folder.id, "Dois", "b");
+    renderPicker();
+
+    await hover(user, await list().findByRole("option", { name: "Pasta" }));
+
+    await screen.findByRole("listbox", { name: "Pasta" });
+    expect(fake.layouts).toEqual([[{ contentHeight: 41 + 2 * 36 + 10 }]]);
+  });
+
+  it("três textos de título curto pedem 41 + 3 × 36 + 10", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    const folder = await fake.api.createFolder(null, "Pasta");
+    await fake.api.createSnippet(folder.id, "Um", "a");
+    await fake.api.createSnippet(folder.id, "Dois", "b");
+    await fake.api.createSnippet(folder.id, "Três", "c");
+    renderPicker();
+
+    await hover(user, await list().findByRole("option", { name: "Pasta" }));
+
+    await screen.findByRole("listbox", { name: "Pasta" });
+    expect(fake.layouts).toEqual([[{ contentHeight: 41 + 3 * 36 + 10 }]]);
+  });
+});
+
+describe("modos de colagem", () => {
+  const modeNames = ["Colar como markdown", "Colar sem formatação", "Colar formatado", "Colar para o Google Chat"];
+  const modeButtons = () => screen.queryAllByRole("button", { name: /^Colar / }).map((button) => button.getAttribute("aria-label"));
+
+  it("a linha de texto selecionada oferece os três modos além do padrão, e só ela", async () => {
+    await seed();
+    renderPicker();
+    const link = await list().findByRole("option", { name: "Link da agenda" });
+
+    // A seleção começa numa pasta: sem botões.
+    expect(modeButtons()).toEqual([]);
+    await userEvent.setup().hover(link);
+
+    expect(modeButtons()).toEqual(modeNames.slice(1));
+    expect(within(link).getAllByRole("button")).toHaveLength(4);
+  });
+
+  it("omite o modo que é o padrão", async () => {
+    fake.setDefaultPasteFormat("chat");
+    await seed();
+    renderPicker();
+    await userEvent.setup().hover(await list().findByRole("option", { name: "Link da agenda" }));
+
+    expect(modeButtons()).toEqual(modeNames.slice(0, 3));
+  });
+
+  it("o clique cola no modo do botão, sem tirar o foco da busca; Enter usa o padrão", async () => {
+    const user = userEvent.setup();
+    await seed();
+    renderPicker();
+    const link = await list().findByRole("option", { name: "Link da agenda" });
+    await user.hover(link);
+
+    await user.click(screen.getByRole("button", { name: "Colar para o Google Chat" }));
+
+    expect(fake.delivered).toEqual(["https://agenda.exemplo.com"]);
+    expect(fake.deliveredFormats).toEqual(["chat"]);
+    expect(search()).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Colar sem formatação" }));
+    await user.keyboard("{Enter}");
+    expect(fake.deliveredFormats).toEqual(["chat", "plain", undefined]);
+  });
+
+  it("no Histórico, o texto selecionado oferece os quatro modos e a imagem nenhum", async () => {
+    const user = userEvent.setup();
+    fake.setDefaultPasteFormat("chat");
+    fake.copyElsewhere({ title: "Reunião às 15h" });
+    fake.copyElsewhere({ kind: "image", title: "Imagem 1 × 1", preview: "Imagem 1 × 1", thumbnail: "data:image/png;base64,AA==" });
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    const image = await list().findByRole("option", { name: /Imagem/ });
+    const text = list().getByRole("option", { name: /Reunião/ });
+
+    await user.hover(image);
+    expect(modeButtons()).toEqual([]);
+    await user.hover(text);
+    expect(modeButtons()).toEqual(modeNames);
+  });
+
+  it("no Histórico, o botão cola no modo escolhido; Enter e Copiar usam o original", async () => {
+    const user = userEvent.setup();
+    fake.copyElsewhere({ title: "Reunião às 15h" });
+    const [item] = fake.history;
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await user.hover(await list().findByRole("option", { name: /Reunião/ }));
+
+    await user.click(screen.getByRole("button", { name: "Colar para o Google Chat" }));
+    expect(fake.historyPasted).toEqual([item.id]);
+    expect(fake.historyPastedFormats).toEqual(["chat"]);
+    expect(search()).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(fake.historyPastedFormats).toEqual(["chat", undefined]);
+
+    await user.click(screen.getByRole("button", { name: /^Copiar / }));
+    expect(fake.historyCopied).toEqual([item.id]);
+    expect(fake.historyPastedFormats).toEqual(["chat", undefined]);
   });
 });

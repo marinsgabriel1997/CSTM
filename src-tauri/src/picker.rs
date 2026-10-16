@@ -21,7 +21,7 @@ const PICKER_WINDOW: &str = "picker";
 /// Atalho padrão, no formato do `tauri-plugin-global-shortcut` (tecla física).
 pub const DEFAULT_SHORTCUT: &str = "Alt+KeyQ";
 /// Tamanho lógico do menu, o mesmo declarado em `tauri.conf.json`.
-const WIDTH: f64 = 340.0;
+const WIDTH: f64 = 420.0;
 const HEIGHT: f64 = 440.0;
 
 /// Evento enviado ao menu a cada abertura, com a posição da coluna principal, para que
@@ -442,7 +442,7 @@ mod tests {
         width: 1920,
         height: 1040,
     };
-    const SIZE: (i32, i32) = (340, 440);
+    const SIZE: (i32, i32) = (420, 440);
 
     #[test]
     fn opens_at_the_cursor_when_it_fits() {
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn opens_to_the_left_near_the_right_edge() {
-        assert_eq!(place((1800, 200), SIZE, AREA), (1460, 200));
+        assert_eq!(place((1800, 200), SIZE, AREA), (1380, 200));
     }
 
     #[test]
@@ -478,7 +478,7 @@ mod tests {
             width: 1280,
             height: 984,
         };
-        assert_eq!(place((-100, 50), SIZE, left), (-440, 50));
+        assert_eq!(place((-100, 50), SIZE, left), (-520, 50));
         assert_eq!(place((-1280, 900), SIZE, left), (-1280, 460));
     }
 

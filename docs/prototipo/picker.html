@@ -152,7 +152,7 @@
     position: absolute;
     left: 338px;
     top: 166px;
-    width: 340px;
+    width: 420px;
     height: 440px;
     max-height: calc(100% - 176px);
     display: grid;
@@ -183,8 +183,9 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    height: 32px;
-    padding: 0 10px;
+    min-height: 32px;
+    padding: 4px 10px;
+    box-sizing: border-box;
     border-radius: 4px;
     cursor: default;
     white-space: nowrap;
@@ -201,7 +202,8 @@
     background: var(--accent);
   }
   .row .icon { width: 16px; text-align: center; color: var(--text-2); font-size: 13px; }
-  .row .label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  /* Título em até 2 linhas antes das reticências. */
+  .row .label { flex: 1; overflow: hidden; white-space: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 18px; }
   .row .meta { color: var(--text-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; max-width: 120px; }
   .row .chevron { color: var(--text-3); }
   /* Miniatura de uma imagem do histórico, no lugar do ícone. */
@@ -327,6 +329,11 @@
 </div>
 
 <script>
+  // Botões dos modos de colagem que não são o padrão (Markdown), só em textos cadastrados (plano 082).
+  const MODE_BUTTONS = `<button class="copy mode" title="Colar sem formatação" aria-label="Colar sem formatação" tabindex="-1">Aa</button><button class="copy mode" title="Colar formatado" aria-label="Colar formatado" tabindex="-1"><b>B</b></button><button class="copy mode" title="Colar para o Google Chat" aria-label="Colar para o Google Chat" tabindex="-1">G</button>`;
+  // No Histórico, Enter e Copiar colam o original; os quatro modos ficam em botões, só nos textos (plano 083).
+  const HISTORY_MODE_BUTTONS = `<button class="copy mode" title="Colar como markdown" aria-label="Colar como markdown" tabindex="-1">M</button>` + MODE_BUTTONS;
+
   // Biblioteca de exemplo, a mesma do protótipo do cadastro.
   const folders = [
     { id: 1, parent: null, name: "Trabalho" },
@@ -497,10 +504,10 @@ Levar o relatório impresso.", when: "14:32" },
     el.setAttribute("aria-selected", index === selected);
     const isFolder = row.kind === "folder";
     el.innerHTML = (row.thumb ? `<span class="thumb"></span>` : `<span class="icon">${row.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
-      (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
+      (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : (row.item.when ? (row.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
     el.querySelector(".label").textContent = isFolder ? row.item.name : row.item.title;
     if (row.meta) el.querySelector(".meta").textContent = row.meta;
-    el.title = isFolder ? "" : row.tip ? `${row.tip}\n\n${row.item.content}` : row.item.content;
+    el.title = isFolder ? "" : row.item.when ? row.item.content : [row.item.title, row.tip, row.item.content].filter(Boolean).join("\n\n");
     el.onmousemove = () => {
       if (selected !== index) { selected = index; render(); }
     };
@@ -662,7 +669,7 @@ Levar o relatório impresso.", when: "14:32" },
   // dos cartões fecha o menu. A geometria (placeColumn) é a regra de telas.md.
   (() => {
     const AREA = { w: 900, h: 560 };
-    const GAP = 2, MAIN_W = 340, MAIN_H = 440, SUB_W = 300, ROW_H = 32;
+    const GAP = 2, MAIN_W = 420, MAIN_H = 440, SUB_W = 380, ROW_H = 32;
     // Altura do campo de busca no topo de cada subcoluna (margem, campo e linha divisória).
     const SUB_SEARCH_H = 41;
 
@@ -777,10 +784,10 @@ Levar o relatório impresso.", when: "14:32" },
         el.setAttribute("role", "option");
         const isFolder = entry.kind === "folder";
         el.innerHTML = (entry.thumb ? `<span class="thumb"></span>` : `<span class="icon">${entry.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
-          (entry.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
+          (entry.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : ("thumb" in entry ? (entry.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
         el.querySelector(".label").textContent = entry.title;
         if (entry.meta) el.querySelector(".meta").textContent = entry.meta;
-        if (!isFolder) el.title = entry.tip ? `${entry.tip}\n\n${entry.content}` : entry.content;
+        if (!isFolder) el.title = "thumb" in entry ? entry.content : [entry.title, entry.tip, entry.content].filter(Boolean).join("\n\n");
         el.addEventListener("mousemove", (e) => {
           if (e.movementX === 0 && e.movementY === 0) return;
           hoverRow(cols.indexOf(col), ri);

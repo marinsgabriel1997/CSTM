@@ -182,6 +182,24 @@ fn dib_from_rgba(image: &RgbaImage) -> Vec<u8> {
     dib
 }
 
+/// Documento no formato "HTML Format" do Windows para um fragmento HTML: cabeçalho com
+/// as posições em bytes (10 dígitos) e o fragmento entre os marcadores. Sem o NUL final,
+/// que a escrita no clipboard acrescenta.
+pub fn html_format(fragment: &str) -> Vec<u8> {
+    // Os números têm sempre 10 dígitos, então o cabeçalho tem tamanho fixo.
+    const HEADER_LEN: usize = "Version:0.9\r\nStartHTML:0000000000\r\nEndHTML:0000000000\r\nStartFragment:0000000000\r\nEndFragment:0000000000\r\n".len();
+    const PREFIX: &str = "<html><body><!--StartFragment-->";
+    const SUFFIX: &str = "<!--EndFragment--></body></html>";
+    let start_html = HEADER_LEN;
+    let start_fragment = start_html + PREFIX.len();
+    let end_fragment = start_fragment + fragment.len();
+    let end_html = end_fragment + SUFFIX.len();
+    format!(
+        "Version:0.9\r\nStartHTML:{start_html:010}\r\nEndHTML:{end_html:010}\r\nStartFragment:{start_fragment:010}\r\nEndFragment:{end_fragment:010}\r\n{PREFIX}{fragment}{SUFFIX}"
+    )
+    .into_bytes()
+}
+
 /// Texto UTF-16 até o primeiro caractere nulo.
 fn text_from_utf16(bytes: &[u8]) -> String {
     let units: Vec<u16> = bytes
@@ -593,6 +611,26 @@ mod tests {
     fn formatting_blocks_lose_and_regain_the_terminator() {
         assert_eq!(trim_nul(b"<b>x</b>\0\0".to_vec()), b"<b>x</b>");
         assert_eq!(with_nul(b"{\\rtf1}"), b"{\\rtf1}\0");
+    }
+
+    #[test]
+    fn html_format_offsets_point_at_the_document_and_the_fragment() {
+        let fragment = "<p><strong>Olá</strong>, ação</p>";
+        let bytes = html_format(fragment);
+        let text = String::from_utf8(bytes.clone()).unwrap();
+        let offset = |name: &str| -> usize {
+            let line = text.lines().find(|l| l.starts_with(name)).unwrap();
+            line[name.len()..].parse().unwrap()
+        };
+        let (start_html, end_html) = (offset("StartHTML:"), offset("EndHTML:"));
+        let (start_fragment, end_fragment) = (offset("StartFragment:"), offset("EndFragment:"));
+
+        assert_eq!(end_html, bytes.len());
+        assert!(bytes[start_html..].starts_with(b"<html>"));
+        assert!(bytes[..end_html].ends_with(b"</html>"));
+        assert_eq!(&bytes[start_fragment..end_fragment], fragment.as_bytes());
+        assert!(bytes[..start_fragment].ends_with(b"<!--StartFragment-->"));
+        assert!(bytes[end_fragment..].starts_with(b"<!--EndFragment-->"));
     }
 
     #[test]

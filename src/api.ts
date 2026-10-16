@@ -25,6 +25,9 @@ export interface ShortcutStatus {
 /** Como as pastas se abrem no menu de colagem: ao passar o mouse (cascata) ou ao clicar. */
 export type PickerNavigation = "cascade" | "click";
 
+/** Como um texto cadastrado é colado: sem marcação, como markdown (fonte), como rich text ou na sintaxe do Google Chat. */
+export type PasteFormat = "plain" | "markdown" | "rich" | "chat";
+
 /** Páginas que ocupam a área do editor no cadastro. */
 export type Page = "settings" | "help" | "about";
 
@@ -222,8 +225,11 @@ export const api = {
    * muda de lugar na tela.
    */
   layoutPicker: (columns: PickerSubcolumn[]) => invoke<PickerColumn[]>("layout_picker", { columns }),
-  /** Fecha o menu e cola o texto escolhido no programa anterior. */
-  chooseSnippet: (id: number) => invoke<void>("choose_snippet", { id }),
+  /** Modo de colagem padrão; `markdown` enquanto nada foi escolhido. Vale na próxima abertura do menu. */
+  getPasteFormat: () => invoke<PasteFormat>("get_paste_format"),
+  setPasteFormat: (format: PasteFormat) => invoke<PasteFormat>("set_paste_format", { format }),
+  /** Fecha o menu e cola o texto escolhido no programa anterior; sem `format`, vale o modo padrão. */
+  chooseSnippet: (id: number, format?: PasteFormat) => invoke<void>("choose_snippet", { id, format }),
   /** Fecha o menu e deixa o texto no clipboard, sem colar. Conta como uso. */
   copySnippet: (id: number) => invoke<void>("copy_snippet", { id }),
 
@@ -231,9 +237,9 @@ export const api = {
   /** Itens do mais recente para o mais antigo. */
   listClipboardHistory: () => invoke<ClipboardItem[]>("list_clipboard_history"),
   /** Fecha o menu e cola o item (com todos os formatos) no programa anterior; o item sobe para o topo. */
-  pasteClipboardItem: (id: number) => invoke<void>("paste_clipboard_item", { id }),
+  pasteClipboardItem: (id: number, format?: PasteFormat) => invoke<void>("paste_clipboard_item", { id, format }),
   /** Fecha o menu e deixa o item no clipboard, sem colar; o item sobe para o topo. */
-  copyClipboardItem: (id: number) => invoke<void>("copy_clipboard_item", { id }),
+  copyClipboardItem: (id: number, format?: PasteFormat) => invoke<void>("copy_clipboard_item", { id, format }),
   /** Apaga todos os itens e devolve quantos eram. */
   clearClipboardHistory: () => invoke<number>("clear_clipboard_history"),
   /** Se o histórico está ligado; ligado enquanto nada foi escolhido. */

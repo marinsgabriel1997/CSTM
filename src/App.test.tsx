@@ -564,6 +564,21 @@ describe("configurações", () => {
     expect(await fake.api.getPickerNavigation()).toBe("cascade");
   });
 
+  it("oferece o modo de colagem padrão, com markdown como padrão, e grava a escolha", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+
+    const markdown = await dialog.findByRole("radio", { name: /Markdown/ });
+    expect(dialog.getByRole("radiogroup", { name: "Modo de colagem padrão" })).toBeInTheDocument();
+    await waitFor(() => expect(markdown).toBeChecked());
+
+    await user.click(dialog.getByRole("radio", { name: "Google Chat" }));
+
+    expect(dialog.getByRole("radio", { name: "Google Chat" })).toBeChecked();
+    expect(await fake.api.getPasteFormat()).toBe("chat");
+  });
+
   it("oferece o tema, seguindo o Windows como padrão, e grava a escolha", async () => {
     const user = userEvent.setup();
     renderApp();

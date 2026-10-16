@@ -8,6 +8,8 @@ mod clipboard;
 mod clipboard_history;
 mod commands;
 mod db;
+mod main_window;
+mod markdown;
 mod paste;
 mod picker;
 mod theme;
@@ -38,7 +40,10 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(picker::on_window_event)
+        .on_window_event(|window, event| {
+            picker::on_window_event(window, event);
+            main_window::on_window_event(window, event);
+        })
         .invoke_handler(tauri::generate_handler![
             commands::list_folders,
             commands::create_folder,
@@ -73,6 +78,8 @@ pub fn run() {
             commands::set_clipboard_monitoring,
             commands::get_picker_navigation,
             commands::set_picker_navigation,
+            commands::get_paste_format,
+            commands::set_paste_format,
             commands::layout_picker,
             commands::picker_ready,
             commands::get_shortcut,
@@ -103,10 +110,12 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let conn = db::open(&data_dir.join("cstm.db"))?;
     picker::register_shortcut(app, &conn);
     let theme = db::settings::get_theme(&conn)?;
+    let saved_window = db::settings::get_main_window(&conn)?;
     let clipboard_history = db::settings::get_clipboard_history(&conn)?;
     app.manage(Mutex::new(conn));
     app.manage(paste::PasteState::default());
     app.manage(picker::PickerGeometry::default());
+    app.manage(main_window::MainWindowTracker::default());
     clipboard_history::start(app.handle(), clipboard_history);
     tray::create(app)?;
     // As janelas têm `create: false` na configuração e só são criadas aqui, com
@@ -116,10 +125,21 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // Iniciado pelo Windows ao entrar na sessão, o CSTM fica só na bandeja.
     let hidden = autostart::started_by_windows(std::env::args());
     for mut config in app.config().app.windows.clone() {
-        if hidden && config.label == "main" {
+        let is_main = config.label == "main";
+        if is_main {
+            // A janela principal nasce oculta para receber o tamanho e a posição antes
+            // de aparecer, sem piscar no tamanho da configuração.
             config.visible = false;
         }
-        WebviewWindowBuilder::from_config(app, &config)?.build()?;
+        let window = WebviewWindowBuilder::from_config(app, &config)?.build()?;
+        if is_main {
+            if let Some(state) = main_window::startup_state(app.handle(), saved_window) {
+                main_window::apply(app.handle(), &window, state);
+            }
+            if !hidden {
+                window.show()?;
+            }
+        }
     }
     theme::apply(app.handle(), &theme);
     Ok(())

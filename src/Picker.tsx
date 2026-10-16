@@ -1,5 +1,6 @@
 import { Button, Caption1, Input, makeStyles, mergeClasses, Text, tokens } from "@fluentui/react-components";
 import {
+  Chat20Regular,
   ChevronLeft16Regular,
   ChevronRight16Regular,
   Copy16Regular,
@@ -8,21 +9,44 @@ import {
   Fire20Regular,
   Folder20Regular,
   History20Regular,
+  Markdown20Regular,
   Search16Regular,
   Star20Regular,
+  TextClearFormatting20Regular,
+  TextEditStyle20Regular,
 } from "@fluentui/react-icons";
-import { type CSSProperties, type KeyboardEvent, type MouseEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactElement,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
   api,
   type ClipboardItem,
   errorMessage,
   type Folder,
+  type PasteFormat,
   type PickerColumn,
   type PickerNavigation,
   type Snippet,
 } from "./api";
 import { folderPath, siblingsOf, snippetsIn } from "./tree";
+
+/** Altura mínima da linha, preenchimento vertical, altura de cada linha do título e linhas que cabem antes das reticências. */
+const ROW_HEIGHT = 32;
+const ROW_PADDING = 6;
+const LABEL_LINE_HEIGHT = 20;
+/** Altura do botão Copiar (e do espaço reservado para ele) nas linhas de item. */
+const COPY_HEIGHT = 24;
+const MAX_LABEL_LINES = 2;
+/** Largura máxima da pasta/hora ao lado do título. */
+const META_MAX_WIDTH = 120;
 
 const useStyles = makeStyles({
   // A janela é transparente e ocupa a área útil do monitor, recortada pelo backend em volta
@@ -76,12 +100,15 @@ const useStyles = makeStyles({
     display: "flex",
     alignItems: "center",
     gap: tokens.spacingHorizontalS,
-    height: "32px",
+    // Uma linha de texto (20 px) mais o preenchimento dá 32 px (36 px nos itens, pelo botão Copiar);
+    // com o título em 2 linhas a linha cresce.
+    minHeight: `${ROW_HEIGHT}px`,
+    paddingTop: `${ROW_PADDING}px`,
+    paddingBottom: `${ROW_PADDING}px`,
     paddingLeft: tokens.spacingHorizontalS,
     paddingRight: tokens.spacingHorizontalS,
     borderRadius: tokens.borderRadiusMedium,
     cursor: "default",
-    whiteSpace: "nowrap",
   },
   selected: {
     backgroundColor: tokens.colorSubtleBackgroundSelected,
@@ -111,15 +138,40 @@ const useStyles = makeStyles({
     border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
     backgroundColor: tokens.colorNeutralBackground3,
   },
-  label: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" },
+  // Título em até 2 linhas, com reticências só depois da segunda; `anywhere` quebra palavras sem espaço.
+  label: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    display: "-webkit-box",
+    WebkitBoxOrient: "vertical",
+    WebkitLineClamp: String(MAX_LABEL_LINES),
+    overflowWrap: "anywhere",
+    lineHeight: `${LABEL_LINE_HEIGHT}px`,
+  },
   meta: {
-    maxWidth: "120px",
+    flex: "none",
+    maxWidth: `${META_MAX_WIDTH}px`,
     overflow: "hidden",
     textOverflow: "ellipsis",
     color: tokens.colorNeutralForeground3,
   },
   chevron: { flex: "none", color: tokens.colorNeutralForeground3 },
-  copy: { flex: "none", minWidth: "24px", height: "24px", marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
+  // Botões de modo de colagem por cima do fim da linha selecionada, à esquerda do Copiar. Ficam fora do
+  // fluxo do flex para a linha não mudar de altura nem refluir o título ao ser selecionada.
+  modes: {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-50%)",
+    // Largura do Copiar (24 px) mais o espaço que sobra à direita dele (preenchimento da linha menos a margem negativa).
+    right: `calc(24px + ${tokens.spacingHorizontalXS})`,
+    display: "flex",
+    alignItems: "center",
+    backgroundColor: tokens.colorSubtleBackgroundSelected,
+  },
+  copy: { flex: "none", minWidth: "24px", height: `${COPY_HEIGHT}px`, marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
+  // Reserva o lugar do botão Copiar nas linhas não selecionadas, para o título não refluir ao selecionar.
+  copySpace: { flex: "none", width: "24px", height: `${COPY_HEIGHT}px`, marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
   message: {
     display: "flex",
     flexDirection: "column",
@@ -153,6 +205,8 @@ interface Library {
   snippets: Snippet[];
   favorites: Snippet[];
   navigation: PickerNavigation;
+  /** Modo de colagem padrão dos textos cadastrados. */
+  pasteFormat: PasteFormat;
   /** Histórico do clipboard; vazio com a opção desligada. */
   history: ClipboardItem[];
 }
@@ -203,13 +257,74 @@ interface OpenColumn {
   query: string;
 }
 
-/** Altura de uma linha e margem da lista (preenchimento e bordas do cartão). */
-const ROW_HEIGHT = 32;
+/** Margem da lista (preenchimento e bordas do cartão). */
 const LIST_MARGIN = 10;
 /** Altura da subcoluna que só mostra "Pasta vazia.". */
 const EMPTY_HEIGHT = 56;
 /** Altura do campo de busca da subcoluna: o campo pequeno (24 px), o preenchimento (2 × 8 px) e a borda. */
 const SEARCH_HEIGHT = 41;
+
+/**
+ * Largura média de um caractere do título (Segoe UI 14 px). A subcoluna só é montada depois de o backend
+ * posicioná-la, então a altura não pode ser medida no DOM: é estimada simulando a quebra do título.
+ */
+const CHAR_WIDTH = 7;
+/** Largura média de um caractere da pasta/hora (12 px). */
+const META_CHAR_WIDTH = 6;
+/** Largura lógica das subcolunas (`SUB_WIDTH` no backend). */
+const SUB_WIDTH = 380;
+/** Bordas do cartão, preenchimento da lista e da linha, ícone e espaço depois dele. */
+const SUB_ROW_CHROME = 2 + 8 + 16 + 20 + 8;
+/** Chevron das pastas e espaço antes dele. */
+const CHEVRON_WIDTH = 16 + 8;
+/** Botão Copiar (sempre reservado nos itens) e espaço antes dele. */
+const COPY_WIDTH = 24 - 4 + 8;
+
+/** Linhas que o título ocupa em `width` px, limitadas a `MAX_LABEL_LINES`: quebra nos espaços e, numa palavra maior que a linha, em qualquer ponto. */
+function labelLines(title: string, width: number): number {
+  const perLine = Math.max(1, Math.floor(width / CHAR_WIDTH));
+  let lines = 1;
+  let used = 0;
+  for (const word of title.split(/\s+/).filter(Boolean)) {
+    if (word.length > perLine) {
+      if (used > 0) lines += 1;
+      lines += Math.floor((word.length - 1) / perLine);
+      used = word.length % perLine || perLine;
+    } else if (used === 0) {
+      used = word.length;
+    } else if (used + 1 + word.length <= perLine) {
+      used += 1 + word.length;
+    } else {
+      lines += 1;
+      used = word.length;
+    }
+    if (lines >= MAX_LABEL_LINES) return MAX_LABEL_LINES;
+  }
+  return lines;
+}
+
+/**
+ * Altura estimada de uma linha de subcoluna: o título em `lines` linhas ou, nas linhas de item, o botão Copiar
+ * (o que for maior), com o preenchimento. Pastas, com o chevron de 16 px, ficam no piso `ROW_HEIGHT`.
+ */
+function estimateRowHeight(row: Row): number {
+  let title: string;
+  if (row.kind === "folder") title = row.folder.name;
+  else if (row.kind === "virtual") title = VIRTUAL_NAMES[row.virtual];
+  else title = itemTitle(row);
+  const meta = row.kind === "snippet" ? row.folderName : row.kind === "clip" ? copiedLabel(row.item.copiedAt) : undefined;
+  let trailing = isItem(row) ? COPY_WIDTH : CHEVRON_WIDTH;
+  if (meta) trailing += Math.min(META_MAX_WIDTH, meta.length * META_CHAR_WIDTH) + 8;
+  const lines = labelLines(title, SUB_WIDTH - SUB_ROW_CHROME - trailing);
+  const content = Math.max(lines * LABEL_LINE_HEIGHT, isItem(row) ? COPY_HEIGHT : 0);
+  return Math.max(ROW_HEIGHT, content + 2 * ROW_PADDING);
+}
+
+/** Altura do conteúdo de uma subcoluna, sem rolagem. */
+function subColumnContentHeight(rows: Row[]): number {
+  const list = rows.length > 0 ? rows.reduce((sum, row) => sum + estimateRowHeight(row), 0) + LIST_MARGIN : EMPTY_HEIGHT;
+  return SEARCH_HEIGHT + list;
+}
 
 const folderKey = (place: number | Virtual) => `folder-${place}`;
 const columnId = (column: number) => `picker-column-${column}`;
@@ -276,6 +391,10 @@ function placeLabel(folders: Folder[], place: number | Virtual): string {
   return typeof place === "number" ? pathLabel(folders, place) : VIRTUAL_NAMES[place];
 }
 
+/** Dica nativa de um texto: título, caminho (quando a lista mistura pastas) e conteúdo, separados por linha em branco. */
+const snippetTip = (snippet: Snippet, path?: string) =>
+  [snippet.title, path, snippet.content].filter((part) => part !== undefined && part !== "").join("\n\n");
+
 /** Textos de várias pastas (busca, Mais usados, Favoritos) mostram a pasta de cada um. */
 function snippetWithFolder(folders: Folder[], snippet: Snippet, prefix: string): SnippetRow {
   const path = pathLabel(folders, snippet.folderId);
@@ -284,7 +403,7 @@ function snippetWithFolder(folders: Folder[], snippet: Snippet, prefix: string):
     key: `${prefix}-${snippet.id}`,
     snippet,
     folderName: folders.find((folder) => folder.id === snippet.folderId)?.name,
-    tip: path ? `${path}\n\n${snippet.content}` : snippet.content,
+    tip: snippetTip(snippet, path),
   };
 }
 
@@ -298,7 +417,7 @@ function contentRows(library: Library | null, place: Place): Row[] {
   const contents: Row[] = [
     ...siblingsOf(folders, place).map((folder): Row => ({ kind: "folder", key: folderKey(folder.id), folder })),
     ...snippetsIn(snippets, place).map(
-      (snippet): Row => ({ kind: "snippet", key: `snippet-${snippet.id}`, snippet, tip: snippet.content }),
+      (snippet): Row => ({ kind: "snippet", key: `snippet-${snippet.id}`, snippet, tip: snippetTip(snippet) }),
     ),
   ];
   if (place !== null) return contents;
@@ -310,6 +429,14 @@ function contentRows(library: Library | null, place: Place): Row[] {
   return [...virtuals, ...contents];
 }
 
+/** Modos de colagem oferecidos em botões, na ordem em que aparecem. */
+const PASTE_MODES: { format: PasteFormat; title: string; icon: ReactElement }[] = [
+  { format: "markdown", title: "Colar como markdown", icon: <Markdown20Regular /> },
+  { format: "plain", title: "Colar sem formatação", icon: <TextClearFormatting20Regular /> },
+  { format: "rich", title: "Colar formatado", icon: <TextEditStyle20Regular /> },
+  { format: "chat", title: "Colar para o Google Chat", icon: <Chat20Regular /> },
+];
+
 interface PickerRowProps {
   id: string;
   row: Row;
@@ -318,12 +445,23 @@ interface PickerRowProps {
   opener?: boolean;
   onHover: (event: MouseEvent) => void;
   onClick: () => void;
+  /** Modo de colagem padrão: nos textos cadastrados, os botões de modo oferecem os outros. */
+  defaultFormat: PasteFormat;
+  /** Cola o texto cadastrado ou do histórico no modo escolhido pelo botão. */
+  onPasteAs: (format: PasteFormat) => void;
   /** Copia o texto sem colar; o botão aparece na linha de texto selecionada. */
   onCopy: () => void;
 }
 
-function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: PickerRowProps) {
+function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat, onPasteAs, onCopy }: PickerRowProps) {
   const styles = useStyles();
+  // Texto cadastrado: os modos além do padrão (Enter usa o padrão). Texto do histórico: todos, pois Enter cola o original.
+  const modes =
+    row.kind === "snippet"
+      ? PASTE_MODES.filter(({ format }) => format !== defaultFormat)
+      : row.kind === "clip" && row.item.kind === "text"
+        ? PASTE_MODES
+        : [];
   return (
     <div
       id={id}
@@ -351,8 +489,7 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
       ) : (
         <DocumentText20Regular className={styles.icon} />
       )}
-      {/* O Text do Fluent quebra linhas por padrão, anulando o nowrap da linha de altura fixa. */}
-      <Text wrap={false} className={styles.label}>
+      <Text className={styles.label}>
         {row.kind === "folder" ? row.folder.name : row.kind === "virtual" ? VIRTUAL_NAMES[row.virtual] : itemTitle(row)}
       </Text>
       {row.kind === "snippet" && row.folderName && <Caption1 wrap={false} className={styles.meta}>{row.folderName}</Caption1>}
@@ -361,6 +498,28 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, onCopy }: Pick
           {copiedLabel(row.item.copiedAt)}
         </Caption1>
       )}
+      {modes.length > 0 && selected && (
+        <div className={styles.modes}>
+          {modes.map(({ format, title, icon }) => (
+            <Button
+              key={format}
+              size="small"
+              appearance="subtle"
+              icon={icon}
+              aria-label={title}
+              title={title}
+              // O foco fica no campo de busca, como nas linhas.
+              tabIndex={-1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation();
+                onPasteAs(format);
+              }}
+            />
+          ))}
+        </div>
+      )}
+      {isItem(row) && !selected && <span className={styles.copySpace} />}
       {isItem(row) && selected && (
         <Button
           className={styles.copy}
@@ -488,10 +647,11 @@ function Picker() {
       api.listAllSnippets(),
       api.listFavorites(),
       api.getPickerNavigation(),
+      api.getPasteFormat(),
       loadHistory(),
     ]).then(
-      ([folders, snippets, favorites, navigation, history]) =>
-        current && setLibrary({ folders, snippets, favorites, navigation, history }),
+      ([folders, snippets, favorites, navigation, pasteFormat, history]) =>
+        current && setLibrary({ folders, snippets, favorites, navigation, pasteFormat, history }),
       (reason) => current && setError(errorMessage(reason)),
     );
     inputRef.current?.focus();
@@ -622,12 +782,11 @@ function Picker() {
     const place = placeOfRow(row);
     if (place === null) return false;
     if (subs[column]?.place === place) return true;
-    const count = contentRows(library, place).length;
     const next: OpenColumn[] = [
       ...subs.slice(0, column),
       {
         place,
-        contentHeight: SEARCH_HEIGHT + (count > 0 ? count * ROW_HEIGHT + LIST_MARGIN : EMPTY_HEIGHT),
+        contentHeight: subColumnContentHeight(contentRows(library, place)),
         query: "",
       },
     ];
@@ -686,11 +845,12 @@ function Picker() {
     select(0, folderKey(folderId));
   }
 
-  function choose(column: number, row: Row) {
+  /** Escolhe a linha; sem `format`, vale o modo padrão do texto cadastrado ou o original do histórico. */
+  function choose(column: number, row: Row, format?: PasteFormat) {
     if (row.kind === "snippet") {
-      api.chooseSnippet(row.snippet.id).catch((reason) => setError(errorMessage(reason)));
+      api.chooseSnippet(row.snippet.id, format).catch((reason) => setError(errorMessage(reason)));
     } else if (row.kind === "clip") {
-      api.pasteClipboardItem(row.item.id).catch((reason) => setError(errorMessage(reason)));
+      api.pasteClipboardItem(row.item.id, format).catch((reason) => setError(errorMessage(reason)));
     } else if (cascade) {
       void enterFolder(column, row);
     } else {
@@ -855,6 +1015,8 @@ function Picker() {
         opener={cascade && !isItem(row) && subs[column]?.place === placeOfRow(row)}
         onHover={(event) => hoverRow(column, row, event)}
         onClick={() => clickRow(column, row)}
+        defaultFormat={library?.pasteFormat ?? "markdown"}
+        onPasteAs={(format) => choose(column, row, format)}
         onCopy={() => copy(row)}
       />
     ));

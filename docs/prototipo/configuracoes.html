@@ -364,6 +364,15 @@
             <label class="radio"><input type="radio" name="nav" value="click" ${navMode === "click" ? "checked" : ""} /><span class="radio-dot"></span>Clicar para abrir</label>
           </div>
           <div class="setting-sep"></div>
+          <div class="setting-title" id="paste-title">Modo de colagem padrão</div>
+          <div class="setting-help">Como Enter e Copiar colam os textos no menu de colagem. Os outros modos ficam em botões na linha selecionada.</div>
+          <div class="radio-group" role="radiogroup" aria-labelledby="paste-title">
+            <label class="radio"><input type="radio" name="paste" value="markdown" checked /><span class="radio-dot"></span>Markdown<span class="radio-note">padrão</span></label>
+            <label class="radio"><input type="radio" name="paste" value="plain" /><span class="radio-dot"></span>Sem formatação</label>
+            <label class="radio"><input type="radio" name="paste" value="rich" /><span class="radio-dot"></span>Formatado</label>
+            <label class="radio"><input type="radio" name="paste" value="chat" /><span class="radio-dot"></span>Google Chat</label>
+          </div>
+          <div class="setting-sep"></div>
           <div class="setting-title" id="theme-title">Tema</div>
           <div class="radio-group row" role="radiogroup" aria-labelledby="theme-title">
             <label class="radio"><input type="radio" name="theme" value="system" ${themeMode === "system" ? "checked" : ""} /><span class="radio-dot"></span>Seguir o Windows</label>
