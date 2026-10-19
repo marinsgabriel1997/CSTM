@@ -81,8 +81,8 @@ function AboutPage() {
         </div>
       </div>
       <Body1 className={styles.description}>
-        Cadastre os textos que você digita toda hora, organize-os em pastas e cole-os em qualquer programa pelo menu
-        de colagem. O CSTM também guarda o histórico do que você copia.
+        Salve textos para reutilizar rapidamente em qualquer programa, organize-os em pastas e cole-os pelo menu de
+        colagem, sem precisar ficar copiando do Bloco de Notas. O CSTM também guarda o histórico do que você copia.
       </Body1>
       <Divider />
       <div className={styles.section}>

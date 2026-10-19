@@ -674,11 +674,11 @@ describe("configurações", () => {
     expect(toggle).toBeChecked();
   });
 
-  it("liga e desliga o histórico do clipboard, ligado por padrão", async () => {
+  it("liga e desliga o histórico da área de transferência, ligado por padrão", async () => {
     const user = userEvent.setup();
     renderApp();
     const dialog = await openSettings(user);
-    const toggle = dialog.getByRole("switch", { name: "Guardar o histórico do clipboard" });
+    const toggle = dialog.getByRole("switch", { name: "Guardar o histórico da área de transferência" });
     await waitFor(() => expect(toggle).toBeChecked());
 
     await user.click(toggle);
@@ -711,7 +711,7 @@ describe("configurações", () => {
     expect(fake.history).toHaveLength(0);
     expect(dialog.getByRole("button", { name: "Limpar histórico" })).toBeDisabled();
     // Limpar não desliga a opção.
-    expect(dialog.getByRole("switch", { name: "Guardar o histórico do clipboard" })).toBeChecked();
+    expect(dialog.getByRole("switch", { name: "Guardar o histórico da área de transferência" })).toBeChecked();
   });
 
   it("mostra o erro ao limpar o histórico", async () => {

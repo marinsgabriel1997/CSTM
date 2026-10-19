@@ -23,6 +23,7 @@
 - O projeto não inclui formatador de frontend; não adicionar Prettier ou equivalente sem aprovação.
 - `npm run test`: executar os testes do frontend com Vitest (jsdom e Testing Library). Os testes substituem `src/api.ts` pela implementação em memória de `src/test/fakeApi.ts` e não cobrem a integração real com o Tauri.
 - `npm run test:rust`: executar os testes do backend com `cargo test`.
+- `npm run ajuda:imagens [captura ...]`: regenerar as imagens da Ajuda (`src/assets/ajuda/`) a partir dos protótipos, com o Edge sem janela; as capturas, com estado, recorte e marcações, ficam em `scripts/ajuda-imagens.mjs`.
 
 ## Modos e fluxo de trabalho
 
@@ -81,7 +82,7 @@
 ## Documentação, fontes e governança
 
 - Atualizar a documentação diretamente afetada e separar conhecimento técnico permanente de contexto transitório da conversa.
-- Toda mudança visível ao usuário (funcionalidade, atalho, nome de botão ou fluxo) atualiza na mesma entrega o conteúdo da Ajuda do aplicativo, em `src/helpContent.ts`.
+- Toda mudança visível ao usuário (funcionalidade, atalho, nome de botão ou fluxo) atualiza na mesma entrega o conteúdo da Ajuda do aplicativo, em `src/helpContent.ts`. Quando a mudança altera uma tela mostrada nas imagens da Ajuda, atualizar o protótipo, regenerar as imagens afetadas com `npm run ajuda:imagens` e conferi-las, seguindo `docs/ajuda.md`.
 - Código e configuração representam o estado implementado; `docs/produto.md` orienta o escopo do produto; o plano aprovado define a entrega em andamento.
 - Este `AGENTS.md` define comportamento e processo do agente. Não transformar sugestões ou decisões abertas da documentação em contratos confirmados.
 - Identificar conflitos entre fontes antes de prosseguir na parte afetada; não presumir que documentação descreve fielmente o código atual.
@@ -139,6 +140,7 @@
 - Gerar o instalador com `npm run tauri -- build` no commit da tag, com a árvore de trabalho limpa, e copiá-lo para `releases/` (ignorado pelo git) com o nome gerado pelo Tauri, `CSTM_X.Y.Z_x64-setup.exe`.
 - Anexar à release o instalador e `SHA256SUMS.txt`, com uma linha `<sha256>  <arquivo>` por ativo (formato do `sha256sum`).
 - Título `CSTM X.Y.Z`. Notas: o conteúdo da seção `## [X.Y.Z]` do `CHANGELOG.md`, sem o cabeçalho, seguido de `**Alterações:** https://github.com/marinsgabriel1997/CSTM/compare/vANTERIOR...vX.Y.Z` quando houver tag anterior.
+- Quando a publicação pular versões já fechadas e commitadas que não foram publicadas, as notas reúnem as mudanças de todas as versões entre a última publicada e a que está sendo publicada, agrupadas por categoria, com a indicação das versões incluídas; `vANTERIOR` no link de comparação é a última versão publicada. As versões puladas não ganham release; as tags delas permanecem.
 - Criar a release como rascunho (`gh release create vX.Y.Z <ativos> --draft --verify-tag --title "CSTM X.Y.Z" --notes-file <notas>`), apresentar o link ao usuário e publicar só após aceite, com `gh release edit vX.Y.Z --draft=false --latest`. Versões com sufixo (`-beta.1`, `-rc.1`) saem com `--prerelease`, sem `--latest`.
 
 ## Referências situacionais
@@ -147,6 +149,7 @@
 | --- | --- |
 | `docs/produto.md` | Antes de alterar escopo, arquitetura, persistência, picker, atalho ou colagem, ler este documento e esclarecer decisões abertas relevantes; atualizá-lo quando uma entrega mudar funcionalidades, módulos ou dependências. |
 | `docs/telas.md` | Antes de alterar layout, navegação ou fluxos de uma tela, ler o desenho aprovado e o protótipo correspondente em `docs/prototipo/`; novas telas são desenhadas ali antes de serem implementadas. |
+| `docs/ajuda.md` | Antes de criar ou alterar o conteúdo da Ajuda (`src/helpContent.ts`), as imagens dos tutoriais ou as capturas de `scripts/ajuda-imagens.mjs`, seguir o padrão de texto, imagens e marcações descrito ali. |
 | `package.json` | Antes de executar scripts ou atualizar a versão do produto, ler scripts e metadados atuais. |
 | `src-tauri/Cargo.toml` | Antes de alterar dependências, configuração Rust ou versão do backend, ler este manifesto. |
 | `src-tauri/tauri.conf.json` | Antes de alterar janelas, build, identidade, versão ou empacotamento desktop, ler esta configuração. |

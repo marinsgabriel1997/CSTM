@@ -34,14 +34,18 @@ import {
   FolderAdd20Regular,
   FolderOpen20Regular,
   History20Regular,
+  Info20Regular,
   MoreHorizontal20Regular,
+  QuestionCircle20Regular,
+  Settings20Regular,
   Star16Filled,
   Star16Regular,
   Star20Regular,
   TextSortAscending20Regular,
 } from "@fluentui/react-icons";
-import { useState, type ReactNode } from "react";
+import { useState, type ComponentType, type ReactNode } from "react";
 
+import type { Page } from "../api";
 import type { SortKind } from "../operations";
 import type { ExportFormat, ImportKind } from "../transfer";
 
@@ -151,6 +155,43 @@ const useStyles = makeStyles({
   trashIcon: { flex: "none", color: tokens.colorNeutralForeground2 },
   trashLabel: { flex: 1 },
   trashCount: { color: tokens.colorNeutralForeground3 },
+  // Linhas das páginas (Ajuda, Configurações, Sobre) no rodapé, separadas da Lixeira por borda fina.
+  pagesArea: {
+    flex: "none",
+    marginTop: tokens.spacingVerticalXS,
+    marginRight: tokens.spacingHorizontalXS,
+    paddingTop: tokens.spacingVerticalXS,
+    borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  // Destaque da Ajuda até a pessoa abri-la: cor da marca e um brilho que cruza a linha
+  // só no fim de cada ciclo, para chamar a atenção sem distrair o tempo todo.
+  helpHighlight: {
+    overflow: "hidden",
+    fontWeight: tokens.fontWeightSemibold,
+    color: tokens.colorBrandForeground1,
+    backgroundColor: tokens.colorBrandBackground2,
+    "::after": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      width: "100%",
+      pointerEvents: "none",
+      backgroundImage: "linear-gradient(110deg, transparent 25%, rgba(255,255,255,0.6) 50%, transparent 75%)",
+      transform: "translateX(-120%)",
+      animationName: {
+        "0%": { transform: "translateX(-120%)" },
+        "65%": { transform: "translateX(-120%)" },
+        "100%": { transform: "translateX(120%)" },
+      },
+      animationDuration: "4s",
+      animationIterationCount: "infinite",
+      animationTimingFunction: "ease-in-out",
+      "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
+    },
+  },
+  helpHighlightIcon: { color: tokens.colorBrandForeground1 },
 });
 
 interface TreePaneProps {
@@ -182,6 +223,14 @@ interface TreePaneProps {
   /** Há itens sendo arrastados, que podem ser soltos na Lixeira. */
   dragging: boolean;
   onDropOnTrash: () => void;
+  /** Página aberta na área do editor, para marcar a linha dela. */
+  page: Page | null;
+  /** Abre a página ou, se já está aberta, volta ao editor. */
+  onTogglePage: (page: Page) => void;
+  /** Sem atalho carregado (fora do Tauri), as configurações não aparecem. */
+  canOpenSettings: boolean;
+  /** Destaca a linha Ajuda enquanto a pessoa ainda não a abriu por conta própria. */
+  highlightHelp: boolean;
   children: ReactNode;
 }
 
@@ -207,10 +256,40 @@ function TreePane({
   onSelectTrash,
   dragging,
   onDropOnTrash,
+  page,
+  onTogglePage,
+  canOpenSettings,
+  highlightHelp,
   children,
 }: TreePaneProps) {
   const styles = useStyles();
   const [dropOnTrash, setDropOnTrash] = useState(false);
+
+  // Não são itens da árvore: ficam fora da navegação por setas, da seleção e do arrastar/soltar.
+  const pageRow = (target: Page, label: string, Icon: ComponentType<{ className?: string }>, options: { title?: string; highlight?: boolean } = {}) => (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={page === target}
+      aria-label={label}
+      title={options.title}
+      data-highlight={options.highlight ? "true" : undefined}
+      className={mergeClasses(
+        styles.trash,
+        page === target && styles.trashSelected,
+        options.highlight && styles.helpHighlight,
+      )}
+      onClick={() => onTogglePage(target)}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        onTogglePage(target);
+      }}
+    >
+      <Icon className={mergeClasses(styles.trashIcon, options.highlight && styles.helpHighlightIcon)} />
+      <span className={styles.trashLabel}>{label}</span>
+    </div>
+  );
 
   return (
     <aside className={styles.pane} aria-label="Textos e pastas">
@@ -397,6 +476,11 @@ function TreePane({
           </div>
         </div>
       )}
+      <div className={styles.pagesArea}>
+        {pageRow("help", "Ajuda", QuestionCircle20Regular, { title: "Ajuda (F1)", highlight: highlightHelp })}
+        {canOpenSettings && pageRow("settings", "Configurações", Settings20Regular)}
+        {pageRow("about", "Sobre o CSTM", Info20Regular)}
+      </div>
     </aside>
   );
 }

@@ -534,7 +534,7 @@ export function HistoryPlaceholder() {
 const STEPS = [
   ["Crie textos", "Saudações, assinaturas, respostas prontas, endereços."],
   ["Organize em pastas", "Agrupe por assunto e marque os mais usados como favoritos."],
-  ["Cole com o atalho", "O menu de colagem abre junto ao cursor em qualquer programa."],
+  ["Cole com o atalho", "O menu de colagem abre ao lado do cursor, em qualquer programa."],
 ];
 
 /** Apresentação exibida enquanto a biblioteca está vazia. */
@@ -544,8 +544,8 @@ export function Welcome() {
     <section className={styles.welcome} aria-label="Boas-vindas">
       <h1 className={styles.welcomeTitle}>Bem-vindo ao CSTM</h1>
       <p className={styles.welcomeText}>
-        Cadastre os textos que você digita toda hora e cole-os em qualquer programa pelo menu de colagem, sem sair do
-        que está fazendo.
+        Salve aqui os textos que você usa com frequência e cole-os em qualquer programa pelo menu de colagem, sem sair
+        do que está fazendo.
       </p>
       <ol className={styles.steps}>
         {STEPS.map(([title, text], index) => (

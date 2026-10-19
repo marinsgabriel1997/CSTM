@@ -122,7 +122,21 @@
     color: var(--text-2);
     border-top: 1px solid var(--stroke);
   }
+  /* Rodapé do painel: Lixeira e as páginas Ajuda, Configurações e Sobre o CSTM (Tela 1). */
+  .tree { display: flex; flex-direction: column; }
+  .tree .placeholder { flex: 1; }
+  .tree-foot { border-top: 1px solid var(--stroke); padding-top: 4px; margin: 0 -4px; }
+  .tree-foot .pages { border-top: 1px solid var(--stroke); margin-top: 4px; padding-top: 4px; }
+  .page-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px;
+    border: none; border-radius: 4px; background: transparent; color: var(--text);
+    font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
+  }
+  .page-row:hover, .page-row.pressed { background: var(--hover); }
+  .page-row .ic { width: 16px; text-align: center; color: var(--text-2); }
+  .page-row .count { margin-left: auto; color: var(--text-3); font-size: 12px; }
   .statusbar .totals { margin-left: auto; color: var(--text-3); }
+  .statusbar .version { color: var(--text-3); padding-right: 6px; }
   .icon-button {
     width: 24px;
     height: 24px;
@@ -260,15 +274,23 @@
 <div class="window" id="window">
   <div class="titlebar">CSTM</div>
   <div class="content">
-    <div class="tree">Árvore de pastas e textos</div>
+    <div class="tree">
+      <span class="placeholder">Árvore de pastas e textos</span>
+      <div class="tree-foot">
+        <div class="page-row" style="cursor: default"><span class="ic" aria-hidden="true">🗑</span>Lixeira<span class="count">4</span></div>
+        <div class="pages">
+          <a class="page-row" id="help" href="ajuda.html" title="Ajuda (F1)"><span class="ic" aria-hidden="true">?</span>Ajuda</a>
+          <button class="page-row" id="gear" title="Configurações"><span class="ic" aria-hidden="true">⚙</span>Configurações</button>
+          <a class="page-row" href="sobre.html" title="Sobre o CSTM"><span class="ic" aria-hidden="true">i</span>Sobre o CSTM</a>
+        </div>
+      </div>
+    </div>
     <div class="editor" id="editor">Editor</div>
   </div>
   <div class="statusbar">
     <span>✓ Todas as alterações salvas</span>
     <span class="totals">9 textos · 4 pastas</span>
-    <button class="icon-button" id="gear" title="Configurações" aria-label="Configurações">⚙</button>
-    <a class="icon-button" href="ajuda.html" title="Ajuda (F1)" aria-label="Ajuda">?</a>
-    <a class="icon-button" href="sobre.html" title="Sobre o CSTM" aria-label="Sobre o CSTM">i</a>
+    <span class="version">v0.21.0</span>
   </div>
   <div id="layer"></div>
 </div>
@@ -305,7 +327,7 @@
   let navMode = "hover"; // "hover" = Abrir ao passar o mouse (padrão); "click" = Clicar para abrir
   let themeMode = "system"; // "system" = Seguir o Windows (padrão); "light"; "dark"
   let autostartOn = false; // Iniciar com o Windows, desligado por padrão
-  let historyOn = true; // Guardar o histórico do clipboard, ligado por padrão
+  let historyOn = true; // Guardar o histórico da área de transferência, ligado por padrão
   let historyCount = 37; // Itens guardados no histórico
   let updateOn = true; // Verificar atualizações, ligado por padrão
   let updateDays = 7; // Intervalo em dias, de 1 a 90
@@ -401,7 +423,7 @@
           <label class="switch"><input type="checkbox" role="switch" id="autostart" ${autostartOn ? "checked" : ""} /><span class="switch-track"></span>Iniciar com o Windows</label>
           <div class="switch-help">Abre na bandeja ao entrar no Windows, com o atalho já ativo.</div>
           <div class="setting-sep"></div>
-          <label class="switch"><input type="checkbox" role="switch" id="history" ${historyOn ? "checked" : ""} /><span class="switch-track"></span>Guardar o histórico do clipboard</label>
+          <label class="switch"><input type="checkbox" role="switch" id="history" ${historyOn ? "checked" : ""} /><span class="switch-track"></span>Guardar o histórico da área de transferência</label>
           <div class="switch-help">Guarda no computador os últimos 100 itens copiados em qualquer programa (textos, com a formatação, e imagens) e os mostra na pasta Histórico do menu de colagem. O que gerenciadores de senha marcam como sensível não é guardado.</div>
           ${state === "limpar"
             ? `<div class="confirm bar warning">Apagar os ${historyCount} itens do histórico? Não é possível desfazer.

@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "./api";
 import App from "./App";
+import { waitForDialogSettled } from "./test/dialogs";
 import { createFakeApi } from "./test/fakeApi";
 
 let fake: ReturnType<typeof createFakeApi>;
@@ -349,6 +350,7 @@ describe("excluir do histórico", () => {
     expect(dialog.getByText("Não é possível desfazer.")).toBeInTheDocument();
     await user.click(dialog.getByRole("button", { name: "Cancelar" }));
     expect(treeRows()).toEqual(["Histórico", "  Recente", "  Antigo"]);
+    await waitForDialogSettled();
 
     screen.getByRole("tree", { name: "Biblioteca" }).focus();
     await user.keyboard("{Shift>}{Delete}{/Shift}");

@@ -374,11 +374,18 @@ function App() {
 
   useEffect(() => savePreferences(preferences), [preferences]);
 
+  // Abertura da Ajuda por iniciativa da pessoa (linha, F1 ou bandeja) apaga o destaque dela
+  // para sempre; a abertura automática da primeira execução não passa por aqui.
+  function markHelpSeen() {
+    setPreferences((current) => (current.helpButtonSeen ? current : { ...current, helpButtonSeen: true }));
+  }
+
   // F1 abre a Ajuda de qualquer lugar da janela.
   useEffect(() => {
     const listener = (event: globalThis.KeyboardEvent) => {
       if (event.key !== "F1") return;
       event.preventDefault();
+      markHelpSeen();
       setPage("help");
     };
     window.addEventListener("keydown", listener);
@@ -409,7 +416,14 @@ function App() {
   );
 
   // O pedido da bandeja sempre abre a página, sem alternar.
-  useEffect(() => listenWindow(api.onPageRequested, (requested) => setPage(requested)), []);
+  useEffect(
+    () =>
+      listenWindow(api.onPageRequested, (requested) => {
+        if (requested === "help") markHelpSeen();
+        setPage(requested);
+      }),
+    [],
+  );
 
   // "Sair" na bandeja grava o que estiver pendente e pede confirmação se algo não puder ser gravado.
   useEffect(
@@ -570,6 +584,7 @@ function App() {
   }
 
   function togglePage(target: Page) {
+    if (target === "help") markHelpSeen();
     setPage((current) => (current === target ? null : target));
   }
 
@@ -1527,6 +1542,10 @@ function App() {
             setDragging(null);
             if (items) void trashItems(items);
           }}
+          page={page}
+          onTogglePage={togglePage}
+          canOpenSettings={shortcut !== null}
+          highlightHelp={!preferences.helpButtonSeen}
         >
           <LibraryTree
             treeRef={treeRef}
@@ -1594,9 +1613,6 @@ function App() {
         snippetCount={snippets.length}
         folderCount={folders.length}
         onRetry={(id) => void (id === CLIP_DRAFT_ID ? clipEditing.retry() : store.retry(id))}
-        page={page}
-        onTogglePage={togglePage}
-        canOpenSettings={shortcut !== null}
       />
       {moving && moving.length > 0 && (
         <MoveDialog

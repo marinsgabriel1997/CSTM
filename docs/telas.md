@@ -41,8 +41,12 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 |   Link da agenda              |                                                |
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
+|-------------------------------|                                                |
+| (?) Ajuda                     |                                                |
+| [⚙] Configurações             |                                                |
+| (i) Sobre o CSTM              |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.19.0  [⚙] (?) (i)  |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.21.0               |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -51,7 +55,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Elemento | Decisão |
 | --- | --- |
 | Árvore | Única, com pastas e textos. Pastas primeiro, depois textos, cada grupo na sua ordem manual. Textos sem pasta ficam na raiz, mostrada como a pasta **Raiz**. Ícones distintos para pasta (aberta/fechada) e texto; estrela à direita dos favoritos. A Lixeira fica fixa no fim, fora da rolagem, com a contagem de itens. |
-| Histórico | Pasta fixa no topo da árvore, acima das pastas, com o ícone de relógio, enquanto a opção "Guardar o histórico do clipboard" (Tela 3) estiver ligada e houver itens. Abre e fecha como uma pasta (começa fechada) e mostra os itens do histórico do clipboard do mais recente para o mais antigo, como no menu de colagem: textos pela primeira linha não vazia, imagens com a miniatura e "Imagem L × A", e a hora da cópia à direita, em cinza. Some com a busca ou o filtro de favoritos ativos. Não tem menu de contexto nem `...`, e não aceita arrastar, soltar, renomear, ordenar nem seleção múltipla (Ctrl+clique ou Shift+clique num item do Histórico seleciona só ele). Selecionar a própria pasta Histórico mostra no editor "Selecione um item do histórico para ver ou editar o que foi copiado." Com um item do Histórico selecionado, Novo cria na raiz e Colar fica desabilitado. A lista acompanha as cópias novas com a janela aberta. Ver Histórico na árvore. |
+| Histórico | Pasta fixa no topo da árvore, acima das pastas, com o ícone de relógio, enquanto a opção "Guardar o histórico da área de transferência" (Tela 3) estiver ligada e houver itens. Abre e fecha como uma pasta (começa fechada) e mostra os itens do histórico do clipboard do mais recente para o mais antigo, como no menu de colagem: textos pela primeira linha não vazia, imagens com a miniatura e "Imagem L × A", e a hora da cópia à direita, em cinza. Some com a busca ou o filtro de favoritos ativos. Não tem menu de contexto nem `...`, e não aceita arrastar, soltar, renomear, ordenar nem seleção múltipla (Ctrl+clique ou Shift+clique num item do Histórico seleciona só ele). Selecionar a própria pasta Histórico mostra no editor "Selecione um item do histórico para ver ou editar o que foi copiado." Com um item do Histórico selecionado, Novo cria na raiz e Colar fica desabilitado. A lista acompanha as cópias novas com a janela aberta. Ver Histórico na árvore. |
 | Raiz | Pasta fixa logo abaixo do Histórico (ou no topo, sem ele), com o ícone de pasta e o nome "Raiz", que contém as pastas e os textos sem pasta, um nível abaixo. Não existe no banco: os itens dela continuam sem pasta. Abre e fecha como uma pasta (começa aberta, e a escolha é lembrada); **Expandir tudo** a abre e **Recolher tudo** não mexe nela. Com a busca ou o filtro de favoritos ativos, continua visível e aberta, com os resultados dentro. Selecionada, é o destino de Novo, Colar e Importar, e o menu do `+ Novo` mostra "Raiz". Aceita itens soltos sobre ela, que vão para a raiz, no fim do grupo. Não pode ser renomeada, movida, copiada, recortada, favoritada nem excluída, não é arrastável e não entra na seleção múltipla (Ctrl+clique ou Shift+clique nela seleciona só ela). Ver Raiz na árvore. |
 | Seleção | Item selecionado com fundo e marca de destaque à esquerda. Clicar na seta abre/fecha a pasta; clicar no item o seleciona. Ctrl+clique, Shift+clique e Ctrl+A selecionam vários (ver Operações da árvore). Clicar no espaço vazio da árvore, abaixo dos itens, ou `Esc` tiram a seleção: o destino de Novo, Colar e Importar passa a ser a raiz, e o editor mostra o mesmo que sem nada selecionado. |
 | Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Novo texto e Nova pasta (só pastas, criam dentro dela; não aparecem com seleção múltipla), Recortar (Ctrl+X), Copiar (Ctrl+C), Colar (Ctrl+V), Renomear (F2), Mover para…, Mover para cima, Mover para baixo, Adicionar/Remover dos favoritos (só textos), Ordenar (só pastas; submenu), Exportar (só pastas; submenu, ver Importação e exportação), Excluir (Del). Sobre uma seleção múltipla, ver Operações da árvore. Clique direito no espaço vazio da árvore: Novo texto e Nova pasta, que criam na raiz. |
@@ -64,7 +68,8 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Busca | Filtra a própria árvore: mantém as pastas que contêm resultados (abertas) e destaca o termo. Quando a correspondência é só no conteúdo, o item mostra um trecho. Contagem de resultados ao lado do filtro. Limpar a busca restaura a árvore. |
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
 | Barras de rolagem | Finas, sem setas, com o polegar arredondado em cinza no tom do tema, que escurece ao passar o mouse, e sem faixa de fundo. Valem para todas as áreas roláveis do cadastro e do menu de colagem. |
-| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos da versão em execução ("v0.19.0", em cinza, só informativa) e dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
+| Páginas no painel | No rodapé do painel, abaixo da Lixeira e separadas dela por uma linha, as linhas **Ajuda** (`?`), **Configurações** (engrenagem) e **Sobre o CSTM** (`i`), no estilo da linha da Lixeira e sempre visíveis (Tela 3, Páginas na área do editor). Até a pessoa abrir a Ajuda por conta própria pela primeira vez (clique, `F1` ou bandeja; a abertura automática da primeira execução não conta), a linha Ajuda fica na cor de destaque, com fundo suave e um brilho que a atravessa a cada 4 s; depois, fica como as outras, e a escolha é lembrada. Com "reduzir movimento" no Windows, fica só a cor. Protótipo: estado **Ajuda em destaque**. |
+| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos da versão em execução ("v0.21.0", em cinza, só informativa). |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Versão nova | Quando a verificação de atualização (Tela 3) encontra uma versão mais nova, uma barra aparece no topo da janela, acima da árvore e do editor, com fundo verde e texto quase preto iguais nos dois temas, e botões pretos com texto branco: ícone de download, "Versão X do CSTM disponível.", **Abrir página da release** (abre no navegador) e **Dispensar**, juntos e centralizados numa linha só. Dispensar esconde a barra para aquela versão, inclusive ao reiniciar; uma versão mais nova mostra a barra de novo. Na mesma verificação em segundo plano, uma notificação do Windows ("CSTM X disponível", "Clique para abrir a página da release.") aparece uma única vez por versão; clicar nela abre a página no navegador. |
 | Confirmação | Diálogo modal somente para o que não tem volta: excluir definitivamente e esvaziar a lixeira, informando o que vai junto (subpastas, textos, favoritos). Botão de confirmar em vermelho. Excluir comum vai para a lixeira, sem diálogo. |
@@ -493,7 +498,7 @@ Busca:
 - Abre pelo atalho global `Alt+Q` junto ao cursor do mouse, inteiramente dentro da área útil do monitor em que o cursor está.
 - Coluna de 420 × 440 (no modo cascata, outras colunas abrem ao lado; ver Navegação nas pastas), sem bordas e sem barra de título, com cantos arredondados e sombra; sempre no topo e fora da barra de tarefas. Segue o tema escolhido nas Configurações (por padrão, o do Windows), como o cadastro.
 - Campo de busca no topo, com foco automático, lista no meio (com rolagem) e uma linha de dicas de teclado no rodapé.
-- Na raiz, sem cabeçalhos de seção: as pastas **Histórico**, **Mais usados** e **Favoritos**, com ícones próprios (relógio, chama e estrela) e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. As três não existem no cadastro: são calculadas a cada abertura e somem quando vazias; o Histórico também some com a opção "Guardar o histórico do clipboard" desligada (Tela 3).
+- Na raiz, sem cabeçalhos de seção: as pastas **Histórico**, **Mais usados** e **Favoritos**, com ícones próprios (relógio, chama e estrela) e nessa ordem, seguidas das pastas e depois dos textos da raiz, cada grupo na ordem manual do cadastro. As três não existem no cadastro: são calculadas a cada abertura e somem quando vazias; o Histórico também some com a opção "Guardar o histórico da área de transferência" desligada (Tela 3).
 - **Histórico:** os itens copiados em qualquer programa (no máximo 100), do mais recente para o mais antigo, com a hora da cópia à direita, em cinza (de outro dia, "ontem" ou a data `dd/mm`). Um texto mostra a primeira linha não vazia, e a dica mostra o conteúdo (encurtado se for longo). Uma imagem mostra uma miniatura no lugar do ícone e "Imagem L × A" (em pixels), com a mesma frase na dica. A formatação HTML/RTF de um texto não aparece no menu, mas vai junto ao colar.
 - **Mais usados:** os 10 textos com mais usos (ao menos um), do mais para o menos usado; empates pelo uso mais recente. **Favoritos:** os textos favoritos, por título. Dentro das duas, cada texto mostra à direita a pasta em que está, como na busca. Um texto pode aparecer nelas e na sua pasta.
 - Dentro de uma pasta: uma linha de volta com o caminho (`<  Trabalho > E-mails`) seguida das subpastas e dos textos da pasta, nessa ordem e na ordem manual de cada grupo.
@@ -606,8 +611,12 @@ As Configurações, a Ajuda (Tela 4) e o Sobre (Tela 5) são páginas que ocupam
 |                               |  ...                                           |
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
+|-------------------------------|                                                |
+| (?) Ajuda                     |                                                |
+| [⚙] Configurações             |                                                |
+| (i) Sobre o CSTM              |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.19.0  [⚙] (?) (i)  |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.21.0               |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -653,7 +662,8 @@ Página com todas as opções (cada uma separada da anterior por uma linha):
 |      Abre na bandeja ao entrar no Windows,     |
 |      com o atalho já ativo.                    |
 | ---------------------------------------------- |
-| [o ] Guardar o histórico do clipboard          |
+| [o ] Guardar o histórico da área de            |
+|      transferência                             |
 |      Guarda no computador os últimos 100 itens |
 |      copiados em qualquer programa (textos,    |
 |      com a formatação, e imagens) e os mostra  |
@@ -683,7 +693,8 @@ Resultado de Verificar agora com versão nova (no lugar da frase):
 Confirmando a limpeza do histórico (no lugar do botão):
 
 ```text
-| [o ] Guardar o histórico do clipboard          |
+| [o ] Guardar o histórico da área de            |
+|      transferência                             |
 |      ...                                       |
 |      Apagar os 37 itens do histórico? Não é    |
 |      possível desfazer.                        |
@@ -706,8 +717,8 @@ Gravando um novo atalho:
 
 ### Páginas na área do editor
 
-- A barra inferior tem, à direita dos totais, três botões de ícone: **Configurações** (engrenagem), **Ajuda** (`?`) e **Sobre o CSTM** (`i`). O botão da página aberta fica marcado (pressionado).
-- Clicar num desses botões abre a página no lugar do editor; clicar de novo no botão da página aberta volta ao editor.
+- O rodapé do painel da árvore, abaixo da Lixeira, tem três linhas: **Ajuda** (`?`), **Configurações** (engrenagem) e **Sobre o CSTM** (`i`). A linha da página aberta fica selecionada.
+- Clicar numa dessas linhas abre a página no lugar do editor; clicar de novo na linha da página aberta volta ao editor.
 - Também voltam ao editor: selecionar um item na árvore (inclusive a Lixeira), criar um texto ou uma pasta e qualquer ação que abra um item no editor. Os rascunhos não são afetados; o salvamento automático continua.
 - `F1`, em qualquer ponto do cadastro, abre a Ajuda.
 - Com uma página aberta, os atalhos da árvore (`Ctrl+N`, `Delete`, `Ctrl+C`/`X`/`V`/`Z`) valem quando o foco está na árvore; nos campos e textos da página, as teclas ficam com a página (por exemplo, `Ctrl+C` copia o texto selecionado da Ajuda).
@@ -721,7 +732,7 @@ Gravando um novo atalho:
 - **Depois de colar:** opções exclusivas (`RadioGroup`, rótulo "Depois de colar"), cada uma com uma explicação abaixo: **Manter o que foi colado** (padrão, também para quem já usava o CSTM; "Se a colagem falhar, é só pressionar Ctrl+V.") e **Restaurar o conteúdo anterior** ("Devolve o que estava copiado, com a formatação e imagens."). Com Manter, o texto colado fica na área de transferência e não entra no Histórico. Com Restaurar, 500 ms depois da colagem o CSTM devolve o que estava copiado antes (texto, formatação HTML/RTF ou imagem), se nenhum outro programa tiver copiado algo nesse intervalo; arquivos copiados no Explorer e formatos que o CSTM não lê não voltam. Vale para a colagem de textos cadastrados e de itens do Histórico, por `Enter`, clique ou botões de modo; Copiar não restaura em nenhuma das opções. A escolha é gravada ao selecionar e vale na próxima colagem.
 - **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
 - **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
-- **Histórico do clipboard:** interruptor "Guardar o histórico do clipboard", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.
+- **Histórico do clipboard:** interruptor "Guardar o histórico da área de transferência", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.
 - **Atualizações:** seção com título "Atualizações". Interruptor **Verificar atualizações**, ligado por padrão, com a explicação "Consulta o GitHub em segundo plano e avisa quando sai uma versão nova." Abaixo, o campo numérico **A cada N dias** (`SpinButton` do Fluent UI, padrão 7, de 1 a 90), desabilitado com o interruptor desligado; valores fora dos limites voltam ao limite mais próximo. As mudanças são gravadas na hora e valem na próxima conferência horária. O botão **Verificar agora** funciona mesmo com o interruptor desligado; durante a consulta fica desabilitado, com "Verificando…", e depois mostra abaixo: "Você está na versão mais recente (X)."; "Versão X disponível." com o botão **Abrir página da release**; ou, em faixa de erro, "Não foi possível verificar: …". Verificar agora não mostra notificação do Windows.
 - O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
 - "Restaurar padrão (Alt+Q)" fica logo abaixo do campo do atalho, desabilitado quando o atalho já é o padrão ou durante a gravação.
@@ -730,7 +741,7 @@ Gravando um novo atalho:
 
 | Origem | Ação |
 | --- | --- |
-| Barra inferior do cadastro | Botão de engrenagem à direita dos totais |
+| Painel do cadastro | Linha **Configurações** no rodapé, abaixo da Lixeira |
 | Menu da bandeja | Item **Configurações**: mostra a janela já na página |
 | Aviso de atalho indisponível | Ação **Alterar atalho** abre a página |
 
@@ -757,7 +768,7 @@ Regras das combinações: `Ctrl` ou `Alt` obrigatório, `Shift` opcional, sem `W
 
 ## Tela 4 — Ajuda (página na janela `main`)
 
-Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html) (abas, atalho configurado, bandeja e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
+Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html) (abas, busca, atalho configurado, bandeja, a cena da bandeja usada na imagem do passo 6 e tema claro/escuro na barra superior). O protótipo é estático e não faz parte do aplicativo.
 
 ```text
 +------------------------------------------------+
@@ -765,23 +776,31 @@ Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html
 |                                                |
 |  Básico   Avançado                             |
 |  ======                                        |
-| O CSTM guarda os textos que você digita toda   |
-| hora e os cola em qualquer programa. Para      |
-| começar:                                       |
+| O CSTM salva textos para você reutilizar       |
+| rapidamente em qualquer programa, sem precisar |
+| ficar copiando do Bloco de Notas. Para começar:|
 |                                                |
 | (1) Crie um texto                              |
-|     Na árvore, à esquerda, clique em Novo ›    |
-|     Novo texto (ou Ctrl+N).                    |
+|     Clique em Novo (1) › Novo texto (2), ou    |
+|     use Ctrl+N.                                |
+|     +----------------------------------------+ |
+|     | [imagem: botão Novo e o menu, com as   | |
+|     |  marcações vermelhas 1 e 2]            | |
+|     +----------------------------------------+ |
 | (2) Escreva o título e o conteúdo              |
 |     ...                                        |
 +------------------------------------------------+
 ```
 
 - Página na área do editor (ver Tela 3, Páginas na área do editor), com o título "Ajuda" e duas abas (`TabList` do Fluent UI): **Básico**, selecionada ao abrir, e **Avançado**.
+- **Busca:** campo **Buscar na Ajuda** acima das abas; o título, a busca e as abas ficam parados no topo enquanto o conteúdo rola. A busca vale para as duas abas, sem diferenciar acentos nem maiúsculas: destaca as ocorrências (a atual com mais ênfase), mostra "N de M" (ou "Nenhum resultado") e, ao lado do nome de cada aba, quantas ocorrências ela tem. `Enter` ou ↓ vai para a próxima e `Shift+Enter` ou ↑ para a anterior, na ordem Básico e depois Avançado, trocando de aba quando a próxima está na outra e rolando até ela; `Esc` limpa a busca. As descrições das imagens não entram na busca. Protótipo: estado **Busca**.
 - **Básico:** uma frase de introdução e passos curtos e numerados de onde clicar para começar: criar um texto; escrever título e conteúdo (salva sozinho); organizar em pastas; pressionar o atalho em qualquer programa para abrir o menu de colagem junto ao mouse; clicar no texto para colar, ou no botão Copiar para só copiar; fechar a janela sem perder o atalho, que continua valendo pela bandeja.
-- **Avançado:** seções curtas, com título: Busca; Favoritos e Mais usados; Menu de colagem pelo teclado; Histórico do clipboard; Organizar a árvore; Lixeira; Importar e exportar; Configurações; Limites do Windows.
-- O texto cita o atalho configurado (por exemplo, "pressione Alt+Q" ou o atalho escolhido nas Configurações). Teclas aparecem como teclas (`kbd`), e nomes de botões e menus em negrito.
-- O conteúdo fica em `src/helpContent.ts`, num lugar só; ele é atualizado na mesma entrega de toda mudança visível ao usuário.
+- **Avançado:** seções curtas, com título: Busca; Favoritos e Mais usados; Textos no menu de colagem; Modos de colagem; Menu de colagem pelo teclado; Histórico da área de transferência; Organizar a árvore; Lixeira; Importar e exportar; Configurações; Desinstalar e apagar os dados; Limites do Windows.
+- **Imagens:** cada passo do Básico tem uma imagem abaixo do texto, e as seções do Avançado em que a tela ajuda (Busca, Favoritos e Mais usados, Modos de colagem, Histórico da área de transferência, Organizar a árvore, Lixeira, Importar e exportar, Configurações) têm uma depois dos parágrafos. As imagens são capturas dos protótipos, no tema claro (também no tema escuro do aplicativo, com uma borda leve), na largura da coluna, sem ampliar além do tamanho natural, e com descrição para leitores de tela.
+- **Marcações:** nas imagens, um retângulo vermelho em volta do que importa e, quando há ordem de cliques, um círculo vermelho numerado. O texto cita os mesmos números com o mesmo círculo vermelho (marcação `[1]` em `helpContent.ts`).
+- As imagens ficam em `src/assets/ajuda/` e saem dos protótipos com `npm run ajuda:imagens` (`scripts/ajuda-imagens.mjs`, que lista cada captura com o protótipo, o estado, o recorte e as marcações); quando uma tela mostrada na Ajuda muda, o protótipo é atualizado e as imagens, geradas de novo.
+- O texto cita o atalho configurado (por exemplo, "pressione Alt+Q" ou o atalho escolhido nas Configurações). Teclas aparecem como teclas (`kbd`), e nomes de botões e menus em negrito. Os textos são curtos: o que a imagem mostra não é repetido em detalhe.
+- O conteúdo fica em `src/helpContent.ts`, num lugar só; ele é atualizado na mesma entrega de toda mudança visível ao usuário. O padrão de texto, imagens e marcações e o passo a passo das capturas estão em [`docs/ajuda.md`](ajuda.md).
 - **Primeira execução:** enquanto a configuração `help_shown` não existe, o cadastro abre na Ajuda, aba Básico, e o CSTM grava a chave; nas execuções seguintes, abre normalmente. Vale também para quem atualiza de uma versão anterior. Iniciado pelo Windows, o CSTM fica na bandeja, e a Ajuda aparece quando a janela for mostrada. A apresentação da biblioteca vazia ("Bem-vindo ao CSTM") continua aparecendo no editor depois que a Ajuda é fechada.
 
 ## Tela 5 — Sobre o CSTM (página na janela `main`)
@@ -794,10 +813,11 @@ Protótipo visual navegável: [`docs/prototipo/sobre.html`](prototipo/sobre.html
 |          Clipboard, Snippets & Text Manager ·  |
 |          versão 0.14.0                         |
 |                                                |
-| Cadastre os textos que você digita toda hora,  |
-| organize-os em pastas e cole-os em qualquer    |
-| programa pelo menu de colagem. O CSTM também   |
-| guarda o histórico do que você copia.          |
+| Salve textos para reutilizar rapidamente em    |
+| qualquer programa, organize-os em pastas e     |
+| cole-os pelo menu de colagem, sem precisar     |
+| ficar copiando do Bloco de Notas. O CSTM       |
+| também guarda o histórico do que você copia.   |
 |                                                |
 | Código-fonte                                   |
 | github.com/marinsgabriel1997/CSTM              |
@@ -810,7 +830,7 @@ Protótipo visual navegável: [`docs/prototipo/sobre.html`](prototipo/sobre.html
 +------------------------------------------------+
 ```
 
-- Página na área do editor (ver Tela 3, Páginas na área do editor), aberta pelo botão `i` da barra inferior ou pelo item **Sobre o CSTM** da bandeja.
+- Página na área do editor (ver Tela 3, Páginas na área do editor), aberta pela linha **Sobre o CSTM** no rodapé do painel ou pelo item **Sobre o CSTM** da bandeja.
 - Cabeçalho com o ícone do aplicativo, o nome, "Clipboard, Snippets & Text Manager" e a versão instalada (a do aplicativo, igual à de `package.json`).
 - O link do repositório abre <https://github.com/marinsgabriel1997/CSTM> no navegador padrão.
 - "Pasta dos dados" mostra o caminho da pasta de dados (onde fica o `cstm.db`), com o botão **Abrir pasta**, que a abre no Explorer.

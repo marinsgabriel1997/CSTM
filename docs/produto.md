@@ -52,8 +52,8 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 
 ### 4. Configurações, Ajuda e Sobre
 
-- Configurações, Ajuda e Sobre são páginas na área do editor do cadastro, abertas pelos botões da barra inferior (engrenagem, `?` e `i`), pela bandeja e, a Ajuda, por `F1`; sem janelas nem diálogos próprios.
-- Ajuda com as abas Básico (onde clicar para começar) e Avançado (demais funcionalidades), citando o atalho configurado; abre sozinha na primeira execução (configuração `help_shown`). O conteúdo fica em `src/helpContent.ts`.
+- Configurações, Ajuda e Sobre são páginas na área do editor do cadastro, abertas pelas linhas Ajuda, Configurações e Sobre o CSTM no rodapé do painel da árvore, abaixo da Lixeira (a Ajuda em destaque até a primeira vez que a pessoa a abre), pela bandeja e, a Ajuda, por `F1`; sem janelas nem diálogos próprios.
+- Ajuda com as abas Básico (onde clicar para começar) e Avançado (demais funcionalidades), citando o atalho configurado e com imagens das telas, marcadas em vermelho e numeradas na ordem dos cliques; abre sozinha na primeira execução (configuração `help_shown`). O conteúdo fica em `src/helpContent.ts`; as imagens, em `src/assets/ajuda/`, geradas a partir dos protótipos por `npm run ajuda:imagens` (`scripts/ajuda-imagens.mjs`, ferramenta de desenvolvimento que usa o Edge sem janela).
 - Sobre com versão, descrição, link do repositório, pasta dos dados (com o botão de abri-la), licença MIT e autor. O link e a pasta são abertos pelo backend (`tauri-plugin-opener`), sem permissão de abrir URLs ou caminhos arbitrários no frontend.
 - Página de configurações com a troca do atalho do menu de colagem; o novo atalho vale imediatamente e é lembrado entre execuções.
 - Navegação nas pastas do menu de colagem ("Abrir ao passar o mouse", padrão, ou "Clicar para abrir"); vale na próxima abertura do menu e é lembrada entre execuções.

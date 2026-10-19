@@ -188,7 +188,7 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
     );
     api.getClipboardMonitoring().then(
       (value) => current && setMonitoring(value),
-      (reason) => current && setHistoryError(`Não foi possível ler o histórico do clipboard: ${errorMessage(reason)}`),
+      (reason) => current && setHistoryError(`Não foi possível ler o histórico da área de transferência: ${errorMessage(reason)}`),
     );
     api.getUpdateSettings().then(
       (value) => current && setUpdateSettings(value),
@@ -271,7 +271,7 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
     try {
       setMonitoring(await api.setClipboardMonitoring(enabled));
     } catch (reason) {
-      setHistoryError(`Não foi possível alterar o histórico do clipboard: ${errorMessage(reason)}`);
+      setHistoryError(`Não foi possível alterar o histórico da área de transferência: ${errorMessage(reason)}`);
     }
   }
 
@@ -564,7 +564,7 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       <Divider className={styles.section} />
       <Switch
         className={styles.switch}
-        label="Guardar o histórico do clipboard"
+        label="Guardar o histórico da área de transferência"
         checked={monitoring ?? false}
         disabled={monitoring === null && !historyError}
         onChange={(_, data) => void changeMonitoring(data.checked)}

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "./api";
 import App from "./App";
+import { waitForDialogSettled } from "./test/dialogs";
 import { createFakeApi } from "./test/fakeApi";
 
 let fake: ReturnType<typeof createFakeApi>;
@@ -315,6 +316,7 @@ describe("lixeira", () => {
     expect(dialog.getByText("Excluir definitivamente “Agenda”?")).toBeInTheDocument();
     await user.click(dialog.getByRole("button", { name: "Excluir definitivamente" }));
     await waitFor(() => expect(fake.snippets.map((s) => s.title)).not.toContain("Agenda"));
+    await waitForDialogSettled();
 
     await user.click(panel.getByRole("button", { name: "Esvaziar lixeira" }));
     dialog = within(await screen.findByRole("alertdialog"));

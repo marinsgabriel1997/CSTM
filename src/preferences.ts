@@ -9,6 +9,8 @@ export interface Preferences {
   collapsed: number[];
   /** Pasta virtual Raiz recolhida; por padrão aparece aberta. */
   rootCollapsed: boolean;
+  /** A pessoa já abriu a Ajuda por conta própria; some o destaque da linha Ajuda. */
+  helpButtonSeen: boolean;
 }
 
 const KEY = "cstm.preferences";
@@ -18,7 +20,7 @@ export function clampTreeWidth(width: number): number {
 }
 
 export function loadPreferences(): Preferences {
-  const defaults: Preferences = { treeWidth: TREE_WIDTH.initial, collapsed: [], rootCollapsed: false };
+  const defaults: Preferences = { treeWidth: TREE_WIDTH.initial, collapsed: [], rootCollapsed: false, helpButtonSeen: false };
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Preferences>;
     return {
@@ -28,6 +30,7 @@ export function loadPreferences(): Preferences {
         ? stored.collapsed.filter((id) => typeof id === "number")
         : defaults.collapsed,
       rootCollapsed: typeof stored.rootCollapsed === "boolean" ? stored.rootCollapsed : defaults.rootCollapsed,
+      helpButtonSeen: typeof stored.helpButtonSeen === "boolean" ? stored.helpButtonSeen : defaults.helpButtonSeen,
     };
   } catch {
     return defaults;

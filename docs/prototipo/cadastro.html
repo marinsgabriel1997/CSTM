@@ -291,6 +291,20 @@
   .drag-ghost .copy-mark { color: var(--accent); font-weight: 700; }
   .tree-foot { border-top: 1px solid var(--stroke); margin: 4px 4px 0 0; padding-top: 4px; }
   .row.trash .ic { color: var(--text-2); }
+  /* Páginas no rodapé do painel: Ajuda, Configurações e Sobre, abaixo da Lixeira. */
+  .tree-foot .pages { border-top: 1px solid var(--stroke); margin-top: 4px; padding-top: 4px; }
+  .row.page .ic { color: var(--text-2); }
+  /* Destaque da Ajuda até a primeira vez que a pessoa a abre: cor de destaque, fundo suave e
+     um brilho que atravessa a linha a cada 4 s. Sem animação com "reduzir movimento". */
+  .row.page.shine { position: relative; overflow: hidden; color: var(--accent); font-weight: 600; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .row.page.shine .ic { color: var(--accent); }
+  .row.page.shine::after {
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%); pointer-events: none;
+    background: linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.6) 50%, transparent 75%);
+    animation: help-shine 4s ease-in-out infinite;
+  }
+  @keyframes help-shine { 0%, 65% { transform: translateX(-120%); } 100% { transform: translateX(120%); } }
+  @media (prefers-reduced-motion: reduce) { .row.page.shine::after { animation: none; display: none; } }
   .row .count { font-size: 12px; color: var(--text-3); padding: 0 4px; }
   .rename-input {
     flex: 1; height: 26px; padding: 0 8px; border-radius: 4px;
@@ -553,6 +567,8 @@
     <symbol id="i-check" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="m6.8 10.2 2.2 2.2 4.3-4.6"/></symbol>
     <symbol id="i-warn" viewBox="0 0 20 20"><path d="M10 3 18 16.5H2z"/><path d="M10 8v4"/><path d="M10 14.4v.1"/></symbol>
     <symbol id="i-error" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="m7.3 7.3 5.4 5.4M12.7 7.3l-5.4 5.4"/></symbol>
+    <symbol id="i-help" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M8 8a2 2 0 1 1 2.8 1.8c-.5.3-.8.7-.8 1.3v.4"/><path d="M10 13.9v.1"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 20 20"><circle cx="10" cy="10" r="2.5"/><path d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.7 4.7l1.4 1.4M13.9 13.9l1.4 1.4M4.7 15.3l1.4-1.4M13.9 6.1l1.4-1.4"/></symbol>
     <symbol id="i-info" viewBox="0 0 20 20"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v4.5"/><path d="M10 6.4v.1"/></symbol>
     <symbol id="i-trash" viewBox="0 0 20 20"><path d="M3.5 5.5h13M8 5.5V4h4v1.5"/><path d="m5 5.5.8 10.2A1.5 1.5 0 0 0 7.3 17h5.4a1.5 1.5 0 0 0 1.5-1.3L15 5.5"/></symbol>
     <symbol id="i-rename" viewBox="0 0 20 20"><path d="m12.8 3.7 3.5 3.5L7.5 16H4v-3.5z"/><path d="m11 5.5 3.5 3.5"/></symbol>
@@ -829,6 +845,11 @@
       note: "Falha na gravação: o texto digitado continua no editor, o item fica marcado e é possível tentar de novo. Nova edição também tenta de novo.",
       selected: "resposta", editedContent: true, error: true, status: { kind: "error" }, dot: "err",
     },
+    "ajuda-destaque": {
+      label: "Ajuda em destaque",
+      note: "Ajuda, Configurações e Sobre o CSTM ficam no rodapé do painel, abaixo da Lixeira; a barra inferior fica só com o estado do salvamento, as contagens e a versão. Até a pessoa abrir a Ajuda por conta própria pela primeira vez (clique, F1 ou bandeja; a abertura automática da primeira execução não conta), a linha Ajuda fica na cor de destaque, com um brilho que a atravessa a cada 4 s; depois, fica como as outras. Com \"reduzir movimento\" no Windows, fica só a cor. A página aberta marca a linha dela como selecionada.",
+      selected: "resposta", helpShine: true, status: { kind: "ok" },
+    },
     "atualizacao": {
       label: "Versão nova",
       note: "A verificação de atualização encontrou uma versão mais nova: a barra fica no topo até Dispensar (vale para aquela versão) ou até instalar a versão nova. Abrir página da release abre o navegador.",
@@ -1017,6 +1038,13 @@
           <span class="label"><span class="name">Lixeira</span></span>
           <span class="count">${st.trashCount ?? TRASH.length}</span>
         </div>
+        <div class="pages">
+          ${[["help", "Ajuda", "Ajuda (F1)"], ["settings", "Configurações", "Configurações"], ["info", "Sobre o CSTM", "Sobre o CSTM"]].map(([icon, name, title]) => `
+          <div class="row page${icon === "help" && st.helpShine ? " shine" : ""}" style="--depth:0" title="${title}">
+            <span class="tw"></span><svg class="i ic"><use href="#i-${icon}"/></svg>
+            <span class="label"><span class="name">${name}</span></span>
+          </div>`).join("")}
+        </div>
       </div>`;
   }
 
@@ -1031,11 +1059,11 @@
     if (st.empty) {
       return `<div class="welcome">
         <h1>Bem-vindo ao CSTM</h1>
-        <p>Cadastre os textos que você digita toda hora e cole-os em qualquer programa pelo menu de colagem, sem sair do que está fazendo.</p>
+        <p>Salve aqui os textos que você usa com frequência e cole-os em qualquer programa pelo menu de colagem, sem sair do que está fazendo.</p>
         <div class="steps">
           <div class="step"><span class="n">1</span><div><b>Crie textos</b><span>Saudações, assinaturas, respostas prontas, endereços.</span></div></div>
           <div class="step"><span class="n">2</span><div><b>Organize em pastas</b><span>Agrupe por assunto e marque os mais usados como favoritos.</span></div></div>
-          <div class="step"><span class="n">3</span><div><b>Cole com o atalho</b><span>O menu de colagem abre junto ao cursor em qualquer programa.</span></div></div>
+          <div class="step"><span class="n">3</span><div><b>Cole com o atalho</b><span>O menu de colagem abre ao lado do cursor, em qualquer programa.</span></div></div>
         </div>
       </div>`;
     }
@@ -1217,7 +1245,7 @@
     if (s.kind === "invalid") left = `<span class="st warn">${ic("warn")} Não salvo: o título está vazio. A última versão salva foi mantida.</span>`;
     if (s.kind === "error") left = `<span class="st err">${ic("error")} Erro ao salvar “Resposta padrão”: banco de dados indisponível.<a href="#">Tentar novamente</a></span>`;
     if (s.kind === "idle") left = `<span class="st">${esc(s.text)}</span>`;
-    return `${left}<span class="right">${counts}<span style="margin-left:16px">v0.19.0</span></span>`;
+    return `${left}<span class="right">${counts}<span style="margin-left:16px">v0.21.0</span></span>`;
   }
 
   function renderMenus(st) {

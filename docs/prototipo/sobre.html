@@ -119,7 +119,21 @@
     color: var(--text-2);
     border-top: 1px solid var(--stroke);
   }
+  /* Rodapé do painel: Lixeira e as páginas Ajuda, Configurações e Sobre o CSTM (Tela 1). */
+  .tree { display: flex; flex-direction: column; }
+  .tree .placeholder { flex: 1; }
+  .tree-foot { border-top: 1px solid var(--stroke); padding-top: 4px; margin: 0 -4px; }
+  .tree-foot .pages { border-top: 1px solid var(--stroke); margin-top: 4px; padding-top: 4px; }
+  .page-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px;
+    border: none; border-radius: 4px; background: transparent; color: var(--text);
+    font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
+  }
+  .page-row:hover, .page-row.pressed { background: var(--hover); }
+  .page-row .ic { width: 16px; text-align: center; color: var(--text-2); }
+  .page-row .count { margin-left: auto; color: var(--text-3); font-size: 12px; }
   .statusbar .totals { margin-left: auto; color: var(--text-3); }
+  .statusbar .version { color: var(--text-3); padding-right: 6px; }
   .icon-button {
     width: 24px;
     height: 24px;
@@ -285,15 +299,23 @@
 <div class="window" id="window">
   <div class="titlebar">CSTM</div>
   <div class="content">
-    <div class="tree">Árvore de pastas e textos</div>
+    <div class="tree">
+      <span class="placeholder">Árvore de pastas e textos</span>
+      <div class="tree-foot">
+        <div class="page-row" style="cursor: default"><span class="ic" aria-hidden="true">🗑</span>Lixeira<span class="count">4</span></div>
+        <div class="pages">
+          <a class="page-row" id="help" href="ajuda.html" title="Ajuda (F1)"><span class="ic" aria-hidden="true">?</span>Ajuda</a>
+          <a class="page-row" href="configuracoes.html" title="Configurações"><span class="ic" aria-hidden="true">⚙</span>Configurações</a>
+          <button class="page-row" id="about" title="Sobre o CSTM"><span class="ic" aria-hidden="true">i</span>Sobre o CSTM</button>
+        </div>
+      </div>
+    </div>
     <div class="editor page-host" id="editor"></div>
   </div>
   <div class="statusbar">
     <span>✓ Todas as alterações salvas</span>
     <span class="totals">9 textos · 4 pastas</span>
-    <a class="icon-button" href="configuracoes.html" title="Configurações" aria-label="Configurações">⚙</a>
-    <button class="icon-button" id="help" title="Ajuda (F1)" aria-label="Ajuda">?</button>
-    <button class="icon-button pressed" id="about" title="Sobre o CSTM" aria-label="Sobre o CSTM">i</button>
+    <span class="version">v0.21.0</span>
   </div>
   <div id="layer"></div>
 </div>
@@ -356,7 +378,7 @@
         <div class="about-head"><svg class="app-icon" viewBox="0 0 64 64" aria-hidden="true"><rect x="2" y="2" width="60" height="60" rx="13" fill="#0F6CBD"/><rect x="16" y="13" width="32" height="40" rx="4" fill="#fff"/><rect x="24" y="9" width="16" height="9" rx="3" fill="#FFB900"/><rect x="21" y="26" width="22" height="3" rx="1.5" fill="#0F6CBD"/><rect x="21" y="34" width="22" height="3" rx="1.5" fill="#0F6CBD"/><rect x="21" y="42" width="14" height="3" rx="1.5" fill="#0F6CBD"/></svg>
           <div><p class="about-name">CSTM</p><div class="about-sub">Clipboard, Snippets &amp; Text Manager · versão 0.14.0</div></div>
         </div>
-        <p class="intro">Cadastre os textos que você digita toda hora, organize-os em pastas e cole-os em qualquer programa pelo menu de colagem. O CSTM também guarda o histórico do que você copia.</p>
+        <p class="intro">Salve textos para reutilizar rapidamente em qualquer programa, organize-os em pastas e cole-os pelo menu de colagem, sem precisar ficar copiando do Bloco de Notas. O CSTM também guarda o histórico do que você copia.</p>
         <div class="field-label">Código-fonte</div>
         <div><span class="link" id="repo">github.com/marinsgabriel1997/CSTM</span></div>
         <div class="field-label">Pasta dos dados</div>

@@ -6,6 +6,18 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.21.0] - 2026-10-19
+
+### Added
+
+- Busca na Ajuda: procura nas abas Básico e Avançado, sem diferenciar acentos, mostra quantas ocorrências cada aba tem e vai para a próxima ou a anterior com `Enter` e `Shift+Enter`, trocando de aba quando preciso.
+
+### Changed
+
+- A Ajuda ficou mais visual: cada passo do Básico e as principais seções do Avançado mostram a tela correspondente, com bordas vermelhas no que importa e números na ordem dos cliques, e os textos ficaram mais curtos e mais naturais.
+- **Ajuda**, **Configurações** e **Sobre o CSTM** saíram da barra inferior e viraram linhas no painel da árvore, abaixo da Lixeira. A linha Ajuda fica em destaque até a primeira vez que você a abre.
+- "Clipboard" virou "área de transferência" na Ajuda e nas Configurações, e as apresentações do Sobre e da biblioteca vazia foram reescritas.
+
 ## [0.20.0] - 2026-10-19
 
 ### Added
@@ -18,7 +30,6 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 - O desinstalador sempre preserva os dados: a opção de apagá-los saiu, porque marcá-la sem querer apagava todos os textos. A Ajuda e o README explicam como apagar os dados pelo próprio CSTM ou removendo a pasta depois de desinstalar.
 - O README explica a sigla CSTM: Clipboard, Snippets & Text Manager.
-
 - Barras de rolagem finas, sem setas e no tom do tema, no cadastro e no menu de colagem.
 
 ### Fixed

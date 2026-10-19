@@ -6,7 +6,7 @@
 <!--
   Protótipo estático da página Ajuda (Tela 4 de docs/telas.md), na área do editor do cadastro.
   Não faz parte do aplicativo: abre direto no navegador, sem build. O texto é o mesmo de
-  src/helpContent.ts. Estados pela barra superior ou pela URL: ajuda.html#estado=avancado&tema=escuro
+  src/helpContent.ts, e as imagens são as de src/assets/ajuda/ (geradas por npm run ajuda:imagens). Estados pela barra superior ou pela URL: ajuda.html#estado=avancado&tema=escuro
 -->
 <style>
   :root {
@@ -119,7 +119,21 @@
     color: var(--text-2);
     border-top: 1px solid var(--stroke);
   }
+  /* Rodapé do painel: Lixeira e as páginas Ajuda, Configurações e Sobre o CSTM (Tela 1). */
+  .tree { display: flex; flex-direction: column; }
+  .tree .placeholder { flex: 1; }
+  .tree-foot { border-top: 1px solid var(--stroke); padding-top: 4px; margin: 0 -4px; }
+  .tree-foot .pages { border-top: 1px solid var(--stroke); margin-top: 4px; padding-top: 4px; }
+  .page-row {
+    display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px;
+    border: none; border-radius: 4px; background: transparent; color: var(--text);
+    font: inherit; font-size: 14px; text-align: left; text-decoration: none; cursor: pointer;
+  }
+  .page-row:hover, .page-row.pressed { background: var(--hover); }
+  .page-row .ic { width: 16px; text-align: center; color: var(--text-2); }
+  .page-row .count { margin-left: auto; color: var(--text-3); font-size: 12px; }
   .statusbar .totals { margin-left: auto; color: var(--text-3); }
+  .statusbar .version { color: var(--text-3); padding-right: 6px; }
   .icon-button {
     width: 24px;
     height: 24px;
@@ -258,6 +272,51 @@
     background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 13px;
   }
   .step-title { font-weight: 600; display: block; }
+  .step-body { min-width: 0; flex: 1; }
+  /* Título, busca e abas ficam parados no topo enquanto o conteúdo rola. */
+  .help-head { position: sticky; top: 0; z-index: 1; background: var(--layer); padding-top: 24px; margin-top: -24px; }
+  .help-head .tabs { margin-bottom: 0; }
+  .help-head + div, .help-head + div + div { padding-top: 20px; }
+  /* Busca na Ajuda: campo acima das abas, contador e anterior/próxima. */
+  .help-search { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; }
+  .help-search .search-box {
+    flex: 1; display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 4px;
+    border: 1px solid var(--stroke-strong); background: var(--layer); color: var(--text-3);
+  }
+  .help-search input { flex: 1; border: none; outline: none; background: transparent; color: var(--text); font: inherit; }
+  .help-search .hits { min-width: 96px; text-align: right; font-size: 12px; color: var(--text-3); }
+  .help-search .icon-button:disabled { opacity: 0.4; cursor: default; }
+  .tab-count {
+    margin-left: 6px; padding: 0 6px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    background: var(--accent); color: var(--on-accent);
+  }
+  .tab-count.zero { background: var(--hover); color: var(--text-3); }
+  .tab-count.none { display: none; }
+  mark.hit { background: #fff1a8; color: inherit; border-radius: 2px; }
+  .theme-dark mark.hit { background: rgba(255, 214, 10, 0.3); }
+  mark.hit.current, .theme-dark mark.hit.current { background: #ffb900; color: #000; }
+  /* Imagens da Ajuda: capturas do tema claro, nos dois temas; a borda separa a imagem da página. */
+  .help-img {
+    display: block; max-width: 100%; height: auto; margin: 10px 0 6px;
+    border: 1px solid var(--stroke-strong); border-radius: 8px;
+  }
+  /* Número da marcação: o mesmo círculo vermelho das imagens. */
+  .mark-num {
+    display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+    background: #d13438; color: #fff; font-size: 11px; font-weight: 700; vertical-align: 1px;
+  }
+  /* Barra de tarefas do Windows com a bandeja (estado Encerrar). */
+  .taskbar {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 40px; display: flex; align-items: center;
+    justify-content: flex-end; gap: 4px; padding: 0 12px; background: #f3f3f3; border-top: 1px solid #dcdcdc;
+    font-size: 12px; color: #1a1a1a;
+  }
+  .taskbar .tray-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 4px; color: #444; }
+  .taskbar .tray-icon.on { background: #e0e0e0; }
+  .taskbar .cstm { width: 16px; height: 16px; border-radius: 4px; background: #0f6cbd; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+  .taskbar .clock { margin-left: 8px; text-align: right; line-height: 1.25; }
+  .tray-menu.above-tray { bottom: 46px; right: 96px; }
+  .desktop { position: absolute; inset: 0; background: linear-gradient(135deg, #cfe0f1, #e8eef6); }
   .step-text, .section p { color: var(--text-2); line-height: 1.5; }
   .intro { color: var(--text-2); margin: 0 0 16px; line-height: 1.5; }
   .section { margin-bottom: 18px; }
@@ -285,32 +344,45 @@
 <div class="window" id="window">
   <div class="titlebar">CSTM</div>
   <div class="content">
-    <div class="tree">Árvore de pastas e textos</div>
+    <div class="tree">
+      <span class="placeholder">Árvore de pastas e textos</span>
+      <div class="tree-foot">
+        <div class="page-row" style="cursor: default"><span class="ic" aria-hidden="true">🗑</span>Lixeira<span class="count">4</span></div>
+        <div class="pages">
+          <button class="page-row" id="help" title="Ajuda (F1)"><span class="ic" aria-hidden="true">?</span>Ajuda</button>
+          <a class="page-row" href="configuracoes.html" title="Configurações"><span class="ic" aria-hidden="true">⚙</span>Configurações</a>
+          <a class="page-row" href="sobre.html" title="Sobre o CSTM"><span class="ic" aria-hidden="true">i</span>Sobre o CSTM</a>
+        </div>
+      </div>
+    </div>
     <div class="editor page-host" id="editor"></div>
   </div>
   <div class="statusbar">
     <span>✓ Todas as alterações salvas</span>
     <span class="totals">9 textos · 4 pastas</span>
-    <a class="icon-button" href="configuracoes.html" title="Configurações" aria-label="Configurações">⚙</a>
-    <button class="icon-button pressed" id="help" title="Ajuda (F1)" aria-label="Ajuda">?</button>
-    <button class="icon-button" id="about" title="Sobre o CSTM" aria-label="Sobre o CSTM">i</button>
+    <span class="version">v0.21.0</span>
   </div>
   <div id="layer"></div>
 </div>
 
 <script>
-  const BASIC = [["Crie um texto", "Na árvore, à esquerda, clique em **Novo** › **Novo texto** (ou `Ctrl+N`)."], ["Escreva o título e o conteúdo", "O CSTM salva sozinho enquanto você digita; a barra inferior mostra quando tudo está salvo."], ["Organize em pastas, se quiser", "Use **Novo** › **Nova pasta** (ou `Ctrl+Shift+N`) e arraste os textos para dentro dela."], ["Abra o menu de colagem em qualquer programa", "Clique onde quer colar (um e-mail, um documento, um formulário) e pressione `{atalho}`: o menu abre junto ao mouse."], ["Escolha o texto", "Clique no texto para colá-lo. O botão **Copiar**, na linha selecionada, só copia, para você colar depois com `Ctrl+V`."], ["Pode fechar a janela", "O CSTM continua no ícone da bandeja, perto do relógio do Windows, e o atalho continua valendo. Para encerrar, clique no ícone com o botão direito › **Sair**."]];
-  const ADVANCED = [["Busca", ["No cadastro, o campo **Buscar** filtra a árvore por título e conteúdo, sem diferenciar acentos. O botão **Favoritos** mostra só os textos favoritos.", "No menu de colagem, é só digitar: a busca vale para todos os textos, e cada resultado mostra a pasta em que está."]], ["Favoritos e Mais usados", ["Marque um texto como favorito pela estrela no editor ou pelo menu do item na árvore.", "No topo do menu de colagem ficam as pastas **Favoritos** e **Mais usados** (os 10 textos mais colados). Elas só aparecem quando têm algum texto."]], ["Menu de colagem pelo teclado", ["`↑` e `↓` escolhem a linha, `Enter` cola, `Ctrl+C` copia sem colar e `Esc` fecha.", "Com a busca vazia, `→` abre uma pasta e `←` volta.", "Em **Configurações** › **Navegação nas pastas**, escolha se as pastas abrem ao passar o mouse (em colunas ao lado) ou ao clicar."]], ["Histórico do clipboard", ["A pasta **Histórico**, no topo do menu de colagem, guarda os últimos 100 itens copiados em qualquer programa: textos, com a formatação, e imagens.", "Clique num item para colá-lo, ou use **Copiar**. O que gerenciadores de senha marcam como sensível não é guardado.", "Em **Configurações**, desligue o histórico ou apague tudo com **Limpar histórico**."]], ["Organizar a árvore", ["Arraste textos e pastas para mudar a ordem ou a pasta; segure `Ctrl` ao soltar para copiar em vez de mover.", "`Ctrl+X`, `Ctrl+C` e `Ctrl+V` recortam, copiam e colam itens, `Ctrl+Z` desfaz e `F2` renomeia. Selecione vários itens com `Ctrl` ou `Shift` + clique.", "O botão **⋯** (Mais opções) ordena a raiz por nome, por mais usados ou por uso recente; o menu de uma pasta faz o mesmo com o conteúdo dela."]], ["Lixeira", ["`Delete` manda os itens selecionados para a **Lixeira**, no fim da árvore; `Shift+Delete` exclui definitivamente, com confirmação.", "Na Lixeira, restaure o que precisar ou esvazie-a."]], ["Importar e exportar", ["Em **⋯** › **Importar**: arquivos .txt (um texto por arquivo), uma pasta do disco ou um backup JSON. Os itens entram na pasta selecionada.", "Em **⋯** › **Exportar tudo**: backup JSON completo ou pastas com arquivos .txt. O menu de uma pasta exporta só ela."]], ["Configurações", ["Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, tema, iniciar com o Windows e histórico do clipboard."]], ["Limites do Windows", ["Programas abertos como administrador não recebem a colagem do CSTM; nesse caso, use **Copiar** e cole com `Ctrl+V`.", "Depois de colar, o CSTM devolve ao clipboard o texto que estava nele; outros formatos, como imagens, não voltam."]]];
+  const BASIC = [["Crie um texto","Clique em **Novo** [1] › **Novo texto** [2], ou use `Ctrl+N`.",["../../src/assets/ajuda/basico-1-novo-texto.webp","Menu do botão Novo aberto, com o item Novo texto."]],["Escreva o título e o conteúdo","Escreva o título [1] e o conteúdo [2]. O CSTM salva automaticamente; a barra inferior avisa quando tudo estiver salvo.",["../../src/assets/ajuda/basico-2-titulo-conteudo.webp","Editor com o título e o conteúdo de um texto e o aviso Todas as alterações salvas."]],["Organize em pastas, se quiser","Crie pastas em **Novo** › **Nova pasta** (`Ctrl+Shift+N`) e arraste os textos [1] para dentro delas [2].",["../../src/assets/ajuda/basico-3-pastas.webp","Árvore com dois textos sendo arrastados para a pasta Clientes."]],["Abra o menu de colagem em qualquer programa","Clique onde quer colar (um e-mail, um documento, um formulário) e pressione `{atalho}`. O menu abre ao lado do cursor do mouse; para buscar, é só digitar.",["../../src/assets/ajuda/basico-4-menu-de-colagem.webp","Menu de colagem aberto junto ao mouse, com o campo Buscar no topo."]],["Escolha o texto","Clique no texto [1] para colá-lo. O botão **Copiar** [2] apenas copia o texto, para você colar depois com `Ctrl+V`.",["../../src/assets/ajuda/basico-5-escolher.webp","Menu de colagem com um texto selecionado e o botão Copiar na linha dele."]],["Pode fechar a janela","O CSTM continua rodando na bandeja, perto do relógio do Windows, e o atalho segue funcionando. Para encerrar, clique com o botão direito no ícone [1] e depois em **Sair** [2].",["../../src/assets/ajuda/basico-6-bandeja.webp","Ícone do CSTM na bandeja do Windows, com o menu aberto e o item Sair."]]];
+  const ADVANCED = [["Busca",["No cadastro, **Buscar** [1] filtra a árvore por título e conteúdo, sem diferenciar acentos, e **Favoritos** [2] mostra só os textos favoritos.","No menu de colagem, basta digitar: a busca procura em todos os textos e mostra a pasta de cada resultado. Nas colunas abertas ao lado, **Buscar em** procura só naquela pasta; ao entrar numa coluna com `→`, a busca dela já fica pronta para digitar."],["../../src/assets/ajuda/avancado-busca.webp","Árvore do cadastro com o campo Buscar e o botão Favoritos."]],["Favoritos e Mais usados",["Marque um texto como favorito pela estrela no editor ou pelo menu do item na árvore.","No topo do menu de colagem ficam **Favoritos** e **Mais usados** (os 10 textos mais colados), quando têm algum texto."],["../../src/assets/ajuda/avancado-favoritos.webp","Menu de colagem com as pastas Mais usados e Favoritos no topo."]],["Textos no menu de colagem",["Títulos longos ocupam até duas linhas. Para ler o título inteiro e o conteúdo, deixe o mouse parado sobre o texto."],null],["Modos de colagem",["Escreva os textos em markdown (`**negrito**`, `_itálico_`, `- listas`, `# títulos`) e escolha como colar: **Markdown** (como está), **Sem formatação** (sem as marcas), **Formatado** (negrito, listas e links de verdade, para Word, Outlook, Gmail e Teams) ou **Google Chat** (`*negrito*`, `_itálico_`, `~tachado~`).","`Enter` e **Copiar** usam o modo padrão, escolhido em **Configurações** › **Modo de colagem padrão**. Os outros três ficam em botões na linha do texto selecionado.","No **Histórico**, `Enter` e **Copiar** colam o item como foi copiado, e os quatro modos ficam em botões. A formatação que veio junto e a sintaxe do Chat são entendidas: dá para colar no Chat um texto em markdown ou colar num e-mail, já formatada, uma mensagem copiada do Chat.","O Google Chat não tem títulos nem links com texto: os títulos viram negrito e os links aparecem como texto seguido do endereço."],["../../src/assets/ajuda/avancado-modos.webp","Linha selecionada no menu de colagem com os botões dos outros modos de colagem."]],["Menu de colagem pelo teclado",["`↑` e `↓` escolhem a linha, `Enter` cola, `Ctrl+C` copia sem colar e `Esc` fecha.","Com a busca vazia, `→` abre uma pasta e `←` volta.","Em **Configurações** › **Navegação nas pastas**, escolha se as pastas abrem ao passar o mouse (em colunas ao lado) ou ao clicar."],null],["Histórico da área de transferência",["A pasta **Histórico**, no topo do menu de colagem, guarda os últimos 100 itens copiados em qualquer programa: textos (com a formatação) e imagens. Senhas copiadas de gerenciadores de senha não são guardadas.","Clique num item para colá-lo, ou use **Copiar**. O ícone de lixeira na linha selecionada (ou `Delete`) manda o item para a **Lixeira** do cadastro.","No cadastro, o **Histórico** fica no topo da árvore: selecione um texto para editá-lo (ao gravar, a formatação que veio junto é descartada e o item sobe para o topo) ou use **Excluir** (`Delete`).","Em **Configurações**, desligue o histórico ou apague tudo com **Limpar histórico**."],["../../src/assets/ajuda/avancado-historico.webp","Pasta Histórico aberta no menu de colagem, com textos e uma imagem copiados."]],["Organizar a árvore",["Arraste textos e pastas para mudar a ordem ou a pasta; segure `Ctrl` ao soltar para copiar em vez de mover.","`Ctrl+X`, `Ctrl+C` e `Ctrl+V` recortam, copiam e colam itens, `Ctrl+Z` desfaz e `F2` renomeia. Selecione vários itens com `Ctrl` ou `Shift` + clique.","Os itens novos são criados na pasta selecionada. A pasta **Raiz** reúne o que não está em nenhuma pasta: com ela selecionada, ou sem seleção (clique no espaço vazio da árvore ou `Esc`), **Novo**, `Ctrl+V` e **Importar** usam a raiz.","O menu de uma pasta (clique direito ou **⋯**) permite criar, colar, ordenar (por nome, por mais usados ou por uso recente) e exportar o conteúdo dela; o menu da **Raiz** faz o mesmo com a raiz."],["../../src/assets/ajuda/avancado-arvore.webp","Árvore com a pasta Raiz e o menu de contexto de uma pasta aberto."]],["Lixeira",["`Delete` manda os itens selecionados para a **Lixeira** [1], no fim da árvore; `Shift+Delete` exclui definitivamente, com confirmação.","Na Lixeira, **Restaurar** devolve os itens selecionados ao lugar de onde vieram, e **Esvaziar lixeira** apaga tudo."],["../../src/assets/ajuda/avancado-lixeira.webp","Lixeira aberta, com os botões Restaurar e Esvaziar lixeira."]],["Importar e exportar",["Em **⋯** [1] › **Importar** [2]: arquivos .txt (um texto por arquivo), uma pasta do disco ou um backup JSON. Os itens entram na pasta selecionada.","Em **⋯** › **Exportar tudo**: backup JSON completo ou pastas com arquivos .txt. O menu de uma pasta exporta só ela."],["../../src/assets/ajuda/avancado-importar.webp","Menu do botão Mais opções aberto, com Importar."]],["Configurações",["Abra pela linha **Configurações** [1], no rodapé do painel, abaixo da Lixeira, ou pelo ícone da bandeja. Ali ficam o atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, o que fazer depois de colar, tema, iniciar com o Windows, histórico da área de transferência e atualizações.","Em **Atualizações**, o CSTM consulta o GitHub a cada 7 dias (você pode escolher de 1 a 90) para saber se saiu uma versão nova, sem enviar nenhum dado seu. Quando sai, aparecem uma notificação do Windows e uma barra no topo do cadastro com **Abrir página da release**, onde você baixa o instalador; **Dispensar** esconde a barra até a próxima versão. **Verificar agora** consulta na hora."],["../../src/assets/ajuda/avancado-configuracoes.webp","Página Configurações aberta pela linha Configurações, no rodapé do painel."]],["Desinstalar e apagar os dados",["Desinstalar o CSTM (em **Configurações** › **Aplicativos** do Windows) sempre guarda os seus textos, para uma reinstalação encontrar tudo como estava.","Para apagar os dados antes de desinstalar, exclua os itens, esvazie a **Lixeira** e use **Limpar histórico**. Depois de desinstalar, basta apagar a pasta `%APPDATA%\\com.gabriel.cstm`."],null],["Limites do Windows",["Alguns programas, como os abertos como administrador, não aceitam a colagem do CSTM, e o Windows não avisa. O texto escolhido continua na área de transferência: se a colagem falhar, é só pressionar `Ctrl+V`, ou usar **Copiar** no menu de colagem e colar com `Ctrl+V`.","Em **Configurações** › **Depois de colar**, **Restaurar o conteúdo anterior** devolve à área de transferência, logo depois da colagem, o que estava copiado antes (texto, formatação e imagens; arquivos copiados no Explorer não voltam). Com essa opção, uma colagem que falhou não fica disponível para `Ctrl+V`."],null]];
   let theme = "claro";
   let shortcut = "Alt+Q";
   let state = "basico";
   
   const $ = (id) => document.getElementById(id);
-  // Marcação do conteúdo: **negrito**, `tecla` e {atalho}.
+  // Marcação do conteúdo: **negrito**, `tecla`, {atalho} e [n] (círculo da marcação n da imagem).
   function inline(text) {
     const safe = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/{atalho}/g, shortcut);
-    return safe.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<kbd>$1</kbd>");
+    return safe
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/`(.+?)`/g, "<kbd>$1</kbd>")
+      .replace(/\[(\d)\]/g, `<span class="mark-num" aria-label="marcação $1">$1</span>`);
   }
+  // As capturas têm o dobro de pixels (nitidez em telas de alta resolução): "2x" as mostra no tamanho real.
+  const figure = (image) => image ? `<img class="help-img" srcset="${image[0]} 2x" alt="${image[1]}" loading="lazy" />` : "";
   function bar(states, current, extra) {
     const el = $("states");
     el.innerHTML = "";
@@ -340,7 +412,9 @@
     avancado: { label: "Avançado", note: "As demais funcionalidades, em seções curtas. O texto cita o atalho configurado." },
     atalho: { label: "Outro atalho", note: "Com o atalho trocado nas Configurações (aqui, Ctrl+Shift+Espaço), a ajuda cita o atalho novo." },
     bandeja: { label: "Pela bandeja", note: "O item Ajuda da bandeja mostra a janela já na página. F1 também abre a Ajuda." },
-    editor: { label: "Fechada (editor)", note: "Clicar de novo em ?, selecionar um item na árvore ou criar um texto ou pasta volta ao editor." },
+    busca: { label: "Busca", note: "Buscar na Ajuda procura nas duas abas, sem diferenciar acentos; o número ao lado de cada aba diz quantas correspondências ela tem. Enter ou ↓ vai para a próxima, Shift+Enter ou ↑ para a anterior, trocando de aba quando a próxima está na outra, e a página rola até ela. Esc limpa a busca. Experimente digitar outra palavra." },
+    encerrar: { label: "Bandeja: Sair", note: "Cena do passo 6 do Básico (imagem da Ajuda): o ícone do CSTM na bandeja do Windows, clicado com o botão direito, e o menu com Sair." },
+    editor: { label: "Fechada (editor)", note: "Clicar de novo em Ajuda, selecionar um item na árvore ou criar um texto ou pasta volta ao editor." },
   };
   function setState(next) {
     state = next;
@@ -348,31 +422,130 @@
     location.hash = `estado=${next}&tema=${theme}`;
     bar(STATES, next);
     $("help").classList.toggle("pressed", next !== "editor");
+    const trayItems = (on) => ["Abrir cadastro", "Configurações", "Ajuda", "Sobre o CSTM"].map((t) => `<div class="${t === on ? "on" : ""}">${t}</div>`).join("") + `<hr /><div>Sair</div>`;
     $("layer").innerHTML = next === "bandeja"
-      ? `<div class="tray-menu"><div>Abrir cadastro</div><div>Configurações</div><div class="on">Ajuda</div><div>Sobre o CSTM</div><hr /><div>Sair</div></div>`
-      : "";
+      ? `<div class="tray-menu">${trayItems("Ajuda")}</div>`
+      : next === "encerrar"
+        ? `<div class="desktop"></div>
+           <div class="taskbar">
+             <span class="tray-icon">⌃</span><span class="tray-icon on" id="tray-cstm"><span class="cstm">C</span></span>
+             <span class="tray-icon">📶</span><span class="tray-icon">🔊</span>
+             <span class="clock">14:32<br />19/10/2026</span>
+           </div>
+           <div class="tray-menu above-tray">${trayItems()}</div>`
+        : "";
     if (next === "editor") {
       $("editor").className = "editor";
       $("editor").textContent = "Editor do texto selecionado";
       return;
     }
+    tab = next === "avancado" ? "advanced" : next === "busca" ? tab : "basic";
+    query = next === "busca" ? "lixeira" : "";
+    current = 0;
     $("editor").className = "editor page-host";
-    const advanced = next === "avancado";
-    const body = advanced
-      ? ADVANCED.map(([title, items]) => `<div class="section"><h3>${title}</h3>${items.map((t) => `<p>${inline(t)}</p>`).join("")}</div>`).join("")
-      : `<p class="intro">O CSTM guarda os textos que você digita toda hora e os cola em qualquer programa. Para começar:</p>
-         <ol class="steps">${BASIC.map(([title, text], i) => `<li><span class="num">${i + 1}</span><div><span class="step-title">${title}</span><span class="step-text">${inline(text)}</span></div></li>`).join("")}</ol>`;
     $("editor").innerHTML = `
       <section class="page" aria-label="Ajuda">
+        <div class="help-head">
         <div class="dialog-head"><h2>Ajuda</h2></div>
-        <div class="tabs" role="tablist">
-          <button class="tab ${advanced ? "" : "on"}" role="tab" id="tab-basic">Básico</button>
-          <button class="tab ${advanced ? "on" : ""}" role="tab" id="tab-advanced">Avançado</button>
+        <div class="help-search">
+          <span class="search-box"><span aria-hidden="true">⌕</span><input id="help-q" placeholder="Buscar na Ajuda" aria-label="Buscar na Ajuda" /></span>
+          <span class="hits" id="hits" aria-live="polite"></span>
+          <button class="icon-button" id="prev" title="Anterior (Shift+Enter)" aria-label="Anterior">↑</button>
+          <button class="icon-button" id="next" title="Próxima (Enter)" aria-label="Próxima">↓</button>
         </div>
-        ${body}
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" id="tab-basic">Básico<span class="tab-count" id="count-basic"></span></button>
+          <button class="tab" role="tab" id="tab-advanced">Avançado<span class="tab-count" id="count-advanced"></span></button>
+        </div>
+        </div>
+        <div id="panel-basic" role="tabpanel"></div>
+        <div id="panel-advanced" role="tabpanel"></div>
       </section>`;
-    $("tab-basic").onclick = () => setState("basico");
-    $("tab-advanced").onclick = () => setState("avancado");
+    $("help-q").value = query;
+    $("help-q").oninput = (e) => { query = e.target.value; current = -1; refresh(false); };
+    $("help-q").onkeydown = (e) => {
+      if (e.key === "Enter") { e.preventDefault(); step(e.shiftKey ? -1 : 1); }
+      if (e.key === "Escape" && query) { e.preventDefault(); e.stopPropagation(); query = ""; e.target.value = ""; refresh(false); }
+    };
+    $("prev").onclick = () => step(-1);
+    $("next").onclick = () => step(1);
+    $("tab-basic").onclick = () => { tab = "basic"; refresh(false); };
+    $("tab-advanced").onclick = () => { tab = "advanced"; refresh(false); };
+    refresh(next === "busca");
+  }
+
+  // Busca na Ajuda: vale para as duas abas, sem diferenciar acentos nem maiúsculas. As
+  // correspondências seguem a ordem Básico, depois Avançado; ir para uma da outra aba troca a aba.
+  let tab = "basic";
+  let query = "";
+  let current = 0; // índice global da correspondência atual; -1 = escolher ao digitar
+  let hits = [];
+  const fold = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+  function step(delta) {
+    if (!hits.length) return;
+    current = (current + delta + hits.length) % hits.length;
+    refresh(true);
+  }
+
+  function refresh(scroll) {
+    $("panel-basic").innerHTML = `<p class="intro">O CSTM salva textos para você reutilizar rapidamente em qualquer programa, sem precisar ficar copiando do Bloco de Notas. Para começar:</p>
+      <ol class="steps">${BASIC.map(([title, text, image], i) => `<li><span class="num">${i + 1}</span><div class="step-body"><span class="step-title">${title}</span><span class="step-text">${inline(text)}</span>${figure(image)}</div></li>`).join("")}</ol>`;
+    $("panel-advanced").innerHTML = ADVANCED.map(([title, items, image]) => `<div class="section"><h3>${title}</h3>${items.map((t) => `<p>${inline(t)}</p>`).join("")}${figure(image)}</div>`).join("");
+    hits = [];
+    const q = fold(query.trim());
+    const counts = { basic: 0, advanced: 0 };
+    if (q) {
+      for (const key of ["basic", "advanced"]) {
+        const walker = document.createTreeWalker($("panel-" + key), NodeFilter.SHOW_TEXT, {
+          acceptNode: (n) => (n.parentElement.closest(".mark-num") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+        });
+        const nodes = [];
+        while (walker.nextNode()) nodes.push(walker.currentNode);
+        for (const node of nodes) {
+          const text = node.nodeValue;
+          const folded = fold(text);
+          if (folded.length !== text.length) continue;
+          const found = [];
+          for (let at = folded.indexOf(q); at !== -1; at = folded.indexOf(q, at + q.length)) found.push(at);
+          // De trás para frente, para as posições anteriores continuarem valendo no mesmo nó.
+          const marks = [];
+          for (const at of found.reverse()) {
+            node.splitText(at + q.length);
+            const match = node.splitText(at);
+            const mark = document.createElement("mark");
+            mark.className = "hit";
+            match.replaceWith(mark);
+            mark.appendChild(match);
+            marks.unshift(mark);
+          }
+          for (const mark of marks) hits.push({ key, mark });
+          counts[key] += marks.length;
+        }
+      }
+    }
+    // Ao digitar, a primeira correspondência da aba aberta (ou a primeira de todas).
+    if (current < 0) {
+      const inTab = hits.findIndex((h) => h.key === tab);
+      current = inTab >= 0 ? inTab : 0;
+    }
+    if (current >= hits.length) current = 0;
+    const hit = hits[current];
+    if (hit) {
+      tab = hit.key;
+      hit.mark.classList.add("current");
+    }
+    for (const key of ["basic", "advanced"]) {
+      $("panel-" + key).hidden = key !== tab;
+      $("tab-" + key).classList.toggle("on", key === tab);
+      const c = $("count-" + key);
+      c.textContent = q ? counts[key] : "";
+      c.className = "tab-count" + (q ? "" : " none") + (q && !counts[key] ? " zero" : "");
+    }
+    $("hits").textContent = !q ? "" : hits.length ? `${current + 1} de ${hits.length}` : "Nenhum resultado";
+    $("prev").disabled = $("next").disabled = hits.length === 0;
+    if (scroll && hit) hit.mark.scrollIntoView({ block: "center" });
+    else if (scroll === false && !q) $("editor").scrollTop = 0;
   }
   $("help").onclick = () => setState(state === "editor" ? "basico" : "editor");
   document.addEventListener("keydown", (e) => { if (e.key === "F1") { e.preventDefault(); setState("basico"); } });
