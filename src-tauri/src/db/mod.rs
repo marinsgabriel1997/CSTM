@@ -21,6 +21,7 @@ fn migrations() -> Migrations<'static> {
         M::up(include_str!("migrations/0002_settings.sql")),
         M::up(include_str!("migrations/0003_trash.sql")),
         M::up(include_str!("migrations/0004_clipboard_history.sql")),
+        M::up(include_str!("migrations/0005_clipboard_trash.sql")),
     ])
 }
 
@@ -32,6 +33,10 @@ pub enum DbError {
     NotFound,
     FolderCycle,
     CopyIntoItself,
+    /// Itens do histórico não têm pasta nem ordem manual e não saem do clipboard.
+    HistoryItem,
+    /// Só textos do histórico podem ser editados.
+    NotText,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
@@ -47,6 +52,11 @@ impl fmt::Display for DbError {
                 f,
                 "uma pasta não pode ser movida para dentro de si mesma ou de uma subpasta"
             ),
+            Self::HistoryItem => write!(
+                f,
+                "itens do histórico não podem ser copiados, movidos nem exportados"
+            ),
+            Self::NotText => write!(f, "só itens de texto do histórico podem ser editados"),
             Self::CopyIntoItself => write!(
                 f,
                 "uma pasta não pode ser copiada para dentro de si mesma ou de uma subpasta"
@@ -135,6 +145,14 @@ impl Ordered {
         match self {
             Self::Folders => "folders",
             Self::Snippets => "snippets",
+        }
+    }
+
+    /// Coluna com o nome exibido do item.
+    fn name_column(self) -> &'static str {
+        match self {
+            Self::Folders => "name",
+            Self::Snippets => "title",
         }
     }
 
@@ -243,6 +261,37 @@ mod tests {
 
         assert_eq!(folders::list_folders(&conn).unwrap().len(), 1);
         assert_eq!(snippets::list_all_snippets(&conn).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn clipboard_trash_migration_keeps_history_items() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        // Banco como estava antes da lixeira do histórico (migrações 0001 a 0004).
+        Migrations::new(vec![
+            M::up(include_str!("migrations/0001_initial.sql")),
+            M::up(include_str!("migrations/0002_settings.sql")),
+            M::up(include_str!("migrations/0003_trash.sql")),
+            M::up(include_str!("migrations/0004_clipboard_history.sql")),
+        ])
+        .to_latest(&mut conn)
+        .unwrap();
+        conn.execute(
+            "INSERT INTO clipboard_items (kind, text, position) VALUES ('text', 'copiado', 0)",
+            [],
+        )
+        .unwrap();
+
+        init(&mut conn).unwrap();
+
+        let deleted: Vec<Option<String>> = conn
+            .prepare("SELECT deleted_at FROM clipboard_items")
+            .unwrap()
+            .query_map([], |row| row.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap();
+        assert_eq!(deleted, [None]);
+        assert_eq!(clipboard::list(&conn).unwrap().len(), 1);
     }
 
     #[test]

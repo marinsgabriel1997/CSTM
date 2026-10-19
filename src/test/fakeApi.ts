@@ -5,6 +5,7 @@ import type {
   AfterPaste,
   Api,
   AvailableUpdate,
+  ClipboardDetail,
   ClipboardItem,
   Folder,
   Page,
@@ -83,6 +84,8 @@ export function createFakeApi() {
   const history: ClipboardItem[] = [];
   const historyState: { monitoring: boolean; failure: string | null } = { monitoring: true, failure: null };
   const historyListeners = new Set<() => void>();
+  /** Conteúdo completo de cada item do histórico: o texto ou a imagem e se veio com formatação. */
+  const clipData = new Map<number, { text: string | null; image: string | null; formatted: boolean }>();
   /** Itens do histórico colados e copiados pelo menu, na ordem. */
   const historyPasted: number[] = [];
   const historyCopied: number[] = [];
@@ -151,10 +154,12 @@ export function createFakeApi() {
   }
 
   function nameOf(item: ItemRef): string {
+    if (item.kind === "clip") return findClip(item.id).title;
     return item.kind === "folder" ? findFolder(item.id).name : findSnippet(item.id).title;
   }
 
   function parentOf(item: ItemRef): number | null {
+    if (item.kind === "clip") return null;
     return item.kind === "folder" ? findFolder(item.id).parentId : findSnippet(item.id).folderId;
   }
 
@@ -217,6 +222,14 @@ export function createFakeApi() {
   }
 
   function removeItem(item: ItemRef) {
+    if (item.kind === "clip") {
+      const index = history.findIndex((clip) => clip.id === item.id);
+      if (index >= 0) history.splice(index, 1);
+      clipData.delete(item.id);
+      trashed.delete(trashKey(item));
+      historyChanged();
+      return;
+    }
     if (item.kind === "folder") {
       if (folders.some((f) => f.id === item.id)) deleteFolderTree(item.id);
     } else {
@@ -248,6 +261,12 @@ export function createFakeApi() {
     const folder = folders.find((f) => f.id === id);
     if (!folder) throw "registro não encontrado";
     return folder;
+  }
+
+  function findClip(id: number): ClipboardItem {
+    const clip = history.find((c) => c.id === id);
+    if (!clip) throw "registro não encontrado";
+    return clip;
   }
 
   function findSnippet(id: number): Snippet {
@@ -379,11 +398,14 @@ export function createFakeApi() {
       for (const item of items) {
         if (!trashed.has(trashKey(item))) trashed.set(trashKey(item), now);
       }
+      if (items.some((item) => item.kind === "clip")) historyChanged();
     },
     restoreItems: async (items) => {
       items.forEach(nameOf);
       for (const item of items) trashed.delete(trashKey(item));
       for (const item of items) {
+        // Itens do histórico voltam à posição que tinham na ordem.
+        if (item.kind === "clip") continue;
         const origin = parentOf(item);
         const parentId = origin !== null && isLiveFolder(origin) ? origin : null;
         if (item.kind === "folder") {
@@ -396,6 +418,7 @@ export function createFakeApi() {
           snippet.sortOrder = nextSortOrder(snippets.filter((s) => s.folderId === parentId));
         }
       }
+      if (items.some((item) => item.kind === "clip")) historyChanged();
     },
     deleteItems: async (items) => {
       items.forEach(removeItem);
@@ -417,6 +440,7 @@ export function createFakeApi() {
     },
     copyItems: async (items, parentId) => {
       if (parentId !== null) findFolder(parentId);
+      if (items.some((item) => item.kind === "clip")) throw "itens do histórico não podem ser copiados";
       return items.map((item) => {
         if (item.kind === "folder" && isSelfOrDescendant(parentId, item.id)) {
           throw "uma pasta não pode ser copiada para dentro de si mesma ou de uma subpasta";
@@ -535,7 +559,34 @@ export function createFakeApi() {
       snippet.useCount += 1;
       snippet.lastUsedAt = new Date(Date.UTC(2026, 0, 1) + clock++ * 1000).toISOString();
     },
-    listClipboardHistory: async () => history.map((item) => ({ ...item })),
+    listClipboardHistory: async () =>
+      history.filter((item) => !isTrashed("clip", item.id)).map((item) => ({ ...item })),
+    getClipboardItem: async (id) => {
+      const item = findClip(id);
+      const data = clipData.get(id) ?? { text: item.preview, image: null, formatted: false };
+      const detail: ClipboardDetail = {
+        id,
+        kind: item.kind,
+        text: item.kind === "text" ? data.text : null,
+        image: item.kind === "image" ? data.image : null,
+        width: item.width,
+        height: item.height,
+        copiedAt: item.copiedAt,
+        formatted: data.formatted,
+      };
+      return detail;
+    },
+    updateClipboardItem: async (id, text) => {
+      if (historyState.failure) throw historyState.failure;
+      if (text.trim() === "") throw "o texto do item não pode ficar vazio";
+      const item = findClip(id);
+      clipData.set(id, { text, image: null, formatted: false });
+      item.title = text.split("\n").find((line) => line.trim() !== "")?.trim() ?? text.trim();
+      item.preview = text;
+      item.copiedAt = new Date(2026, 0, 1, 12, 0, clock++).toISOString();
+      toTop(id);
+      return { ...item };
+    },
     pasteClipboardItem: async (id, format) => {
       historyPastedFormats.push(format);
       historyPasted.push(id);
@@ -547,8 +598,11 @@ export function createFakeApi() {
     },
     clearClipboardHistory: async () => {
       if (historyState.failure) throw historyState.failure;
-      const count = history.length;
+      const count = history.filter((item) => !isTrashed("clip", item.id)).length;
+      // Como no backend, apaga também os itens do histórico que estão na lixeira.
+      for (const clip of history) trashed.delete(trashKey({ kind: "clip", id: clip.id }));
       history.length = 0;
+      clipData.clear();
       historyChanged();
       return count;
     },
@@ -617,7 +671,10 @@ export function createFakeApi() {
   }
 
   /** Simula uma cópia em outro programa entrando no topo do histórico. */
-  function copyElsewhere(item: Partial<ClipboardItem> & Pick<ClipboardItem, "title">) {
+  function copyElsewhere(
+    item: Partial<ClipboardItem> & Pick<ClipboardItem, "title">,
+    extra: { text?: string; image?: string; formatted?: boolean } = {},
+  ) {
     const entry: ClipboardItem = {
       id: nextId++,
       kind: "text",
@@ -630,6 +687,11 @@ export function createFakeApi() {
       ...item,
     };
     history.unshift(entry);
+    clipData.set(entry.id, {
+      text: entry.kind === "text" ? (extra.text ?? entry.preview) : null,
+      image: entry.kind === "image" ? (extra.image ?? "data:image/png;base64,AAAA") : null,
+      formatted: extra.formatted ?? false,
+    });
     historyChanged();
     return entry;
   }

@@ -72,6 +72,8 @@ pub fn run() {
             commands::choose_snippet,
             commands::copy_snippet,
             commands::list_clipboard_history,
+            commands::get_clipboard_item,
+            commands::update_clipboard_item,
             commands::paste_clipboard_item,
             commands::copy_clipboard_item,
             commands::clear_clipboard_history,

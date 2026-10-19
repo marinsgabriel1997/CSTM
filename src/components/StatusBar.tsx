@@ -7,9 +7,9 @@ import {
   Settings16Regular,
   Warning16Regular,
 } from "@fluentui/react-icons";
-import type { ReactElement, ReactNode } from "react";
+import { useEffect, useState, type ReactElement, type ReactNode } from "react";
 
-import type { Page } from "../api";
+import { api, type Page } from "../api";
 import type { Draft } from "../drafts";
 
 const useStyles = makeStyles({
@@ -44,6 +44,7 @@ const useStyles = makeStyles({
   warning: { color: tokens.colorStatusWarningForeground1 },
   error: { color: tokens.colorStatusDangerForeground1 },
   totals: { marginLeft: "auto", flex: "none", color: tokens.colorNeutralForeground3 },
+  version: { flex: "none", color: tokens.colorNeutralForeground3 },
 });
 
 interface StatusBarProps {
@@ -79,6 +80,18 @@ function StatusBar({
   canOpenSettings,
 }: StatusBarProps) {
   const styles = useStyles();
+  // `null` até carregar (ou fora do Tauri): a versão só aparece quando conhecida.
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    let current = true;
+    api.getVersion().then(
+      (value) => current && setVersion(value),
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, []);
   const open = drafts.find((draft) => draft.id === openId);
   const failed = drafts.find((draft) => draft.status === "error");
   const unsaved = drafts.filter(
@@ -157,6 +170,7 @@ function StatusBar({
           {plural(snippetCount, "texto", "textos")} · {plural(folderCount, "pasta", "pastas")}
         </Caption1>
       </div>
+      {version && <Caption1 className={styles.version}>v{version}</Caption1>}
       {canOpenSettings && pageButton("settings", "Configurações", <Settings16Regular />)}
       {pageButton("help", "Ajuda", <QuestionCircle16Regular />, "Ajuda (F1)")}
       {pageButton("about", "Sobre o CSTM", <Info16Regular />)}

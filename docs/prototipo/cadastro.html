@@ -507,6 +507,11 @@
     background: var(--accent-soft); border-bottom: 1px solid var(--accent-soft); font-size: 13px;
   }
   .update-bar span { margin-right: auto; }
+  .row .thumb { width: 16px; height: 12px; border-radius: 2px; background: linear-gradient(135deg, #8ab4f8, #34a853); flex: none; }
+  .hist-info { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-2); margin: 6px 0; }
+  .hist-info.warn { color: #c42b1c; }
+  .hist-image { height: 220px; border-radius: 4px; display: grid; place-items: center; color: #fff;
+    background: linear-gradient(135deg, #8ab4f8, #34a853); margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -590,6 +595,15 @@
     { type: "text", title: "Proposta antiga", from: "Trabalho › Clientes", at: "14/10/2026 09:12" },
     { type: "folder", name: "Rascunhos", info: "3 textos", from: "Raiz", at: "13/10/2026 18:40" },
     { type: "text", title: "Endereço antigo", from: "Pessoal", at: "02/10/2026 11:05" },
+    { type: "clip", title: "Senha do Wi-Fi da sala 3", from: "Histórico", at: "01/10/2026 16:22" },
+  ];
+
+  // Itens do histórico do clipboard, do mais recente para o mais antigo (pasta Histórico da árvore).
+  const HIST = [
+    { id: "h1", kind: "text", title: "Reunião às 15h", content: "Reunião às 15h
+na sala 2, levar o relatório.", at: "09:42", copied: "hoje às 09:42", formatted: true },
+    { id: "h2", kind: "text", title: "https://exemplo.com/relatorio", content: "https://exemplo.com/relatorio", at: "09:30", copied: "hoje às 09:30" },
+    { id: "h3", kind: "image", title: "Imagem 640 × 480", at: "ontem", copied: "ontem às 18:20" },
   ];
 
   // Estados do protótipo. Cada um descreve o que a tela mostra; `render` monta a janela.
@@ -683,6 +697,26 @@
       label: "Excluir (Del)",
       note: "Excluir manda para a lixeira, sem confirmação. A notificação oferece Desfazer (Ctrl+Z também desfaz) e some após 6 segundos. A Lixeira mostra quantos itens tem.",
       selected: "emails", folderView: "emails", hidden: ["resposta", "followup"], trashCount: 5, toasts: ["trashed"], status: { kind: "ok" },
+    },
+    "historico": {
+      label: "Histórico: texto",
+      note: "A pasta Histórico fica fixa no topo da árvore, com os itens copiados. O texto é editado direto, com gravação automática; ao gravar, a formatação que veio junto é descartada e o item sobe para o topo. Excluir (ou Del) move para a lixeira, com Desfazer.",
+      selected: "h1", histOpen: true, status: { kind: "ok" },
+    },
+    "historico-imagem": {
+      label: "Histórico: imagem",
+      note: "Imagens do Histórico aparecem no editor com as dimensões, sem edição; Excluir funciona igual.",
+      selected: "h3", histOpen: true, status: { kind: "ok" },
+    },
+    "historico-vazio": {
+      label: "Histórico: texto vazio",
+      note: "Um item do Histórico não pode ficar vazio: o editor avisa e não grava até voltar a ter texto.",
+      selected: "h2", histOpen: true, histEmptied: true, status: { kind: "idle", text: "Alterações não salvas" },
+    },
+    "historico-excluido": {
+      label: "Histórico: excluído",
+      note: "Excluir um item do Histórico o move para a lixeira; a notificação traz Desfazer e a seleção passa ao item vizinho.",
+      selected: "h2", histOpen: true, hidden: ["h1"], toasts: ["hist-trash"], trashCount: 5, status: { kind: "ok" },
     },
     "lixeira": {
       label: "Lixeira",
@@ -848,6 +882,26 @@
     return html;
   }
 
+  // Pasta Histórico fixa no topo: sem menu de contexto, sem arrastar nem seleção múltipla.
+  function historyRows(st) {
+    let html = `<div class="row folder" style="--depth:0">
+      <span class="tw">${ic(st.histOpen ? "chev-d" : "chev-r")}</span>
+      <svg class="i ic"><use href="#i-history"/></svg>
+      <span class="label"><span class="name">Histórico</span></span>
+    </div>`;
+    if (!st.histOpen) return html;
+    for (const h of HIST) {
+      if (st.hidden?.includes(h.id)) continue;
+      const icon = h.kind === "image" ? `<span class="thumb"></span>` : `<svg class="i ic"><use href="#i-doc"/></svg>`;
+      html += `<div class="row text${st.selected === h.id ? " selected" : ""}" style="--depth:1">
+        <span class="tw"></span>${icon}
+        <span class="label"><span class="name">${esc(h.title)}</span></span>
+        <span class="count">${h.at}</span>
+      </div>`;
+    }
+    return html;
+  }
+
   function renderTree(st) {
     const head = `
       <div class="tree-head">
@@ -882,7 +936,7 @@
       nodes = prune(LIB, (t) => t.fav);
     }
 
-    let rows = treeRows(nodes, 0, st);
+    let rows = (st.query || st.favFilter ? "" : historyRows(st)) + treeRows(nodes, 0, st);
     if (st.renaming) {
       // Itens novos entram no fim: a nova pasta vem depois das pastas da raiz e antes dos textos.
       const firstRootText = rows.indexOf('<div class="row text" style="--depth:0">');
@@ -927,10 +981,29 @@
       </div>`;
     }
 
+    const hist = HIST.find((h) => h.id === st.selected);
+    if (hist) {
+      const meta = `Copiado ${hist.copied}${hist.kind === "image" ? ` · ${hist.title}` : ""}`;
+      const body = hist.kind === "image"
+        ? `<div class="hist-image">640 × 480</div>`
+        : `<div class="content">${st.histEmptied ? "" : esc(hist.content).replace(/
+/g, "<br>")}</div>`;
+      return `
+        <div class="editor-head"><div class="crumbs"><span class="seg">Histórico</span></div><span class="spacer"></span>
+          <button class="btn" title="Excluir (Del)">${ic("trash")} Excluir</button></div>
+        <div class="doc"><div class="doc-inner">
+          <p class="folder-meta">${meta}</p>
+          ${hist.formatted && !st.histEmptied ? `<div class="hist-info">${ic("info")} Editar remove a formatação que veio junto (negrito, links…); o texto continua.</div>` : ""}
+          ${st.histEmptied ? `<div class="hist-info warn">${ic("warn")} Um item do histórico não pode ficar vazio.</div>` : ""}
+          <div class="rule"></div>
+          ${body}
+        </div></div>`;
+    }
+
     if (st.selected === "lixeira") {
       const rows = TRASH.map((t, i) => `
         <div class="li ${t.type}${st.trashSelected === i ? " selected" : ""}">
-          ${ic(t.type === "folder" ? "folder" : "doc")}
+          ${ic(t.type === "folder" ? "folder" : t.type === "clip" ? "history" : "doc")}
           <span>${esc(t.title ?? t.name)}${t.info ? `<span class="sub">Pasta com ${t.info}</span>` : ""}</span>
           <span class="from">${esc(t.from)}</span>
           <span class="when">${t.at}</span>
@@ -1062,7 +1135,7 @@
     if (s.kind === "invalid") left = `<span class="st warn">${ic("warn")} Não salvo: o título está vazio. A última versão salva foi mantida.</span>`;
     if (s.kind === "error") left = `<span class="st err">${ic("error")} Erro ao salvar “Resposta padrão”: banco de dados indisponível.<a href="#">Tentar novamente</a></span>`;
     if (s.kind === "idle") left = `<span class="st">${esc(s.text)}</span>`;
-    return `${left}<span class="right">${counts}</span>`;
+    return `${left}<span class="right">${counts}<span style="margin-left:16px">v0.19.0</span></span>`;
   }
 
   function renderMenus(st) {
@@ -1177,6 +1250,9 @@
         <span class="b">O arquivo não é um backup do CSTM. Nada foi importado.</span></div>`,
       trashed: `<div class="toast undo">${ic("trash")}
         <span class="t">2 itens movidos para a lixeira.</span>
+        <span class="action">Desfazer</span></div>`,
+      "hist-trash": `<div class="toast undo">${ic("trash")}
+        <span class="t">Item do histórico movido para a lixeira.</span>
         <span class="action">Desfazer</span></div>`,
     };
     if (st.toasts) {

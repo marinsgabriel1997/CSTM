@@ -5,6 +5,7 @@ import {
   ChevronRight16Regular,
   Copy16Regular,
   Dismiss16Regular,
+  Delete16Regular,
   DocumentText20Regular,
   Fire20Regular,
   Folder20Regular,
@@ -36,6 +37,7 @@ import {
   type PickerNavigation,
   type Snippet,
 } from "./api";
+import { copiedLabel } from "./clipboardHistory";
 import { folderPath, siblingsOf, snippetsIn } from "./tree";
 
 /** Altura mínima da linha, preenchimento vertical, altura de cada linha do título e linhas que cabem antes das reticências. */
@@ -170,6 +172,10 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorSubtleBackgroundSelected,
   },
   copy: { flex: "none", minWidth: "24px", height: `${COPY_HEIGHT}px`, marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
+  // Nos itens do histórico o Copiar encosta no Excluir, que vem logo depois: anula o espaço entre os dois.
+  copyBeforeDelete: { marginRight: `calc(-1 * ${tokens.spacingHorizontalS})` },
+  // Os botões de modo recuam a largura do Excluir.
+  modesBeforeDelete: { right: `calc(48px + ${tokens.spacingHorizontalXS})` },
   // Reserva o lugar do botão Copiar nas linhas não selecionadas, para o título não refluir ao selecionar.
   copySpace: { flex: "none", width: "24px", height: `${COPY_HEIGHT}px`, marginRight: `calc(-1 * ${tokens.spacingHorizontalXS})` },
   message: {
@@ -237,17 +243,6 @@ const isItem = (row: Row | undefined): row is ItemRow => row?.kind === "snippet"
 
 const itemTitle = (row: ItemRow) => (row.kind === "snippet" ? row.snippet.title : row.item.title);
 
-/** Hora da cópia; de outro dia, "ontem" ou a data. */
-function copiedLabel(iso: string, now = new Date()): string {
-  const copied = new Date(iso);
-  const day = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  const pad = (value: number) => String(value).padStart(2, "0");
-  const days = Math.round((day(now) - day(copied)) / 86_400_000);
-  if (days === 0) return `${pad(copied.getHours())}:${pad(copied.getMinutes())}`;
-  if (days === 1) return "ontem";
-  return `${pad(copied.getDate())}/${pad(copied.getMonth() + 1)}`;
-}
-
 /** Subcoluna aberta na cascata, com o que o backend precisa para posicioná-la. */
 interface OpenColumn {
   place: number | Virtual;
@@ -279,6 +274,8 @@ const SUB_ROW_CHROME = 2 + 8 + 16 + 20 + 8;
 const CHEVRON_WIDTH = 16 + 8;
 /** Botão Copiar (sempre reservado nos itens) e espaço antes dele. */
 const COPY_WIDTH = 24 - 4 + 8;
+/** Botão Excluir (reservado nos itens do histórico) e espaço antes dele. */
+const DELETE_WIDTH = 24 - 4 + 8;
 
 /** Linhas que o título ocupa em `width` px, limitadas a `MAX_LABEL_LINES`: quebra nos espaços e, numa palavra maior que a linha, em qualquer ponto. */
 function labelLines(title: string, width: number): number {
@@ -314,6 +311,7 @@ function estimateRowHeight(row: Row): number {
   else title = itemTitle(row);
   const meta = row.kind === "snippet" ? row.folderName : row.kind === "clip" ? copiedLabel(row.item.copiedAt) : undefined;
   let trailing = isItem(row) ? COPY_WIDTH : CHEVRON_WIDTH;
+  if (row.kind === "clip") trailing += DELETE_WIDTH;
   if (meta) trailing += Math.min(META_MAX_WIDTH, meta.length * META_CHAR_WIDTH) + 8;
   const lines = labelLines(title, SUB_WIDTH - SUB_ROW_CHROME - trailing);
   const content = Math.max(lines * LABEL_LINE_HEIGHT, isItem(row) ? COPY_HEIGHT : 0);
@@ -451,9 +449,11 @@ interface PickerRowProps {
   onPasteAs: (format: PasteFormat) => void;
   /** Copia o texto sem colar; o botão aparece na linha de texto selecionada. */
   onCopy: () => void;
+  /** Move o item do histórico para a Lixeira; o botão aparece na linha de histórico selecionada. */
+  onDelete: () => void;
 }
 
-function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat, onPasteAs, onCopy }: PickerRowProps) {
+function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat, onPasteAs, onCopy, onDelete }: PickerRowProps) {
   const styles = useStyles();
   // Texto cadastrado: os modos além do padrão (Enter usa o padrão). Texto do histórico: todos, pois Enter cola o original.
   const modes =
@@ -462,6 +462,7 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat,
       : row.kind === "clip" && row.item.kind === "text"
         ? PASTE_MODES
         : [];
+  const clip = row.kind === "clip";
   return (
     <div
       id={id}
@@ -499,7 +500,7 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat,
         </Caption1>
       )}
       {modes.length > 0 && selected && (
-        <div className={styles.modes}>
+        <div className={mergeClasses(styles.modes, clip && styles.modesBeforeDelete)}>
           {modes.map(({ format, title, icon }) => (
             <Button
               key={format}
@@ -519,10 +520,10 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat,
           ))}
         </div>
       )}
-      {isItem(row) && !selected && <span className={styles.copySpace} />}
+      {isItem(row) && !selected && <span className={mergeClasses(styles.copySpace, clip && styles.copyBeforeDelete)} />}
       {isItem(row) && selected && (
         <Button
-          className={styles.copy}
+          className={mergeClasses(styles.copy, clip && styles.copyBeforeDelete)}
           size="small"
           appearance="subtle"
           icon={<Copy16Regular />}
@@ -533,6 +534,24 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat,
           onClick={(event) => {
             event.stopPropagation();
             onCopy();
+          }}
+        />
+      )}
+      {clip && !selected && <span className={styles.copySpace} />}
+      {clip && selected && (
+        <Button
+          className={styles.copy}
+          size="small"
+          appearance="subtle"
+          icon={<Delete16Regular />}
+          aria-label="Excluir"
+          title="Excluir (Delete)"
+          // O foco fica no campo de busca, como nas linhas.
+          tabIndex={-1}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onDelete();
           }}
         />
       )}
@@ -869,6 +888,36 @@ function Picker() {
     copied?.catch((reason) => setError(errorMessage(reason)));
   }
 
+  /**
+   * Move o item do histórico para a Lixeira sem fechar o menu. A seleção passa ao item seguinte (ou ao anterior,
+   * se era o último); com o Histórico vazio, a coluna fecha e a pasta some da raiz.
+   */
+  function deleteClip(column: number, row: Row) {
+    if (row.kind !== "clip") return;
+    const options = rowsOf(column);
+    const index = options.indexOf(row);
+    const neighbor = options[index + 1] ?? options[index - 1];
+    api
+      .trashItems([{ kind: "clip", id: row.item.id }])
+      .then(loadHistory)
+      .then((history) => {
+        setLibrary((previous) => previous && { ...previous, history });
+        if (history.length > 0) {
+          select(column, neighbor?.key ?? null);
+        } else if (!cascade) {
+          setFolderId(null);
+          select(0, null);
+        } else if (column > 0) {
+          const parent = column - 1;
+          closeAfter(parent);
+          select(parent, null);
+          setActiveColumn(parent);
+          setFocusRequest({ column: parent });
+        }
+      })
+      .catch((reason) => setError(errorMessage(reason)));
+  }
+
   function clickRow(column: number, row: Row) {
     if (isItem(row) || !cascade) {
       choose(column, row);
@@ -948,6 +997,14 @@ function Picker() {
       case "Escape":
         void api.hidePicker();
         break;
+      case "Delete": {
+        // Só com o cursor no fim da busca e sem trecho selecionado; senão, apaga caracteres como em qualquer campo.
+        const input = event.currentTarget;
+        const end = input.value.length;
+        if (row?.kind !== "clip" || input.selectionStart !== end || input.selectionEnd !== end) return;
+        deleteClip(activeColumn, row);
+        break;
+      }
       case "c":
       case "C": {
         // Com um trecho da busca selecionado, Ctrl+C copia o trecho, como em qualquer campo.
@@ -1018,6 +1075,7 @@ function Picker() {
         defaultFormat={library?.pasteFormat ?? "markdown"}
         onPasteAs={(format) => choose(column, row, format)}
         onCopy={() => copy(row)}
+        onDelete={() => deleteClip(column, row)}
       />
     ));
   }

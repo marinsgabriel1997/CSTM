@@ -409,6 +409,7 @@ fn export_of(conn: &Connection, selection: &[ItemRef]) -> Result<Export> {
                 Kind::Snippet => Ok(Item::Snippet(snippet_item(snippets::get_snippet(
                     conn, item.id,
                 )?))),
+                Kind::Clip => Err(DbError::HistoryItem.into()),
             })
             .collect::<Result<_>>()?
     };
@@ -456,6 +457,10 @@ pub fn export_txt(conn: &Connection, selection: &[ItemRef], dir: &Path) -> Resul
 
 /// Nome sugerido para o backup JSON: `<pasta>.json` para uma pasta sozinha, senão `CSTM.json`.
 pub fn json_file_name(conn: &Connection, selection: &[ItemRef]) -> Result<String> {
+    // Recusa antes de o aplicativo abrir o seletor de arquivo.
+    if selection.iter().any(|item| item.kind == Kind::Clip) {
+        return Err(DbError::HistoryItem.into());
+    }
     let name = match selection {
         [
             ItemRef {
@@ -1054,5 +1059,24 @@ mod tests {
                 "path": null,
             })
         );
+    }
+
+    #[test]
+    fn history_items_cannot_be_exported() {
+        let dir = TempDir::new();
+        let conn = open_in_memory().unwrap();
+        let clip = ItemRef {
+            kind: Kind::Clip,
+            id: 1,
+        };
+
+        assert!(matches!(
+            export_json(&conn, &[clip], &dir.0.join("x.json")),
+            Err(TransferError::Db(DbError::HistoryItem))
+        ));
+        assert!(matches!(
+            json_file_name(&conn, &[clip]),
+            Err(TransferError::Db(DbError::HistoryItem))
+        ));
     }
 }

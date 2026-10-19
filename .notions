@@ -1,6 +1,7 @@
 pendente planejar
 
-- vamos remover a opção do usuario apagar dados no desinstalador, tem grandes chances deles apagarem sem querar o banco. Pra limpar o banco se ele quiser, faz direto pela interface do CSTM, nao pelo desinstalador.
+- vamos remover a opção do usuario apagar dados no desinstalador, tem grandes chances deles apagarem sem querer o banco. Pra limpar o banco se ele quiser, faz direto pela interface do CSTM, nao pelo desinstalador.
+- parece que nenhum lugar do readme.md cita o que é a sigla cstm
 - revisao com ia, estrutura de pastas e revisão de texto, penso em um chat dentro do cstm, o agents/modelos teria o poder de organizar pastas e editar textos. Além de funções diretamente nos textos pra uma revisao rapida. Modelos leves e locais, opcionalmente coneão via api. Acho que da pra usar o padrao da api openai pra implementar que tem ampla compatibilidade. Verificar o que ja existe, nao precisamos reinventar a roda. Opcional, vem desativado por padrao e éativado via configurações ou botao na tela do chat "Ativar" >> Escolha um modelo. Tem que ter regras duras internas, procedimento de backup automatico quando a IA editar, pra rollback quando IA fizer errado. IA precisara de ferramentas pra ler o banco e fazer as edições.
 
 planejado

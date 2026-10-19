@@ -332,6 +332,8 @@
   // Botões dos modos de colagem que não são o padrão (Markdown), só em textos cadastrados (plano 082).
   const MODE_BUTTONS = `<button class="copy mode" title="Colar sem formatação" aria-label="Colar sem formatação" tabindex="-1">Aa</button><button class="copy mode" title="Colar formatado" aria-label="Colar formatado" tabindex="-1"><b>B</b></button><button class="copy mode" title="Colar para o Google Chat" aria-label="Colar para o Google Chat" tabindex="-1">G</button>`;
   // No Histórico, Enter e Copiar colam o original; os quatro modos ficam em botões, só nos textos (plano 083).
+  // Só nos itens do Histórico: move o item para a Lixeira do cadastro, sem fechar o menu.
+  const DELETE_BUTTON = `<button class="copy" title="Excluir (Delete)" aria-label="Excluir" tabindex="-1"><svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4"/></svg></button>`;
   const HISTORY_MODE_BUTTONS = `<button class="copy mode" title="Colar como markdown" aria-label="Colar como markdown" tabindex="-1">M</button>` + MODE_BUTTONS;
 
   // Biblioteca de exemplo, a mesma do protótipo do cadastro.
@@ -382,7 +384,7 @@ Levar o relatório impresso.", when: "14:32" },
 
   const STATES = {
     raiz: { label: "Raiz", note: "Estado ao abrir: as pastas Histórico, Mais usados e Favoritos no topo, depois o conteúdo da raiz, com a busca focada. Cada uma some quando está vazia; o Histórico também some com a opção desligada nas Configurações." },
-    historico: { label: "Histórico", note: "Os itens copiados em qualquer programa, do mais recente para o mais antigo, com a hora da cópia à direita (ou a data, se não foi hoje). Texto: a primeira linha; imagem: miniatura e tamanho. Enter ou clique cola (com a formatação, se havia; a imagem como imagem); Copiar ou Ctrl+C deixa no clipboard. O item usado sobe para o topo. A busca não inclui o histórico." },
+    historico: { label: "Histórico", note: "Os itens copiados em qualquer programa, do mais recente para o mais antigo, com a hora da cópia à direita (ou a data, se não foi hoje). Texto: a primeira linha; imagem: miniatura e tamanho. Enter ou clique cola (com a formatação, se havia; a imagem como imagem); Copiar ou Ctrl+C deixa no clipboard. O item usado sobe para o topo. A lixeira (ou Delete) move o item selecionado para a Lixeira do cadastro, sem fechar o menu. A busca não inclui o histórico." },
     "mais-usados": { label: "Mais usados", note: "Os 10 textos mais colados, do mais usado para o menos usado; a pasta de cada um aparece à direita, como na busca." },
     favoritos: { label: "Favoritos", note: "Os textos favoritos, por título, com a pasta de cada um à direita." },
     "sem-historico": { label: "Histórico desligado", note: "Com \"Guardar o histórico do clipboard\" desligado nas Configurações (ou sem nenhum item guardado), a pasta Histórico não aparece." },
@@ -504,7 +506,7 @@ Levar o relatório impresso.", when: "14:32" },
     el.setAttribute("aria-selected", index === selected);
     const isFolder = row.kind === "folder";
     el.innerHTML = (row.thumb ? `<span class="thumb"></span>` : `<span class="icon">${row.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
-      (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : (row.item.when ? (row.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
+      (row.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : (row.item.when ? (row.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>` + (row.item.when ? DELETE_BUTTON : ""));
     el.querySelector(".label").textContent = isFolder ? row.item.name : row.item.title;
     if (row.meta) el.querySelector(".meta").textContent = row.meta;
     el.title = isFolder ? "" : row.item.when ? row.item.content : [row.item.title, row.tip, row.item.content].filter(Boolean).join("\n\n");
@@ -784,7 +786,7 @@ Levar o relatório impresso.", when: "14:32" },
         el.setAttribute("role", "option");
         const isFolder = entry.kind === "folder";
         el.innerHTML = (entry.thumb ? `<span class="thumb"></span>` : `<span class="icon">${entry.icon ?? (isFolder ? "📁" : "📄")}</span>`) + `<span class="label"></span>` +
-          (entry.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : ("thumb" in entry ? (entry.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>`);
+          (entry.meta ? `<span class="meta"></span>` : "") + (isFolder ? `<span class="chevron">›</span>` : ("thumb" in entry ? (entry.thumb ? "" : HISTORY_MODE_BUTTONS) : MODE_BUTTONS) + `<button class="copy" title="Copiar (Ctrl+C)" aria-label="Copiar" tabindex="-1">⧉</button>` + ("thumb" in entry ? DELETE_BUTTON : ""));
         el.querySelector(".label").textContent = entry.title;
         if (entry.meta) el.querySelector(".meta").textContent = entry.meta;
         if (!isFolder) el.title = "thumb" in entry ? entry.content : [entry.title, entry.tip, entry.content].filter(Boolean).join("\n\n");

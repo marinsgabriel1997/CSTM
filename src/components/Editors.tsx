@@ -15,6 +15,7 @@ import {
 import {
   ArrowClockwise16Regular,
   ChevronRight12Regular,
+  Delete20Regular,
   DocumentAdd20Regular,
   FolderAdd20Regular,
   Star20Filled,
@@ -25,6 +26,8 @@ import { useState, type ReactNode, type RefObject } from "react";
 
 import type { ActionKey, ItemAction } from "../actions";
 import type { Folder } from "../api";
+import type { ClipEditing } from "../clipEditing";
+import { copiedAtLabel } from "../clipboardHistory";
 import type { SaveStatus } from "../drafts";
 import type { FolderContents } from "../tree";
 import { ItemMenuButton } from "./ItemMenu";
@@ -126,6 +129,15 @@ const useStyles = makeStyles({
     color: tokens.colorNeutralForeground3,
   },
   folderActions: { display: "flex", gap: tokens.spacingHorizontalS },
+  clipInfo: { flex: "none", marginBottom: tokens.spacingVerticalS },
+  clipImage: {
+    display: "block",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain",
+    alignSelf: "flex-start",
+    minHeight: 0,
+  },
   welcome: {
     flex: 1,
     display: "flex",
@@ -384,6 +396,98 @@ export function FolderEditor({
           </Button>
         </div>
       </div>
+    </section>
+  );
+}
+
+interface ClipEditorProps {
+  /** `null` enquanto o item carrega. */
+  editing: ClipEditing | null;
+  contentRef: RefObject<HTMLTextAreaElement | null>;
+  onChange: (text: string) => void;
+  onRetry: () => void;
+  onDelete: () => void;
+}
+
+/** Item do histórico do clipboard: texto editável ou imagem só para ver. */
+export function ClipEditor({ editing, contentRef, onChange, onRetry, onDelete }: ClipEditorProps) {
+  const styles = useStyles();
+  const detail = editing?.detail;
+  const image = detail?.kind === "image";
+
+  return (
+    <section className={styles.editor} aria-label="Item do histórico">
+      <div className={styles.head}>
+        <Text className={styles.crumbs}>Histórico</Text>
+        <Tooltip content="Excluir (Del)" relationship="description">
+          <Button appearance="subtle" icon={<Delete20Regular />} onClick={onDelete}>
+            Excluir
+          </Button>
+        </Tooltip>
+      </div>
+
+      {editing?.status === "error" && (
+        <MessageBar intent="error" className={styles.error}>
+          <MessageBarBody>
+            <MessageBarTitle>Não foi possível salvar.</MessageBarTitle>
+            Suas alterações continuam aqui e não foram perdidas. {editing.error}
+          </MessageBarBody>
+          <MessageBarActions>
+            <Button size="small" icon={<ArrowClockwise16Regular />} onClick={onRetry}>
+              Tentar novamente
+            </Button>
+          </MessageBarActions>
+        </MessageBar>
+      )}
+
+      {editing && detail && (
+        <div className={styles.doc}>
+          <p className={styles.usage}>
+            {copiedAtLabel(detail.copiedAt)}
+            {image && ` · Imagem ${detail.width} × ${detail.height}`}
+          </p>
+          {!image && detail.formatted && (
+            <MessageBar intent="info" className={styles.clipInfo}>
+              <MessageBarBody>
+                Editar remove a formatação que veio junto (negrito, links…); o texto continua.
+              </MessageBarBody>
+            </MessageBar>
+          )}
+          <div className={styles.rule} />
+          {image ? (
+            <img
+              className={styles.clipImage}
+              src={detail.image ?? undefined}
+              alt={`Imagem ${detail.width} × ${detail.height}`}
+            />
+          ) : (
+            <>
+              {editing.status === "invalid" && (
+                <div className={styles.hint}>
+                  <Warning16Regular /> Um item do histórico não pode ficar vazio.
+                </div>
+              )}
+              <textarea
+                ref={contentRef}
+                className={styles.content}
+                aria-label="Conteúdo"
+                value={editing.text}
+                onChange={(event) => onChange(event.target.value)}
+              />
+            </>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Pasta Histórico selecionada: sem nada a editar. */
+export function HistoryPlaceholder() {
+  const styles = useStyles();
+  return (
+    <section className={mergeClasses(styles.editor, styles.placeholder)} aria-label="Histórico">
+      <Text>Selecione um item do histórico para ver ou editar o que foi copiado.</Text>
     </section>
   );
 }

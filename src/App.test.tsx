@@ -63,6 +63,12 @@ describe("primeiro uso", () => {
     expect(status()).toHaveTextContent("Nenhum texto cadastrado");
     expect(status()).toHaveTextContent("0 textos · 0 pastas");
   });
+
+  it("mostra a versão do aplicativo na barra inferior", async () => {
+    renderApp();
+
+    expect(await screen.findByText("v0.14.0")).toBeInTheDocument();
+  });
 });
 
 describe("criação", () => {

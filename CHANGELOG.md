@@ -6,6 +6,14 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-10-19
+
+### Added
+
+- Pasta **Histórico** no topo da árvore do cadastro, com os itens do histórico do clipboard: os textos podem ser editados (a formatação que veio junto é descartada e o item sobe para o topo) e qualquer item pode ir para a **Lixeira**, com **Desfazer**, ser restaurado ou excluído definitivamente.
+- Versão do CSTM na barra inferior do cadastro, ao lado do botão de Configurações.
+- Botão de lixeira (e a tecla `Delete`) no item selecionado do Histórico no menu de colagem, que manda o item para a Lixeira sem fechar o menu.
+
 ## [0.18.0] - 2026-10-19
 
 ### Added

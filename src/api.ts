@@ -81,6 +81,20 @@ export interface ClipboardItem {
   copiedAt: string;
 }
 
+/** Item do histórico por inteiro, para o editor do cadastro. */
+export interface ClipboardDetail {
+  id: number;
+  kind: "text" | "image";
+  text: string | null;
+  /** PNG completo como `data:` URL. */
+  image: string | null;
+  width: number | null;
+  height: number | null;
+  copiedAt: string;
+  /** Veio com formatação HTML/RTF, que editar o texto descarta. */
+  formatted: boolean;
+}
+
 /** Item na lixeira, com o lugar de onde saiu. */
 export interface TrashItem {
   kind: ItemRef["kind"];
@@ -261,11 +275,15 @@ export const api = {
   // Histórico do clipboard.
   /** Itens do mais recente para o mais antigo. */
   listClipboardHistory: () => invoke<ClipboardItem[]>("list_clipboard_history"),
+  /** O item inteiro, com o texto ou a imagem completos. */
+  getClipboardItem: (id: number) => invoke<ClipboardDetail>("get_clipboard_item", { id }),
+  /** Grava o texto, descarta a formatação e sobe o item para o topo; texto vazio é recusado. */
+  updateClipboardItem: (id: number, text: string) => invoke<ClipboardItem>("update_clipboard_item", { id, text }),
   /** Fecha o menu e cola o item (com todos os formatos) no programa anterior; o item sobe para o topo. */
   pasteClipboardItem: (id: number, format?: PasteFormat) => invoke<void>("paste_clipboard_item", { id, format }),
   /** Fecha o menu e deixa o item no clipboard, sem colar; o item sobe para o topo. */
   copyClipboardItem: (id: number, format?: PasteFormat) => invoke<void>("copy_clipboard_item", { id, format }),
-  /** Apaga todos os itens e devolve quantos eram. */
+  /** Apaga todos os itens, também os da lixeira, e devolve quantos eram. */
   clearClipboardHistory: () => invoke<number>("clear_clipboard_history"),
   /** Se o histórico está ligado; ligado enquanto nada foi escolhido. */
   getClipboardMonitoring: () => invoke<boolean>("get_clipboard_monitoring"),

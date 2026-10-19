@@ -22,7 +22,7 @@ export const BASIC_STEPS: HelpStep[] = [
   },
   {
     title: "Escreva o título e o conteúdo",
-    text: "O CSTM salva sozinho enquanto você digita; a barra inferior mostra quando tudo está salvo.",
+    text: "O CSTM salva sozinho enquanto você digita; a barra inferior mostra quando tudo está salvo e, à direita, a versão do CSTM.",
   },
   {
     title: "Organize em pastas, se quiser",
@@ -87,6 +87,8 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     paragraphs: [
       "A pasta **Histórico**, no topo do menu de colagem, guarda os últimos 100 itens copiados em qualquer programa: textos, com a formatação, e imagens.",
       "Clique num item para colá-lo, ou use **Copiar**. O que gerenciadores de senha marcam como sensível não é guardado.",
+      "No menu de colagem, a lixeira na linha selecionada (ou `Delete`) manda o item para a **Lixeira** do cadastro.",
+      "No cadastro, a pasta **Histórico** fica no topo da árvore: selecione um texto para editá-lo (ao gravar, a formatação que veio junto é descartada e o item sobe para o topo) ou use **Excluir** (`Delete`) para mandá-lo à **Lixeira**, de onde ele pode ser restaurado.",
       "Em **Configurações**, desligue o histórico ou apague tudo com **Limpar histórico**.",
     ],
   },

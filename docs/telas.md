@@ -41,7 +41,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas              9 textos · 4 pastas  [⚙] (?) (i)  |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.19.0  [⚙] (?) (i)  |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -50,6 +50,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Elemento | Decisão |
 | --- | --- |
 | Árvore | Única, com pastas e textos. Pastas primeiro, depois textos, cada grupo na sua ordem manual. Textos sem pasta ficam na raiz. Ícones distintos para pasta (aberta/fechada) e texto; estrela à direita dos favoritos. A Lixeira fica fixa no fim, fora da rolagem, com a contagem de itens. |
+| Histórico | Pasta fixa no topo da árvore, acima das pastas, com o ícone de relógio, enquanto a opção "Guardar o histórico do clipboard" (Tela 3) estiver ligada e houver itens. Abre e fecha como uma pasta (começa fechada) e mostra os itens do histórico do clipboard do mais recente para o mais antigo, como no menu de colagem: textos pela primeira linha não vazia, imagens com a miniatura e "Imagem L × A", e a hora da cópia à direita, em cinza. Some com a busca ou o filtro de favoritos ativos. Não tem menu de contexto nem `...`, e não aceita arrastar, soltar, renomear, ordenar nem seleção múltipla (Ctrl+clique ou Shift+clique num item do Histórico seleciona só ele). Selecionar a própria pasta Histórico mostra no editor "Selecione um item do histórico para ver ou editar o que foi copiado." Com um item do Histórico selecionado, Novo cria na raiz e Colar fica desabilitado. A lista acompanha as cópias novas com a janela aberta. Ver Histórico na árvore. |
 | Seleção | Item selecionado com fundo e marca de destaque à esquerda. Clicar na seta abre/fecha a pasta; clicar no item o seleciona. Ctrl+clique, Shift+clique e Ctrl+A selecionam vários (ver Operações da árvore). |
 | Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Recortar (Ctrl+X), Copiar (Ctrl+C), Colar (Ctrl+V), Renomear (F2), Mover para…, Mover para cima, Mover para baixo, Adicionar/Remover dos favoritos (só textos), Ordenar (só pastas; submenu), Exportar (só pastas; submenu, ver Importação e exportação), Excluir (Del). Sobre uma seleção múltipla, ver Operações da árvore. |
 | Criação | Botão único `+ Novo` com menu: Novo texto (Ctrl+N) e Nova pasta (Ctrl+Shift+N). O destino é a pasta selecionada, ou a pasta do texto selecionado, ou a raiz; o menu informa o destino. Itens novos entram no fim do grupo. |
@@ -60,7 +61,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Favoritos | Estrela na árvore e no editor; filtro `Favoritos` reduz a árvore aos textos marcados, mantendo as pastas onde estão. |
 | Busca | Filtra a própria árvore: mantém as pastas que contêm resultados (abertas) e destaca o termo. Quando a correspondência é só no conteúdo, o item mostra um trecho. Contagem de resultados ao lado do filtro. Limpar a busca restaura a árvore. |
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
-| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
+| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos da versão em execução ("v0.19.0", em cinza, só informativa) e dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Versão nova | Quando a verificação de atualização (Tela 3) encontra uma versão mais nova, uma barra (`MessageBar` do Fluent UI, tipo informação) aparece no topo da janela, acima da árvore e do editor: "Versão X do CSTM disponível.", com **Abrir página da release** (abre no navegador) e **Dispensar**. Dispensar esconde a barra para aquela versão, inclusive ao reiniciar; uma versão mais nova mostra a barra de novo. Na mesma verificação em segundo plano, uma notificação do Windows ("CSTM X disponível", "Clique para abrir a página da release.") aparece uma única vez por versão; clicar nela abre a página no navegador. |
 | Confirmação | Diálogo modal somente para o que não tem volta: excluir definitivamente e esvaziar a lixeira, informando o que vai junto (subpastas, textos, favoritos). Botão de confirmar em vermelho. Excluir comum vai para a lixeira, sem diálogo. |
@@ -196,6 +197,46 @@ Regras:
 6. **Lixeira:** Excluir (Del) move os itens para a lixeira sem confirmação; uma pasta vai com todo o conteúdo. A notificação "N itens movidos para a lixeira." traz **Desfazer** e some após 6 segundos. A Lixeira fica fixa no fim da árvore, com a contagem, e aceita itens soltos sobre ela. Selecionada, mostra os itens excluídos (nome, de onde vieram, data), com seleção múltipla, Restaurar e Excluir definitivamente (também por item, ao passar o mouse) e Esvaziar lixeira. Restaurar devolve o item à pasta de origem, no fim do grupo, ou à raiz se a pasta não existir mais ou também estiver na lixeira. Itens na lixeira não aparecem na árvore, na busca, no menu de colagem, nos totais nem nas exportações, e só saem dela pelo usuário.
 7. **Exclusão definitiva:** Shift+Del, Excluir definitivamente e Esvaziar lixeira pedem confirmação, informando o que vai junto (subpastas, textos, favoritos).
 8. **Desfazer (Ctrl+Z):** com o foco na árvore, no painel da seleção ou na Lixeira, desfaz a última operação: excluir, mover (Mover para…, arrastar, recortar e colar), reordenar (Mover para cima/baixo, arrastar), ordenar, colar cópias e favoritar em lote. Guarda até 50 operações enquanto o aplicativo estiver aberto. Nos campos de texto, Ctrl+Z é o desfazer do próprio campo. Se uma operação não puder mais ser desfeita (por exemplo, o item foi excluído definitivamente), uma notificação informa e ela é descartada. Não há refazer.
+
+### Histórico na árvore
+
+Item de texto do Histórico selecionado:
+
+```text
++-------------------------------+------------------------------------------------+
+| [ Buscar... ] [+ Novo v] [...]|  Histórico                          [Excluir]  |
+| ( Favoritos )                 |                                                |
+|                               |  Copiado hoje às 09:42                         |
+| v Histórico                   |  (i) Editar remove a formatação que veio junto |
+| =>  Reunião às 15h      09:42 |      (negrito, links...); o texto continua.    |
+|     https://exemplo.co  09:30 |  --------------------------------------------  |
+|     [img] Imagem 640×480 ontem|  Reunião às 15h                                |
+| v Trabalho                    |  na sala 2, levar o relatório.                 |
+|   ...                         |                                                |
+|-------------------------------|                                                |
+| Lixeira                     3 |                                                |
++-------------------------------+------------------------------------------------+
+```
+
+Imagem do Histórico selecionada:
+
+```text
+|  Histórico                          [Excluir]  |
+|                                                |
+|  Copiado ontem às 18:20 · Imagem 640 × 480     |
+|  --------------------------------------------  |
+|  +------------------------------------------+  |
+|  |                 (imagem)                 |  |
+|  +------------------------------------------+  |
+```
+
+Regras:
+
+1. **Editor do texto:** no topo, "Histórico" e o botão **Excluir** (ícone de lixeira, com a dica "Excluir (Del)"); abaixo, "Copiado hoje às 09:42" (ou "ontem", ou a data), em cinza, uma linha fina e o conteúdo, editável direto, sem título separado (na árvore e no menu, o título é a primeira linha não vazia). Grava após uma pausa na digitação, como os textos cadastrados, com o mesmo estado na barra inferior. Ao gravar, o item perde a formatação HTML/RTF que veio junto e sobe para o topo do Histórico; quando o item tem formatação, uma faixa informativa avisa antes da edição: "Editar remove a formatação que veio junto (negrito, links…); o texto continua." Apagar todo o conteúdo não grava: o editor mostra "Um item do histórico não pode ficar vazio." até voltar a ter texto, e sair dele mantém o último conteúdo gravado.
+2. **Editor da imagem:** "Copiado … · Imagem L × A" (de outro dia que não hoje nem ontem, "Copiado em dd/mm/aaaa às HH:MM") e a imagem, reduzida para caber na largura, sem edição. Excluir funciona igual.
+3. **Excluir:** o botão Excluir e `Del` na árvore movem o item para a Lixeira, com a notificação "Item do histórico movido para a lixeira." e **Desfazer** (também `Ctrl+Z`, como nas outras exclusões). `Shift+Del` exclui definitivamente, com confirmação ("Excluir definitivamente este item do histórico? Não é possível desfazer."). A seleção passa ao item vizinho do Histórico; sem itens, a pasta Histórico some e a seleção vai para o primeiro item da árvore.
+4. **Lixeira:** os itens do Histórico aparecem com o nome da primeira linha (ou "Imagem L × A") e "Estava em: Histórico". Restaurar devolve o item ao Histórico, no lugar que ele tinha na ordem; Excluir definitivamente e Esvaziar lixeira os apagam. Na lixeira, eles não contam no limite de 100 itens, e copiar de novo o mesmo conteúdo cria um item novo no Histórico. "Limpar histórico" (Tela 3) apaga também os itens do Histórico que estão na lixeira.
+5. **Teclado:** `Enter` num item de texto do Histórico leva o foco ao conteúdo do editor; setas, `Home`/`End` e as letras navegam como nos demais itens. `F2`, `Ctrl+X`, `Ctrl+C` e `Ctrl+V` não fazem nada num item do Histórico.
 
 ### Importação e exportação
 
@@ -405,10 +446,12 @@ Busca:
 - Pastas têm `>` à direita. Textos mostram só o título; a dica (tooltip nativa do Windows) ao passar o mouse mostra o título completo, uma linha em branco e o conteúdo (nos resultados da busca e nas listas que mostram a pasta, o caminho vem entre o título e o conteúdo).
 - Títulos de textos, pastas e itens do Histórico quebram em até 2 linhas antes das reticências; uma linha com título curto mantém a altura de uma linha.
 - A linha de texto selecionada (pelo mouse ou pelo teclado) mostra à direita um botão pequeno **Copiar**, com o ícone de duas folhas sobrepostas e a dica "Copiar (Ctrl+C)". Os itens do Histórico também têm o botão. Pastas, Histórico, Mais usados, Favoritos e a linha de volta não têm.
+- Um item do Histórico selecionado (texto ou imagem) mostra também, depois do Copiar, o botão **Excluir**, com o ícone de lixeira e a dica "Excluir (Delete)": move o item para a Lixeira do cadastro (de onde pode ser restaurado), sem fechar o menu. A seleção passa ao item seguinte (ou ao anterior, se era o último); com o Histórico vazio, a coluna fecha e a pasta Histórico some da raiz.
 - **Modos de colagem:** a linha de texto cadastrado selecionada mostra também, antes do Copiar, três botões pequenos só de ícone, um para cada modo de colagem que não é o padrão (Tela 3). Os modos são **Markdown** (o conteúdo como está), **Sem formatação** (sem a marcação markdown), **Formatado** (rich text gerado do markdown) e **Google Chat** (sintaxe do Google Chat), com as dicas "Colar como markdown", "Colar sem formatação", "Colar formatado" e "Colar para o Google Chat". Os botões ficam por cima do fim da linha (sobre a pasta e o fim do título), com o fundo da seleção, para o título não mudar de altura ao selecionar. Num item de texto do Histórico selecionado aparecem os quatro botões, porque ali `Enter`, clique e Copiar colam o original; imagens não têm modos. Para converter um item do Histórico, o CSTM lê primeiro o item como markdown: a formatação que veio junto (HTML com negrito, itálico, tachado, código, listas, títulos, links ou citação) vira markdown; sem ela, um texto na sintaxe do Google Chat (`*x*` ou `~x~` de um caractere, sem `**` nem `~~`) tem `*x*` lido como negrito e `~x~` como tachado; os demais textos valem como estão. O item guardado não muda: a conversão acontece só ao colar. Não há atalhos de teclado para os modos.
 
 ```text
 | => Resposta padrão    [md][Aa][G] ⧉ |
+| => Reunião às 15h [md][Aa][F][G] ⧉ 🗑 |
 ```
 - Com texto na busca, a lista é substituída pelos resultados (só dos textos cadastrados; o Histórico fica de fora da busca) (na ordem de relevância do backend: primeiro os textos com todos os termos no título, do título mais relevante, em geral o mais curto, ao menos; depois os que só batem no conteúdo), cada um com o nome da pasta em que está à direita, em cinza (o caminho completo fica na dica); textos da raiz não mostram pasta. A busca vale para toda a biblioteca, mesmo aberta dentro de uma pasta.
 
@@ -425,6 +468,7 @@ Busca:
 | `Enter`, `→` ou clique numa pasta | Abre a pasta |
 | `←` ou `Backspace` com a busca vazia, ou clique na linha de volta | Volta para a pasta acima |
 | Digitar | Busca; a seleção volta para o primeiro resultado |
+| Botão Excluir, ou `Delete` com um item do Histórico selecionado | Move o item para a Lixeira do cadastro, sem fechar o menu (ver Estrutura). `Delete` só exclui com o cursor no fim da busca e sem trecho selecionado; nos demais casos, apaga caracteres da busca, como em qualquer campo |
 | `Esc`, clique fora ou `Alt+Q` | Fecha o menu sem colar |
 | Passar o mouse | Move a seleção para a linha sob o cursor |
 
@@ -509,7 +553,7 @@ As Configurações, a Ajuda (Tela 4) e o Sobre (Tela 5) são páginas que ocupam
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas              9 textos · 4 pastas  [⚙] (?) (i)  |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.19.0  [⚙] (?) (i)  |
 +--------------------------------------------------------------------------------+
 ```
 

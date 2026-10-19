@@ -40,6 +40,8 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 - Não guarda o que o próprio CSTM escreve no clipboard (colagem, cópia e restauração), o que os programas marcam como sensível (`ExcludeClipboardContentFromMonitorProcessing`, `Clipboard Viewer Ignore` ou `CanIncludeInClipboardHistory` igual a zero, usados por gerenciadores de senha), itens vazios nem itens acima de 10 MB.
 - Nos textos do histórico, os quatro modos de colagem ficam em botões (`Enter` e Copiar colam o original). O item é lido primeiro como markdown: a formatação HTML que veio junto vira markdown e, sem ela, a sintaxe do Google Chat (`*x*`, `~x~`) também; o item guardado não muda.
 - A busca principal do menu não inclui o histórico (a coluna do Histórico tem busca própria), e o cadastro continua só com textos.
+- No menu, a linha selecionada do Histórico tem também um botão de lixeira (ou `Delete`, com o cursor no fim da busca), que manda o item para a Lixeira do cadastro sem fechar o menu.
+- No cadastro, a pasta Histórico fica fixa no topo da árvore (some com o histórico desligado ou vazio e com a busca ou o filtro de favoritos). Um texto do histórico é editado só no conteúdo, com gravação automática; ao gravar, a formatação HTML/RTF é descartada e o item sobe para o topo. Imagens só são vistas. Excluir manda o item para a Lixeira (com Desfazer), de onde Restaurar o devolve ao lugar que tinha na ordem; na lixeira, ele não conta no limite de 100 nem é reaproveitado ao copiar o mesmo conteúdo, e "Limpar histórico" o apaga também. Itens do histórico não são copiados, movidos nem exportados como textos.
 
 ### 3. Execução em segundo plano
 
@@ -185,7 +187,7 @@ CREATE TABLE settings (
     value TEXT NOT NULL
 );
 
--- Histórico do clipboard: no máximo 100 itens, ordenados por position (maior primeiro)
+-- Histórico do clipboard: no máximo 100 itens fora da lixeira, ordenados por position (maior primeiro)
 CREATE TABLE clipboard_items (
     id         INTEGER PRIMARY KEY,
     kind       TEXT    NOT NULL,  -- 'text' ou 'image'
@@ -198,7 +200,8 @@ CREATE TABLE clipboard_items (
     height     INTEGER,
     position   INTEGER NOT NULL,
     created_at TEXT    NOT NULL,
-    copied_at  TEXT    NOT NULL   -- última cópia ou uso
+    copied_at  TEXT    NOT NULL,  -- última cópia, uso ou edição
+    deleted_at TEXT               -- preenchido enquanto o item está na lixeira
 );
 ```
 

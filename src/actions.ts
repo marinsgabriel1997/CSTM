@@ -1,7 +1,23 @@
-/** Item da árvore: pasta ou texto (id negativo para texto novo ainda não gravado). */
+/**
+ * Item da árvore: pasta, texto (id negativo para texto novo ainda não gravado) ou item do
+ * histórico do clipboard. Itens do histórico só aceitam excluir e restaurar; as demais
+ * operações da árvore nunca os recebem.
+ */
 export interface ItemRef {
-  kind: "folder" | "snippet";
+  kind: "folder" | "snippet" | "clip";
   id: number;
+}
+
+/** A própria pasta Histórico da árvore, que não é um item do histórico (ids reais são positivos). */
+export const HISTORY_FOLDER: ItemRef = { kind: "clip", id: 0 };
+
+export function isHistoryFolder(item: ItemRef | null): boolean {
+  return item?.kind === "clip" && item.id === HISTORY_FOLDER.id;
+}
+
+/** Pastas e textos, sem a pasta Histórico nem os itens dela. */
+export function withoutClips(items: ItemRef[]): ItemRef[] {
+  return items.filter((item) => item.kind !== "clip");
 }
 
 export type ActionKey =

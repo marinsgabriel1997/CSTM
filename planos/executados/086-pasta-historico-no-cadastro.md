@@ -1,8 +1,9 @@
 # 086 — Pasta Histórico no cadastro
 
-- Status: Planejado
+- Status: Concluído
 - Prioridade: Média
 - Criado em: 2026-10-19
+- Concluído em: 2026-10-19
 
 ## Objetivo
 
@@ -24,6 +25,8 @@ Gerenciar o histórico do clipboard no cadastro: uma pasta Histórico fixa no to
 5. **Regras do histórico:** itens na lixeira não contam no limite de 100 nem são reaproveitados ao copiar o mesmo conteúdo (entra um item novo). "Limpar histórico" apaga também os que estão na lixeira.
 6. **Picker:** a linha selecionada do histórico ganha a lixeira ao lado do Copiar; `Delete` faz o mesmo quando o cursor está no fim da busca e não há trecho selecionado. A seleção passa ao item vizinho; com o histórico vazio, a coluna fecha.
 
+7. **Versão na barra inferior** (acrescentado a pedido do usuário durante o Marco): "vX.Y.Z" em cinza, só informativo, à esquerda do botão Configurações.
+
 Fora do escopo: salvar item do histórico como texto cadastrado, editar a formatação, editar imagens, histórico na busca do cadastro.
 
 ## Estado desejado (técnico)
@@ -31,7 +34,8 @@ Fora do escopo: salvar item do histórico como texto cadastrado, editar a format
 - Migração acrescenta `deleted_at TEXT` a `clipboard_items`; `list`, limite e deduplicação ignoram itens com `deleted_at`.
 - `db::clipboard` ganha `update_text` (texto novo, `html`/`rtf` nulos, sobe ao topo) e as operações de lixeira; `clear` apaga tudo.
 - `ItemRef` e `TrashItem` aceitam o tipo `"clip"`; `trash_items`, `restore_items`, `delete_items` e `empty_trash` tratam esses itens e emitem `clipboard-history-changed`.
-- Comandos novos: `get_clipboard_item(id)` (texto completo) e `update_clipboard_item(id, text)`.
+- Comandos novos: `get_clipboard_item(id)` (item completo: texto ou imagem em PNG, dimensões, data e se veio com formatação) e `update_clipboard_item(id, text)`.
+- Erros novos em `db`: operações de árvore (copiar, mover, exportar) recusam itens do histórico, e editar uma imagem é recusado.
 - Frontend: `api.ts`, `fakeApi.ts`, árvore (`tree.ts`, `LibraryTree.tsx`, `TreePane.tsx`), editor (`Editors.tsx`), lixeira e Desfazer (`App.tsx`, `Panels.tsx`) e picker (`Picker.tsx`).
 
 ## Riscos
@@ -55,60 +59,71 @@ Fora do escopo: salvar item do histórico como texto cadastrado, editar a format
 
 ## Fase 0 — Desenho
 
-- [ ] `docs/telas.md`: pasta Histórico na árvore, editor do item (texto e imagem), lixeira com itens do histórico, lixeira na linha do picker.
-- [ ] `docs/prototipo/cadastro.html` e `docs/prototipo/picker.html` atualizados.
+- [x] `docs/telas.md`: pasta Histórico na árvore, editor do item (texto e imagem), lixeira com itens do histórico, lixeira na linha do picker.
+- [x] `docs/prototipo/cadastro.html` e `docs/prototipo/picker.html` atualizados.
 
 Critério: desenho registrado e coerente com o escopo.
 
 ## Fase 1 — Backend
 
-- [ ] Migração de `deleted_at` em `clipboard_items`, com teste em banco existente.
-- [ ] `list`, limite e deduplicação ignoram itens na lixeira; `clear` apaga tudo.
-- [ ] `update_text`, `get_text` e operações de lixeira para itens do histórico, com testes.
-- [ ] `ItemRef`/`TrashItem` com `"clip"` em `trash_items`, `restore_items`, `delete_items`, `empty_trash` e `list_trash`.
-- [ ] Comandos `get_clipboard_item` e `update_clipboard_item` registrados.
+- [x] Migração de `deleted_at` em `clipboard_items`, com teste em banco existente.
+- [x] `list`, limite e deduplicação ignoram itens na lixeira; `clear` apaga tudo.
+- [x] `update_text`, `get_text` e operações de lixeira para itens do histórico, com testes.
+- [x] `ItemRef`/`TrashItem` com `"clip"` em `trash_items`, `restore_items`, `delete_items`, `empty_trash` e `list_trash`.
+- [x] Comandos `get_clipboard_item` e `update_clipboard_item` registrados.
 
 Critério: `npm run test:rust`, `npm run lint:rust` e `cargo fmt --check` passando.
 
 ## Fase 2 — API e fakeApi
 
-- [ ] Tipos e comandos novos em `src/api.ts`; `src/test/fakeApi.ts` coerente (lixeira, restauração e edição do histórico).
+- [x] Tipos e comandos novos em `src/api.ts`; `src/test/fakeApi.ts` coerente (lixeira, restauração e edição do histórico).
 
 Critério: `npm run build` passando.
 
 ## Fase 3 — Cadastro
 
-- [ ] Pasta Histórico no topo da árvore, com as restrições do escopo.
-- [ ] Editor do item de texto (gravação automática, aviso de vazio) e de imagem.
-- [ ] Excluir, `Del`, `Shift+Del`, Lixeira com "Histórico" e Desfazer.
-- [ ] Testes em `App.test.tsx` e/ou `TreeOperations.test.tsx`.
+- [x] Pasta Histórico no topo da árvore, com as restrições do escopo.
+- [x] Editor do item de texto (gravação automática, aviso de vazio) e de imagem.
+- [x] Excluir, `Del`, `Shift+Del`, Lixeira com "Histórico" e Desfazer.
+- [x] Testes em `History.test.tsx` (novo) e `clipboardHistory.test.ts` (textos de data).
 
 Critério: `npm run test`, `npm run build` e `npm run lint` passando.
 
 ## Fase 4 — Picker
 
-- [ ] Lixeira na linha selecionada do histórico e tecla `Delete` com a regra do cursor.
-- [ ] Testes em `Picker.test.tsx`: botão, tecla, `Delete` no meio da busca não exclui, exclusão do último item.
+- [x] Lixeira na linha selecionada do histórico e tecla `Delete` com a regra do cursor.
+- [x] Testes em `Picker.test.tsx`: botão, tecla, `Delete` no meio da busca não exclui, exclusão do último item.
 
 Critério: `npm run test`, `npm run build` e `npm run lint` passando.
 
 ## Fase 5 — Documentação
 
-- [ ] `docs/produto.md`, `src/helpContent.ts` e `CHANGELOG.md` (`Added`).
+- [x] `docs/produto.md`, `src/helpContent.ts` e `CHANGELOG.md` (`Added`).
 
 Critério: documentação revisada e coerente com o código.
 
+## Fase 6 — Versão na barra inferior
+
+- [x] `docs/telas.md` (Barra inferior), `src/helpContent.ts` e `CHANGELOG.md`.
+- [x] Versão em `StatusBar.tsx`, lida por `api.getVersion()`, com teste.
+- [x] Novo build de teste.
+
+Critério: `npm run test`, `npm run build` e `npm run lint` passando.
+
 ## Marco — Validação do usuário
 
-- [ ] A pasta Histórico aparece no topo da árvore e some com o histórico desligado ou vazio.
-- [ ] Editar um texto grava sem a formatação, o item sobe ao topo e a mudança aparece no picker.
-- [ ] Imagens aparecem no editor, sem edição.
-- [ ] Excluir/`Del` move para a Lixeira; Desfazer e Restaurar devolvem ao histórico.
-- [ ] `Shift+Del` e Esvaziar lixeira apagam de vez.
-- [ ] Lixeira e `Delete` do picker funcionam; `Delete` no meio da busca apaga caracteres.
-- [ ] "Limpar histórico" apaga também os itens do histórico na Lixeira.
-- [ ] A Ajuda descreve a pasta, a edição e a exclusão.
+- [x] A pasta Histórico aparece no topo da árvore e some com o histórico desligado ou vazio.
+- [x] Editar um texto grava sem a formatação, o item sobe ao topo e a mudança aparece no picker.
+- [x] Imagens aparecem no editor, sem edição.
+- [x] Excluir/`Del` move para a Lixeira; Desfazer e Restaurar devolvem ao histórico.
+- [x] `Shift+Del` e Esvaziar lixeira apagam de vez.
+- [x] Lixeira e `Delete` do picker funcionam; `Delete` no meio da busca apaga caracteres.
+- [x] "Limpar histórico" apaga também os itens do histórico na Lixeira.
+- [x] A Ajuda descreve a pasta, a edição e a exclusão.
+- [x] A versão aparece na barra inferior, à esquerda da engrenagem.
 
-Resultados: —
+Resultados:
 
-Aceite: —
+- 2026-10-19, build `0.19.0-teste-086` (11:00): todas as verificações validadas pelo usuário, inclusive a versão na barra inferior.
+
+Aceite: total, em 2026-10-19.

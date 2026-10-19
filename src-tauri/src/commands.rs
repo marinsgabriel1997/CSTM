@@ -15,9 +15,9 @@ use crate::autostart;
 use crate::cascade::{PlacedColumn, Subcolumn};
 use crate::clipboard::{self, Content, TextContent};
 use crate::clipboard_history;
-use crate::db::clipboard::{self as history, HistoryItem};
+use crate::db::clipboard::{self as history, ClipboardDetail, HistoryItem};
 use crate::db::folders::{self, Folder};
-use crate::db::items::{self, ItemRef, TrashItem};
+use crate::db::items::{self, ItemRef, Kind, TrashItem};
 use crate::db::settings::{self, AfterPaste, UpdateSettings};
 use crate::db::snippets::{self, Snippet};
 use crate::main_window;
@@ -151,24 +151,40 @@ pub fn move_snippet(
     ))
 }
 
-#[tauri::command]
-pub fn trash_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
-    respond(items::trash(&mut lock(&state), &items))
+/// Avisa as janelas quando o pedido mexeu em itens do histórico do clipboard.
+fn notify_if_history(app: &AppHandle, items: &[ItemRef]) {
+    if items.iter().any(|item| item.kind == Kind::Clip) {
+        clipboard_history::notify(app);
+    }
 }
 
 #[tauri::command]
-pub fn restore_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
-    respond(items::restore(&mut lock(&state), &items))
+pub fn trash_items(app: AppHandle, state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::trash(&mut lock(&state), &items))?;
+    notify_if_history(&app, &items);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn delete_items(state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
-    respond(items::delete(&mut lock(&state), &items))
+pub fn restore_items(app: AppHandle, state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::restore(&mut lock(&state), &items))?;
+    notify_if_history(&app, &items);
+    Ok(())
 }
 
 #[tauri::command]
-pub fn empty_trash(state: Db) -> CommandResult<()> {
-    respond(items::empty_trash(&mut lock(&state)))
+pub fn delete_items(app: AppHandle, state: Db, items: Vec<ItemRef>) -> CommandResult<()> {
+    respond(items::delete(&mut lock(&state), &items))?;
+    notify_if_history(&app, &items);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn empty_trash(app: AppHandle, state: Db) -> CommandResult<()> {
+    respond(items::empty_trash(&mut lock(&state)))?;
+    // A lixeira pode ter itens do histórico.
+    clipboard_history::notify(&app);
+    Ok(())
 }
 
 #[tauri::command]
@@ -375,6 +391,24 @@ pub async fn copy_snippet(
 #[tauri::command]
 pub fn list_clipboard_history(state: Db) -> CommandResult<Vec<HistoryItem>> {
     respond(history::list(&lock(&state)))
+}
+
+#[tauri::command]
+pub fn get_clipboard_item(state: Db, id: i64) -> CommandResult<ClipboardDetail> {
+    respond(history::detail(&lock(&state), id))
+}
+
+/// Grava o texto editado de um item do histórico e o leva ao topo.
+#[tauri::command]
+pub fn update_clipboard_item(
+    app: AppHandle,
+    state: Db,
+    id: i64,
+    text: String,
+) -> CommandResult<HistoryItem> {
+    let item = respond(history::update_text(&lock(&state), id, &text))?;
+    clipboard_history::notify(&app);
+    Ok(item)
 }
 
 /// O item usado sobe para o topo do histórico; uma falha nisso não é erro.

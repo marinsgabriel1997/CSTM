@@ -9,11 +9,20 @@ import {
   type PointerEvent,
 } from "react";
 
-import { includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
+import {
+  includesItem,
+  isHistoryFolder,
+  sameItem,
+  withoutClips,
+  type ActionKey,
+  type ItemAction,
+  type ItemRef,
+} from "./actions";
 import {
   api,
   errorMessage,
   type AvailableUpdate,
+  type ClipboardItem,
   type Folder,
   type Page,
   type ShortcutStatus,
@@ -21,7 +30,7 @@ import {
   type TrashItem,
 } from "./api";
 import AboutPage from "./components/AboutPage";
-import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
+import { ClipEditor, FolderEditor, HistoryPlaceholder, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
 import HelpPage from "./components/HelpPage";
 import LibraryTree, { type DropTarget, type SelectMode } from "./components/LibraryTree";
@@ -31,7 +40,8 @@ import SettingsPage from "./components/SettingsPage";
 import StatusBar from "./components/StatusBar";
 import TreePane from "./components/TreePane";
 import UpdateBar from "./components/UpdateBar";
-import { DraftStore } from "./drafts";
+import { useClipEditing } from "./clipEditing";
+import { DraftStore, type Draft } from "./drafts";
 import { capitalize, type Notice } from "./notice";
 import {
   groupOrder,
@@ -134,6 +144,8 @@ const useStyles = makeStyles({
 
 /** Ordem provisória que coloca textos novos no fim da pasta, na ordem de criação. */
 const DRAFT_ORDER = 1e12;
+/** Id do item do histórico em edição na barra de estado, que só conhece rascunhos. */
+const CLIP_DRAFT_ID = -1_000_000;
 
 function countSnippets(nodes: TreeNode[]): number {
   return nodes.reduce((total, node) => total + (node.kind === "snippet" ? 1 : countSnippets(node.children)), 0);
@@ -207,6 +219,10 @@ function App() {
   // Início do intervalo selecionado com Shift.
   const anchor = useRef<ItemRef | null>(null);
   const [trashOpen, setTrashOpen] = useState(false);
+  // Itens do histórico do clipboard (vazio com o histórico desligado) e se a pasta Histórico está aberta.
+  const [clips, setClips] = useState<ClipboardItem[]>([]);
+  const [clipsVersion, setClipsVersion] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [marked, setMarked] = useState<Marked | null>(null);
   const [dragging, setDragging] = useState<ItemRef[] | null>(null);
   const undoStack = useRef<UndoEntry[]>([]);
@@ -232,6 +248,12 @@ function App() {
   const [page, setPage] = useState<Page | null>(null);
   const toasterId = useId("notices");
   const { dispatchToast } = useToastController(toasterId);
+  const openClipId =
+    selection?.kind === "clip" && !isHistoryFolder(selection) && clips.some((clip) => clip.id === selection.id)
+      ? selection.id
+      : null;
+  const clipEditing = useClipEditing(openClipId, setError);
+  const flushClip = clipEditing.flush;
   const treeRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -255,6 +277,20 @@ function App() {
       current = false;
     };
   }, [version]);
+
+  useEffect(() => {
+    let current = true;
+    Promise.all([api.getClipboardMonitoring(), api.listClipboardHistory()]).then(
+      ([monitoring, list]) => current && setClips(monitoring ? list : []),
+      (reason) => current && setError(errorMessage(reason)),
+    );
+    return () => {
+      current = false;
+    };
+  }, [version, clipsVersion]);
+
+  // A lista acompanha as cópias novas e as mudanças feitas pelo menu de colagem e pelas Configurações.
+  useEffect(() => listenWindow(api.onClipboardHistoryChanged, () => setClipsVersion((current) => current + 1)), []);
 
   useEffect(() => {
     let current = true;
@@ -370,7 +406,7 @@ function App() {
   useEffect(
     () =>
       listenWindow(api.onQuitRequested, async () => {
-        await store.flushAll();
+        await Promise.all([store.flushAll(), flushClip()]);
         if (!store.hasUnsaved()) {
           void api.exitApp();
           return;
@@ -388,7 +424,7 @@ function App() {
           },
         });
       }),
-    [store],
+    [store, flushClip],
   );
 
   useEffect(() => {
@@ -445,11 +481,16 @@ function App() {
   const openSnippet =
     selection?.kind === "snippet" ? displaySnippets.find((snippet) => snippet.id === selection.id) : undefined;
   const openDraft = openSnippet && drafts.get(openSnippet.id);
-  const empty = loaded && folders.length === 0 && displaySnippets.length === 0 && newFolderIn === undefined;
-  const exists = (item: ItemRef) =>
-    item.kind === "folder"
+  const empty =
+    loaded && folders.length === 0 && displaySnippets.length === 0 && newFolderIn === undefined && clips.length === 0;
+  // A pasta Histórico some com a busca ou o filtro de favoritos ativos.
+  const historyShown = clips.length > 0 && !filtering;
+  const exists = (item: ItemRef) => {
+    if (item.kind === "clip") return isHistoryFolder(item) ? clips.length > 0 : clips.some((clip) => clip.id === item.id);
+    return item.kind === "folder"
       ? folders.some((folder) => folder.id === item.id)
       : displaySnippets.some((snippet) => snippet.id === item.id);
+  };
   // Itens que saíram da árvore (excluídos, por exemplo) deixam de contar como selecionados.
   const multiSelection = multi.filter(exists);
   const selectedItems = multiSelection.length > 1 ? multiSelection : selection ? [selection] : [];
@@ -461,12 +502,16 @@ function App() {
     return [...items].sort((a, b) => position(a) - position(b));
   }
 
-  /** Itens a operar: na ordem da tela, sem os que já vão junto com uma pasta da lista. */
+  /**
+   * Itens a operar: na ordem da tela, sem os que já vão junto com uma pasta da lista e sem os do
+   * Histórico, que só aceitam excluir (ver `deleteClip`).
+   */
   function prepare(items: ItemRef[]): ItemRef[] {
-    return inTreeOrder(topLevel(items, folders, displaySnippets));
+    return inTreeOrder(topLevel(withoutClips(items), folders, displaySnippets));
   }
 
   function nameOf(item: ItemRef): string {
+    if (item.kind === "clip") return clips.find((clip) => clip.id === item.id)?.title ?? "";
     if (item.kind === "folder") return folders.find((folder) => folder.id === item.id)?.name ?? "";
     return displaySnippets.find((snippet) => snippet.id === item.id)?.title.trim() || "Sem título";
   }
@@ -538,7 +583,8 @@ function App() {
   }
 
   function selectWith(item: ItemRef, mode: SelectMode) {
-    if (mode === "single") {
+    // O Histórico não tem seleção múltipla: Ctrl+clique e Shift+clique selecionam só o item.
+    if (mode === "single" || item.kind === "clip" || selection?.kind === "clip") {
       select(item);
       return;
     }
@@ -650,6 +696,7 @@ function App() {
   }
 
   function actionsFor(item: ItemRef): ItemAction[] {
+    if (item.kind === "clip") return [];
     if (inSelection(item)) {
       const favorite = favoriteLabel(selectedItems);
       return [
@@ -707,6 +754,7 @@ function App() {
   const SORTS: Partial<Record<ActionKey, SortKind>> = { sortName: "name", sortUses: "uses", sortRecent: "recent" };
 
   function runAction(item: ItemRef, key: ActionKey) {
+    if (item.kind === "clip") return;
     const items = inSelection(item) ? selectedItems : [item];
     switch (key) {
       case "cut":
@@ -851,7 +899,8 @@ function App() {
   }
 
   async function paste() {
-    if (!marked || trashOpen) return;
+    // Num item do Histórico, Colar não faz nada.
+    if (!marked || trashOpen || selection?.kind === "clip") return;
     const parentId = pasteTarget();
     if (marked.mode === "cut") {
       setMarked(null);
@@ -1007,6 +1056,62 @@ function App() {
     });
   }
 
+  /** Item que fica selecionado ao tirar `id` do Histórico: o vizinho ou, sem outros itens, o primeiro da árvore. */
+  function afterRemovingClip(id: number): ItemRef | null {
+    const index = clips.findIndex((clip) => clip.id === id);
+    const neighbor = clips[index + 1] ?? clips[index - 1];
+    if (neighbor) return { kind: "clip", id: neighbor.id };
+    return visibleItems(nodes, isOpen)[0] ?? null;
+  }
+
+  /** Del ou o botão Excluir num item do Histórico: lixeira com Desfazer, ou exclusão definitiva após confirmar. */
+  async function deleteClip(id: number, permanent: boolean) {
+    const ref: ItemRef = { kind: "clip", id };
+    if (permanent) {
+      setConfirmation({
+        title: "Excluir definitivamente este item do histórico?",
+        message: "Não é possível desfazer.",
+        confirmLabel: "Excluir definitivamente",
+        danger: true,
+        onConfirm: () => {
+          setConfirmation(null);
+          clipEditing.discard();
+          select(afterRemovingClip(id));
+          void attempt(() => api.deleteItems([ref]));
+        },
+      });
+      return;
+    }
+    clipEditing.discard();
+    select(afterRemovingClip(id));
+    await attempt(async () => {
+      await api.trashItems([ref]);
+      const entry: UndoEntry = { run: () => api.restoreItems([ref]) };
+      pushUndo(entry);
+      notify(
+        {
+          intent: "info",
+          icon: "trash",
+          title: "Item do histórico movido para a lixeira.",
+          action: { label: "Desfazer", onClick: () => void undo(entry) },
+        },
+        TRASH_NOTICE_MS,
+      );
+    });
+  }
+
+  /** Del (lixeira) ou Shift+Del (definitivo) sobre a seleção da árvore. */
+  function deleteSelection(permanent: boolean) {
+    if (selection?.kind === "clip") {
+      if (!isHistoryFolder(selection) && clips.some((clip) => clip.id === selection.id)) {
+        void deleteClip(selection.id, permanent);
+      }
+      return;
+    }
+    if (permanent) confirmPermanentDelete(selectedItems);
+    else void trashItems(selectedItems);
+  }
+
   /** O que vai junto com os itens: subpastas e textos das pastas, e os textos. */
   function contentsMessage(items: ItemRef[]) {
     let subfolders = 0;
@@ -1109,6 +1214,10 @@ function App() {
       else newSnippet();
     } else if (key === "s" && !event.shiftKey) {
       event.preventDefault();
+      if (openClipId !== null) {
+        void clipEditing.flush();
+        return;
+      }
       if (!openSnippet) return;
       if (openDraft?.status === "error") void store.retry(openSnippet.id);
       else void store.flush(openSnippet.id);
@@ -1156,6 +1265,21 @@ function App() {
   const targetLabel = path.length > 0 ? `Em ${path.map((folder) => folder.name).join(" › ")}` : "Na raiz";
   const movingParents = new Set((moving ?? []).map((item) => parentOf(item, folders, displaySnippets) ?? null));
 
+  // O item do histórico em edição aparece na barra de estado como um rascunho a mais.
+  const statusDrafts: Draft[] = [...drafts.values()];
+  if (clipEditing.editing && clipEditing.editing.status !== "saved") {
+    const { text, status, error } = clipEditing.editing;
+    statusDrafts.push({
+      id: CLIP_DRAFT_ID,
+      folderId: null,
+      title: "Item do histórico",
+      content: text,
+      status,
+      error,
+      saved: null,
+    });
+  }
+
   let editor;
   if (page === "settings" && shortcut) {
     editor = (
@@ -1198,6 +1322,18 @@ function App() {
         favoriteLabel={favoriteLabel(items)}
         onAction={(key) => runAction(items[0], key)}
         onDelete={(permanent) => (permanent ? confirmPermanentDelete(items) : void trashItems(items))}
+      />
+    );
+  } else if (selection && isHistoryFolder(selection) && clips.length > 0) {
+    editor = <HistoryPlaceholder />;
+  } else if (openClipId !== null) {
+    editor = (
+      <ClipEditor
+        editing={clipEditing.editing}
+        contentRef={contentRef}
+        onChange={clipEditing.edit}
+        onRetry={() => void clipEditing.retry()}
+        onDelete={() => void deleteClip(openClipId, false)}
       />
     );
   } else if (selectedFolder) {
@@ -1294,6 +1430,8 @@ function App() {
           <LibraryTree
             treeRef={treeRef}
             nodes={nodes}
+            history={historyShown ? { clips, open: historyOpen } : null}
+            onToggleHistory={setHistoryOpen}
             selection={selection}
             selected={selectedItems}
             cut={marked?.mode === "cut" ? marked.items : []}
@@ -1310,9 +1448,7 @@ function App() {
             onSelect={selectWith}
             onSelectAll={selectAll}
             onEscape={escape}
-            onDelete={(permanent) =>
-              permanent ? confirmPermanentDelete(selectedItems) : void trashItems(selectedItems)
-            }
+            onDelete={deleteSelection}
             onToggle={toggleFolder}
             onAction={runAction}
             onSubmitName={submitName}
@@ -1344,12 +1480,16 @@ function App() {
         <main ref={paneRef} className={styles.editorPane}>{editor}</main>
       </div>
       <StatusBar
-        drafts={[...drafts.values()]}
-        openId={openSnippet?.id ?? null}
-        titleOf={(id) => displaySnippets.find((snippet) => snippet.id === id)?.title.trim() || "Sem título"}
+        drafts={statusDrafts}
+        openId={clipEditing.editing ? CLIP_DRAFT_ID : (openSnippet?.id ?? null)}
+        titleOf={(id) =>
+          id === CLIP_DRAFT_ID
+            ? "Item do histórico"
+            : displaySnippets.find((snippet) => snippet.id === id)?.title.trim() || "Sem título"
+        }
         snippetCount={snippets.length}
         folderCount={folders.length}
-        onRetry={(id) => void store.retry(id)}
+        onRetry={(id) => void (id === CLIP_DRAFT_ID ? clipEditing.retry() : store.retry(id))}
         page={page}
         onTogglePage={togglePage}
         canOpenSettings={shortcut !== null}

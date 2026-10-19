@@ -1,10 +1,11 @@
-import { makeStyles, mergeClasses, tokens, type PositioningVirtualElement } from "@fluentui/react-components";
+import { Caption1, makeStyles, mergeClasses, tokens, type PositioningVirtualElement } from "@fluentui/react-components";
 import {
   ChevronDown12Regular,
   ChevronRight12Regular,
   DocumentText20Regular,
   Folder20Regular,
   FolderOpen20Regular,
+  History20Regular,
   Star12Filled,
 } from "@fluentui/react-icons";
 import {
@@ -18,8 +19,9 @@ import {
   type RefObject,
 } from "react";
 
-import { includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "../actions";
-import type { Snippet } from "../api";
+import { HISTORY_FOLDER, includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "../actions";
+import type { ClipboardItem, Snippet } from "../api";
+import { copiedLabel } from "../clipboardHistory";
 import type { Draft } from "../drafts";
 import { excerpt, highlight, titleMatches, type Part } from "../search";
 import type { TreeNode } from "../tree";
@@ -135,12 +137,29 @@ const useStyles = makeStyles({
   dotWarning: { backgroundColor: tokens.colorStatusWarningForeground1 },
   dotError: { backgroundColor: tokens.colorStatusDangerForeground1 },
   more: { visibility: "hidden", flex: "none" },
+  thumbnail: {
+    width: "20px",
+    height: "20px",
+    flex: "none",
+    objectFit: "cover",
+    borderRadius: tokens.borderRadiusSmall,
+    border: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+  },
+  copiedAt: { flex: "none", paddingLeft: tokens.spacingHorizontalXS, color: tokens.colorNeutralForeground3 },
 });
 
 type Row =
   | { kind: "folder"; node: Extract<TreeNode, { kind: "folder" }>; depth: number; parentId: number | null }
   | { kind: "snippet"; snippet: Snippet; depth: number; parentId: number | null }
-  | { kind: "new-folder"; depth: number; parentId: number | null };
+  | { kind: "new-folder"; depth: number; parentId: number | null }
+  | { kind: "history"; depth: number; parentId: null }
+  | { kind: "clip"; clip: ClipboardItem; depth: number; parentId: null };
+
+/** A pasta Histórico no topo da árvore: os itens (mais recente primeiro) e se está aberta. */
+export interface HistoryFolder {
+  clips: ClipboardItem[];
+  open: boolean;
+}
 
 /** Como a seleção muda com o clique ou a tecla: só o item, alternar (Ctrl) ou intervalo (Shift). */
 export type SelectMode = "single" | "toggle" | "range";
@@ -156,12 +175,16 @@ type DropView = { target: DropTarget; row: ItemRef; place: "into" | "before" | "
 function refOf(row: Row): ItemRef | null {
   if (row.kind === "folder") return { kind: "folder", id: row.node.folder.id };
   if (row.kind === "snippet") return { kind: "snippet", id: row.snippet.id };
+  if (row.kind === "history") return HISTORY_FOLDER;
+  if (row.kind === "clip") return { kind: "clip", id: row.clip.id };
   return null;
 }
 
 function labelOf(row: Row): string {
   if (row.kind === "folder") return row.node.folder.name;
   if (row.kind === "snippet") return row.snippet.title.trim() || "Sem título";
+  if (row.kind === "history") return "Histórico";
+  if (row.kind === "clip") return row.clip.title;
   return "";
 }
 
@@ -171,6 +194,17 @@ function rowId(item: ItemRef): string {
 
 function fold(text: string): string {
   return text.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+}
+
+/** Linhas da pasta Histórico, no topo da árvore. */
+function historyRows(history: HistoryFolder | null): Row[] {
+  if (!history) return [];
+  return [
+    { kind: "history", depth: 0, parentId: null },
+    ...(history.open
+      ? history.clips.map((clip): Row => ({ kind: "clip", clip, depth: 1, parentId: null }))
+      : []),
+  ];
 }
 
 /** Linhas visíveis, na ordem da tela; a pasta em criação entra depois das pastas do grupo. */
@@ -212,6 +246,9 @@ function Highlighted({ parts, markClass }: { parts: Part[]; markClass: string })
 interface LibraryTreeProps {
   treeRef: RefObject<HTMLDivElement | null>;
   nodes: TreeNode[];
+  /** A pasta Histórico; `null` quando não aparece (desligado, vazio ou com busca ou filtro ativos). */
+  history: HistoryFolder | null;
+  onToggleHistory: (open: boolean) => void;
   /** Item com o foco, aberto no editor quando é o único selecionado. */
   selection: ItemRef | null;
   /** Todos os itens selecionados, incluindo o do foco. */
@@ -254,6 +291,8 @@ interface LibraryTreeProps {
 function LibraryTree({
   treeRef,
   nodes,
+  history,
+  onToggleHistory,
   selection,
   selected,
   cut,
@@ -288,7 +327,7 @@ function LibraryTree({
   const [drop, setDrop] = useState<DropView | null>(null);
   const opening = useRef<{ folderId: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const typed = useRef({ text: "", time: 0 });
-  const rows = visibleRows(nodes, isOpen, newFolderIn);
+  const rows = [...historyRows(history), ...visibleRows(nodes, isOpen, newFolderIn)];
   const items = rows.map(refOf);
   const index = items.findIndex((item) => sameItem(item, selection));
 
@@ -335,13 +374,20 @@ function LibraryTree({
         step(items.length, -1, mode);
         break;
       case "ArrowRight":
-        if (row?.kind === "folder" && row.node.children.length > 0) {
+        if (row?.kind === "history") {
+          if (history && !history.open) onToggleHistory(true);
+          else step(index, 1, "single");
+        } else if (row?.kind === "folder" && row.node.children.length > 0) {
           if (!isOpen(row.node.folder.id)) onToggle(row.node.folder.id, true);
           else step(index, 1, "single");
         }
         break;
       case "ArrowLeft":
-        if (row?.kind === "folder" && isOpen(row.node.folder.id) && row.node.children.length > 0) {
+        if (row?.kind === "history") {
+          if (history?.open) onToggleHistory(false);
+        } else if (row?.kind === "clip") {
+          onSelect(HISTORY_FOLDER, "single");
+        } else if (row?.kind === "folder" && isOpen(row.node.folder.id) && row.node.children.length > 0) {
           onToggle(row.node.folder.id, false);
         } else if (row && row.parentId !== null) {
           onSelect({ kind: "folder", id: row.parentId }, "single");
@@ -349,7 +395,8 @@ function LibraryTree({
         break;
       case "Enter":
         if (row?.kind === "folder") onToggle(row.node.folder.id, !isOpen(row.node.folder.id));
-        else if (row?.kind === "snippet") onOpenEditor();
+        else if (row?.kind === "history") onToggleHistory(!history?.open);
+        else if (row?.kind === "snippet" || row?.kind === "clip") onOpenEditor();
         break;
       case "Escape":
         onEscape();
@@ -365,10 +412,11 @@ function LibraryTree({
         onDelete(event.shiftKey);
         break;
       case "ContextMenu":
-        if (selection) openMenuAtRow(selection);
+        if (selection && selection.kind !== "clip") openMenuAtRow(selection);
         break;
       case "F10":
         if (!event.shiftKey || !selection) return;
+        if (selection.kind === "clip") break;
         openMenuAtRow(selection);
         break;
       default:
@@ -402,7 +450,8 @@ function LibraryTree({
 
   /** Destino do arrasto sobre a linha, pela altura do ponteiro; `null` se não aceita. */
   function dropAt(row: Row, item: ItemRef, event: DragEvent): DropView | null {
-    if (!dragging) return null;
+    // A pasta Histórico e os itens dela não recebem itens soltos.
+    if (!dragging || row.kind === "history" || row.kind === "clip") return null;
     const rect = event.currentTarget.getBoundingClientRect();
     const offset = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
     const into: DropView | null =
@@ -510,7 +559,8 @@ function LibraryTree({
       dropHere === "after" && mergeClasses(styles.dropLine, styles.dropAfter),
     );
     const label = labelOf(row);
-    const draggable = canArrange && item.id >= 0 && renamingFolder !== item.id;
+    const draggable =
+      canArrange && (row.kind === "folder" || row.kind === "snippet") && item.id >= 0 && renamingFolder !== item.id;
     const common = {
       id: rowId(item),
       role: "treeitem",
@@ -526,6 +576,11 @@ function LibraryTree({
       },
       onContextMenu: (event: MouseEvent) => {
         event.preventDefault();
+        // O Histórico não tem menu de contexto.
+        if (item.kind === "clip") {
+          onSelect(item, "single");
+          return;
+        }
         // Dentro da seleção, o menu age sobre todos os itens selecionados.
         if (!includesItem(selected, item) || selected.length < 2) onSelect(item, "single");
         const { clientX: x, clientY: y } = event;
@@ -548,6 +603,45 @@ function LibraryTree({
         onAction={(key) => onAction(item, key)}
       />
     );
+
+    if (row.kind === "history") {
+      const open = history?.open ?? false;
+      return (
+        <div key={common.id} {...common} aria-label="Histórico" aria-expanded={open}>
+          <span
+            className={styles.twisty}
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleHistory(!open);
+            }}
+          >
+            {open ? <ChevronDown12Regular /> : <ChevronRight12Regular />}
+          </span>
+          <History20Regular className={styles.folderIcon} />
+          <span className={mergeClasses("cstm-row-label", styles.label)}>
+            <span className={styles.name}>Histórico</span>
+          </span>
+        </div>
+      );
+    }
+
+    if (row.kind === "clip") {
+      const { clip } = row;
+      return (
+        <div key={common.id} {...common} aria-label={clip.title}>
+          <span className={styles.twisty} />
+          {clip.thumbnail ? (
+            <img className={styles.thumbnail} src={clip.thumbnail} alt="" />
+          ) : (
+            <DocumentText20Regular className={styles.snippetIcon} />
+          )}
+          <span className={mergeClasses("cstm-row-label", styles.label)}>
+            <span className={styles.name}>{clip.title}</span>
+          </span>
+          <Caption1 className={styles.copiedAt}>{copiedLabel(clip.copiedAt)}</Caption1>
+        </div>
+      );
+    }
 
     if (row.kind === "folder") {
       const { folder, children } = row.node;

@@ -23,6 +23,7 @@ import {
   DocumentText20Regular,
   Folder20Regular,
   FolderArrowRight20Regular,
+  History20Regular,
   Star12Filled,
   Star20Regular,
 } from "@fluentui/react-icons";
@@ -337,6 +338,8 @@ export function TrashPanel({ items, onRestore, onDelete, onEmpty }: TrashPanelPr
                 >
                   {item.kind === "folder" ? (
                     <Folder20Regular className={styles.folderIcon} />
+                  ) : item.kind === "clip" ? (
+                    <History20Regular className={styles.snippetIcon} />
                   ) : (
                     <DocumentText20Regular className={styles.snippetIcon} />
                   )}
@@ -344,7 +347,9 @@ export function TrashPanel({ items, onRestore, onDelete, onEmpty }: TrashPanelPr
                     <Text>{trashed.name}</Text>
                     {contents && <Caption1 className={styles.sub}>{contents}</Caption1>}
                   </span>
-                  <Caption1 className={styles.from}>{trashed.path.join(" › ") || "Raiz"}</Caption1>
+                  <Caption1 className={styles.from}>
+                    {item.kind === "clip" ? "Histórico" : trashed.path.join(" › ") || "Raiz"}
+                  </Caption1>
                   <Caption1 className={styles.when}>{deletedLabel(trashed.deletedAt)}</Caption1>
                   <span className={mergeClasses("cstm-trash-actions", styles.rowActions)}>
                     <Button

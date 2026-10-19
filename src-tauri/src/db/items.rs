@@ -1,4 +1,5 @@
-//! Operações sobre vários itens da árvore (pastas e textos): lixeira, cópia e arrumação.
+//! Operações sobre vários itens da árvore (pastas e textos) e do histórico do clipboard:
+//! lixeira; cópia e arrumação só valem para pastas e textos.
 
 use std::collections::HashSet;
 
@@ -6,28 +7,24 @@ use rusqlite::{Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 
 use super::folders::is_self_or_descendant;
-use super::{DbError, NOW, Ordered, Result, ensure_changed, next_sort_order};
+use super::{DbError, NOW, Ordered, Result, clipboard, ensure_changed, next_sort_order};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Kind {
     Folder,
     Snippet,
+    /// Item do histórico do clipboard: só tem lixeira, sem pasta nem ordem manual.
+    Clip,
 }
 
 impl Kind {
-    fn ordered(self) -> Ordered {
+    /// Tabela e colunas de pai/ordem manual; o histórico não tem, então é recusado.
+    fn ordered(self) -> Result<Ordered> {
         match self {
-            Self::Folder => Ordered::Folders,
-            Self::Snippet => Ordered::Snippets,
-        }
-    }
-
-    /// Coluna com o nome exibido do item.
-    fn name_column(self) -> &'static str {
-        match self {
-            Self::Folder => "name",
-            Self::Snippet => "title",
+            Self::Folder => Ok(Ordered::Folders),
+            Self::Snippet => Ok(Ordered::Snippets),
+            Self::Clip => Err(DbError::HistoryItem),
         }
     }
 }
@@ -57,7 +54,7 @@ fn ensure_exists(conn: &Connection, kind: Kind, id: i64) -> Result<()> {
     let exists: bool = conn.query_row(
         &format!(
             "SELECT EXISTS(SELECT 1 FROM {} WHERE id = ?1)",
-            kind.ordered().table()
+            kind.ordered()?.table()
         ),
         [id],
         |row| row.get(0),
@@ -79,12 +76,12 @@ fn is_live_folder(conn: &Connection, id: i64) -> Result<bool> {
 
 /// Pasta e nome atuais do item.
 fn parent_and_name(conn: &Connection, item: ItemRef) -> Result<(Option<i64>, String)> {
-    let kind = item.kind.ordered();
+    let kind = item.kind.ordered()?;
     conn.query_row(
         &format!(
             "SELECT {}, {} FROM {} WHERE id = ?1",
             kind.parent_column(),
-            item.kind.name_column(),
+            kind.name_column(),
             kind.table()
         ),
         [item.id],
@@ -100,10 +97,14 @@ pub fn trash(conn: &mut Connection, items: &[ItemRef]) -> Result<()> {
     let tx = conn.transaction()?;
     let now: String = tx.query_row(&format!("SELECT {NOW}"), [], |row| row.get(0))?;
     for item in items {
+        if item.kind == Kind::Clip {
+            clipboard::trash_item(&tx, item.id, &now)?;
+            continue;
+        }
         ensure_changed(tx.execute(
             &format!(
                 "UPDATE {} SET deleted_at = COALESCE(deleted_at, ?1) WHERE id = ?2",
-                item.kind.ordered().table()
+                item.kind.ordered()?.table()
             ),
             (&now, item.id),
         )?)?;
@@ -114,20 +115,25 @@ pub fn trash(conn: &mut Connection, items: &[ItemRef]) -> Result<()> {
 
 /// Tira os itens da lixeira e os coloca no fim do grupo, na pasta de origem; se ela também
 /// estiver na lixeira, na raiz. Todos saem da lixeira antes de escolher o lugar, para que
-/// um item restaurado junto com a sua pasta volte para dentro dela.
+/// um item restaurado junto com a sua pasta volte para dentro dela. Itens do histórico só
+/// saem da lixeira: mantêm a posição e voltam ao lugar que tinham na ordem.
 pub fn restore(conn: &mut Connection, items: &[ItemRef]) -> Result<()> {
     let tx = conn.transaction()?;
     for item in items {
+        if item.kind == Kind::Clip {
+            clipboard::restore_item(&tx, item.id)?;
+            continue;
+        }
         ensure_changed(tx.execute(
             &format!(
                 "UPDATE {} SET deleted_at = NULL WHERE id = ?1",
-                item.kind.ordered().table()
+                item.kind.ordered()?.table()
             ),
             [item.id],
         )?)?;
     }
-    for &item in items {
-        let kind = item.kind.ordered();
+    for &item in items.iter().filter(|item| item.kind != Kind::Clip) {
+        let kind = item.kind.ordered()?;
         let parent = match parent_and_name(&tx, item)?.0 {
             Some(id) if is_live_folder(&tx, id)? => Some(id),
             _ => None,
@@ -151,8 +157,12 @@ pub fn restore(conn: &mut Connection, items: &[ItemRef]) -> Result<()> {
 pub fn delete(conn: &mut Connection, items: &[ItemRef]) -> Result<()> {
     let tx = conn.transaction()?;
     for item in items {
+        if item.kind == Kind::Clip {
+            clipboard::delete_item(&tx, item.id)?;
+            continue;
+        }
         tx.execute(
-            &format!("DELETE FROM {} WHERE id = ?1", item.kind.ordered().table()),
+            &format!("DELETE FROM {} WHERE id = ?1", item.kind.ordered()?.table()),
             [item.id],
         )?;
     }
@@ -165,21 +175,22 @@ pub fn empty_trash(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction()?;
     tx.execute("DELETE FROM folders WHERE deleted_at IS NOT NULL", [])?;
     tx.execute("DELETE FROM snippets WHERE deleted_at IS NOT NULL", [])?;
+    clipboard::empty_trash(&tx)?;
     tx.commit()?;
     Ok(())
 }
 
 /// Itens na lixeira, dos excluídos mais recentemente para os mais antigos; os excluídos juntos,
-/// pastas antes de textos.
+/// pastas, textos e itens do histórico, nessa ordem.
 pub fn list_trash(conn: &Connection) -> Result<Vec<TrashItem>> {
     let mut items = Vec::new();
     for kind in [Kind::Folder, Kind::Snippet] {
-        let ordered = kind.ordered();
+        let ordered = kind.ordered()?;
         let rows = conn
             .prepare(&format!(
                 "SELECT id, {}, {}, deleted_at FROM {} WHERE deleted_at IS NOT NULL",
                 ordered.parent_column(),
-                kind.name_column(),
+                ordered.name_column(),
                 ordered.table()
             ))?
             .query_map([], |row| {
@@ -194,7 +205,7 @@ pub fn list_trash(conn: &Connection) -> Result<Vec<TrashItem>> {
         for (id, parent, name, deleted_at) in rows {
             let (folders, snippets) = match kind {
                 Kind::Folder => contents(conn, id)?,
-                Kind::Snippet => (0, 0),
+                Kind::Snippet | Kind::Clip => (0, 0),
             };
             items.push(TrashItem {
                 kind,
@@ -206,6 +217,17 @@ pub fn list_trash(conn: &Connection) -> Result<Vec<TrashItem>> {
                 snippets,
             });
         }
+    }
+    for (item, deleted_at) in clipboard::list_trashed(conn)? {
+        items.push(TrashItem {
+            kind: Kind::Clip,
+            id: item.id,
+            name: item.title,
+            path: Vec::new(),
+            deleted_at,
+            folders: 0,
+            snippets: 0,
+        });
     }
     items.sort_by(|a, b| {
         b.deleted_at
@@ -256,6 +278,9 @@ fn contents(conn: &Connection, id: i64) -> Result<(i64, i64)> {
 /// as cópias na mesma ordem. Na mesma pasta do original, a cópia recebe " - Cópia" no nome,
 /// como no Explorer. As cópias começam sem favorito e sem uso.
 pub fn copy(conn: &mut Connection, items: &[ItemRef], parent: Option<i64>) -> Result<Vec<ItemRef>> {
+    if items.iter().any(|item| item.kind == Kind::Clip) {
+        return Err(DbError::HistoryItem);
+    }
     let tx = conn.transaction()?;
     if let Some(parent) = parent {
         ensure_exists(&tx, Kind::Folder, parent)?;
@@ -276,6 +301,7 @@ pub fn copy(conn: &mut Connection, items: &[ItemRef], parent: Option<i64>) -> Re
         let id = match item.kind {
             Kind::Folder => copy_folder(&tx, item.id, parent, &name)?,
             Kind::Snippet => copy_snippet(&tx, item.id, parent, &name)?,
+            Kind::Clip => return Err(DbError::HistoryItem),
         };
         copies.push(ItemRef {
             kind: item.kind,
@@ -289,11 +315,11 @@ pub fn copy(conn: &mut Connection, items: &[ItemRef], parent: Option<i64>) -> Re
 /// "Nome - Cópia", ou "Nome - Cópia (2)", "(3)"… quando o grupo já tem um item do mesmo tipo
 /// com esse nome (sem diferenciar maiúsculas).
 fn copy_name(conn: &Connection, kind: Kind, parent: Option<i64>, name: &str) -> Result<String> {
-    let ordered = kind.ordered();
+    let ordered = kind.ordered()?;
     let taken = conn
         .prepare(&format!(
             "SELECT {} FROM {} WHERE {} IS ?1 AND deleted_at IS NULL",
-            kind.name_column(),
+            ordered.name_column(),
             ordered.table(),
             ordered.parent_column()
         ))?
@@ -312,11 +338,11 @@ fn copy_name(conn: &Connection, kind: Kind, parent: Option<i64>, name: &str) -> 
 
 /// Ids e nomes dos itens de um tipo dentro da pasta, fora da lixeira e na ordem manual.
 fn children(conn: &Connection, kind: Kind, folder: i64) -> Result<Vec<(i64, String)>> {
-    let ordered = kind.ordered();
+    let ordered = kind.ordered()?;
     let children = conn
         .prepare(&format!(
             "SELECT id, {} FROM {} WHERE {} = ?1 AND deleted_at IS NULL ORDER BY sort_order, id",
-            kind.name_column(),
+            ordered.name_column(),
             ordered.table(),
             ordered.parent_column()
         ))?
@@ -376,7 +402,7 @@ pub fn arrange(
 }
 
 fn place(conn: &Connection, kind: Kind, parent: Option<i64>, ids: &[i64]) -> Result<()> {
-    let ordered = kind.ordered();
+    let ordered = kind.ordered()?;
     let (table, column) = (ordered.table(), ordered.parent_column());
     for &id in ids {
         ensure_exists(conn, kind, id)?;
@@ -404,6 +430,7 @@ fn place(conn: &Connection, kind: Kind, parent: Option<i64>, ids: &[i64]) -> Res
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::clipboard::{Content, TextContent};
     use crate::db::folders::{create_folder, list_folders};
     use crate::db::open_in_memory;
     use crate::db::snippets::{
@@ -752,5 +779,101 @@ mod tests {
         // Posição 0 entre os itens visíveis (B, C), sem contar o que está na lixeira.
         move_snippet(&mut conn, c.id, None, 0).unwrap();
         assert_eq!(tree(&conn), ["C", "B"]);
+    }
+
+    fn clip(id: i64) -> ItemRef {
+        ItemRef {
+            kind: Kind::Clip,
+            id,
+        }
+    }
+
+    fn record_text(conn: &mut Connection, text: &str) -> i64 {
+        clipboard::record(conn, &Content::Text(TextContent::plain(text))).unwrap()
+    }
+
+    #[test]
+    fn clips_are_trashed_with_the_same_date_and_listed() {
+        let mut conn = open_in_memory().unwrap();
+        let note = create_snippet(&conn, None, "Nota", "n").unwrap();
+        let first = record_text(
+            &mut conn,
+            "primeira linha
+resto",
+        );
+        let second = record_text(&mut conn, "segundo");
+        record_text(&mut conn, "fica");
+
+        trash(&mut conn, &[clip(first), snippet(note.id), clip(second)]).unwrap();
+
+        assert_eq!(clipboard::list(&conn).unwrap().len(), 1);
+        let items = list_trash(&conn).unwrap();
+        let summary: Vec<_> = items
+            .iter()
+            .map(|item| (item.kind, item.name.as_str(), item.id))
+            .collect();
+        // Mesma data: texto antes dos itens do histórico, e estes por id, como os demais.
+        assert_eq!(
+            summary,
+            [
+                (Kind::Snippet, "Nota", note.id),
+                (Kind::Clip, "primeira linha", first),
+                (Kind::Clip, "segundo", second),
+            ]
+        );
+        assert!(
+            items
+                .iter()
+                .all(|item| item.deleted_at == items[0].deleted_at)
+        );
+        assert!(items[1].path.is_empty());
+        assert_eq!((items[1].folders, items[1].snippets), (0, 0));
+        assert!(matches!(
+            trash(&mut conn, &[clip(999)]),
+            Err(DbError::NotFound)
+        ));
+    }
+
+    #[test]
+    fn clips_are_restored_deleted_and_emptied() {
+        let mut conn = open_in_memory().unwrap();
+        let a = record_text(&mut conn, "a");
+        let b = record_text(&mut conn, "b");
+        let c = record_text(&mut conn, "c");
+        trash(&mut conn, &[clip(a), clip(b), clip(c)]).unwrap();
+
+        restore(&mut conn, &[clip(a)]).unwrap();
+        assert_eq!(clipboard::list(&conn).unwrap()[0].id, a);
+
+        delete(&mut conn, &[clip(b)]).unwrap();
+        assert_eq!(list_trash(&conn).unwrap().len(), 1);
+
+        empty_trash(&mut conn).unwrap();
+        assert!(list_trash(&conn).unwrap().is_empty());
+        // Só o que estava na lixeira é apagado.
+        assert_eq!(clipboard::list(&conn).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn clips_cannot_be_copied_or_arranged() {
+        let mut conn = open_in_memory().unwrap();
+        let id = record_text(&mut conn, "a");
+        let note = create_snippet(&conn, None, "Nota", "n").unwrap();
+
+        assert!(matches!(
+            copy(&mut conn, &[snippet(note.id), clip(id)], None),
+            Err(DbError::HistoryItem)
+        ));
+        // Nada foi copiado antes da recusa.
+        assert_eq!(tree(&conn), ["Nota"]);
+        assert!(matches!(Kind::Clip.ordered(), Err(DbError::HistoryItem)));
+        assert_eq!(
+            DbError::HistoryItem.to_string(),
+            "itens do histórico não podem ser copiados, movidos nem exportados"
+        );
+        assert_eq!(
+            serde_json::to_string(&clip(id)).unwrap(),
+            format!(r#"{{"kind":"clip","id":{id}}}"#)
+        );
     }
 }

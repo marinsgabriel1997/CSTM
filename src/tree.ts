@@ -107,6 +107,7 @@ export function visibleItems(nodes: TreeNode[], isOpen: (folderId: number) => bo
 
 /** Pasta onde o item está (`null` = raiz); `undefined` se o item não existe mais. */
 export function parentOf(item: ItemRef, folders: Folder[], snippets: Snippet[]): number | null | undefined {
+  if (item.kind === "clip") return undefined;
   return item.kind === "folder"
     ? folders.find((folder) => folder.id === item.id)?.parentId
     : snippets.find((snippet) => snippet.id === item.id)?.folderId;

@@ -406,6 +406,139 @@ describe("histórico do clipboard", () => {
   });
 });
 
+describe("excluir do histórico", () => {
+  function seedClips() {
+    fake.copyElsewhere({ title: "Primeiro" });
+    fake.copyElsewhere({ title: "Segundo" });
+    fake.copyElsewhere({ title: "Terceiro" });
+    // Do mais novo ao mais antigo: Terceiro, Segundo, Primeiro.
+    return fake.history.map((item) => item.id);
+  }
+
+  async function openHistory(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await list().findByRole("option", { name: /Terceiro/ });
+  }
+
+  it("o botão aparece só no item do Histórico selecionado", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    seedClips();
+    renderPicker();
+    await list().findByRole("option", { name: "Histórico" });
+    // Pasta selecionada e texto cadastrado: sem Excluir.
+    expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+    await hover(user, list().getByRole("option", { name: "Telefone" }));
+    expect(screen.queryByRole("button", { name: "Excluir" })).toBeNull();
+
+    await user.click(list().getByRole("option", { name: "Histórico" }));
+    await list().findByRole("option", { name: /Terceiro/ });
+    const buttons = screen.getAllByRole("button", { name: "Excluir" });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]).toHaveAttribute("title", "Excluir (Delete)");
+    expect(list().getByRole("option", { name: /Terceiro/ })).toContainElement(buttons[0]);
+  });
+
+  it("clicar em Excluir move o item para a lixeira, mantém o menu aberto e passa a seleção ao seguinte", async () => {
+    const user = userEvent.setup();
+    const [, second] = seedClips().reverse();
+    renderPicker();
+    await openHistory(user);
+    await hover(user, list().getByRole("option", { name: /Segundo/ }));
+
+    await user.click(screen.getByRole("button", { name: "Excluir" }));
+
+    await waitFor(() => expect(list().queryByRole("option", { name: /Segundo/ })).toBeNull());
+    expect(optionNames()).toEqual(["Terceiro01/01", "=> Primeiro01/01"]);
+    expect(await fake.api.listClipboardHistory()).toHaveLength(2);
+    expect((await fake.api.listClipboardHistory()).some((item) => item.id === second)).toBe(false);
+    // O foco continua no campo de busca.
+    expect(search()).toHaveFocus();
+  });
+
+  it("Delete com a busca vazia exclui o item selecionado; excluir o último passa ao anterior", async () => {
+    const user = userEvent.setup();
+    seedClips();
+    renderPicker();
+    await openHistory(user);
+
+    await user.keyboard("{Delete}");
+    await waitFor(() => expect(optionNames()).toEqual(["=> Segundo01/01", "Primeiro01/01"]));
+
+    await user.keyboard("{End}{Delete}");
+    await waitFor(() => expect(optionNames()).toEqual(["=> Segundo01/01"]));
+  });
+
+  it("excluir o último item fecha a coluna e a pasta Histórico some da raiz", async () => {
+    const user = userEvent.setup();
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    fake.copyElsewhere({ title: "Único" });
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await list().findByRole("option", { name: /Único/ });
+
+    await user.keyboard("{Delete}");
+
+    await waitFor(() => expect(optionNames()).toEqual(["=> Telefone"]));
+  });
+
+  it("Delete com o cursor fora do fim da busca ou com trecho selecionado não exclui", async () => {
+    const user = userEvent.setup();
+    seedClips();
+    fake.setNavigation("cascade");
+    renderPicker();
+    await hover(user, await list().findByRole("option", { name: "Histórico" }));
+    const column = await screen.findByRole("listbox", { name: "Histórico" });
+    await within(column).findByRole("option", { name: /Terceiro/ });
+    await user.keyboard("{ArrowRight}");
+    const field = screen.getByRole("combobox", { name: "Buscar em Histórico" });
+    await waitFor(() => expect(field).toHaveFocus());
+    await user.type(field, "segun");
+
+    // Cursor no meio: apaga o caractere seguinte.
+    await user.keyboard("{ArrowLeft>2/}{Delete}");
+    expect(field).toHaveValue("segn");
+    // Trecho selecionado: apaga o trecho.
+    (field as HTMLInputElement).setSelectionRange(0, 4);
+    await user.keyboard("{Delete}");
+    expect(field).toHaveValue("");
+    expect((await fake.api.listClipboardHistory()).length).toBe(3);
+  });
+
+  it("na cascata, excluir o último item fecha a coluna do Histórico", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    await fake.api.createSnippet(null, "Telefone", "1234");
+    fake.copyElsewhere({ title: "Único" });
+    renderPicker();
+    await hover(user, await list().findByRole("option", { name: "Histórico" }));
+    const column = await screen.findByRole("listbox", { name: "Histórico" });
+    await user.click(within(column).getByRole("option", { name: /Único/ }));
+    // Um clique cola; usa o teclado para entrar na coluna e excluir.
+    await user.click(search());
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(screen.getByRole("combobox", { name: "Buscar em Histórico" })).toHaveFocus());
+
+    await user.keyboard("{Delete}");
+
+    await waitFor(() => expect(screen.getAllByRole("listbox")).toHaveLength(1));
+    expect(optionNames()).toEqual(["=> Telefone"]);
+    expect(search()).toHaveFocus();
+  });
+
+  it("uma falha ao excluir mostra o erro", async () => {
+    const user = userEvent.setup();
+    seedClips();
+    renderPicker();
+    await openHistory(user);
+    vi.spyOn(api, "trashItems").mockRejectedValueOnce("falha ao excluir");
+
+    await user.keyboard("{Delete}");
+
+    expect(await screen.findByText("falha ao excluir")).toBeInTheDocument();
+  });
+});
+
 describe("busca", () => {
   it("lista os resultados de toda a biblioteca com a pasta de cada um", async () => {
     const user = userEvent.setup();

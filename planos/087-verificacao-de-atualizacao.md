@@ -48,7 +48,7 @@ Fora do escopo: baixar ou instalar a atualização automaticamente (plugin updat
 ## Premissas
 
 - A versão em execução vem de `app.package_info().version`, que segue o `tauri.conf.json` (ou o `--config` do build).
-- O Marco tem duas etapas: antes da publicação, com o build `0.18.0-teste-087` (Configurações, Verificar agora, falta de rede, Ajuda); depois, com a 0.18.0 publicada e instalada, quando a release do plano 086 for publicada (toast, barra e Dispensar). O plano só é concluído após a segunda etapa.
+- O Marco tem duas etapas: antes da publicação, com o build `0.18.0-teste-087` (Configurações, Verificar agora, falta de rede, Ajuda); depois, com a 0.18.0 publicada e instalada, quando a release do plano 086 for publicada (toast, barra e Dispensar). O plano só é concluído após a segunda etapa. A release do 086 traz a migração 0005, que a 0.18.0 não abre (`DatabaseTooFarAhead`): na máquina da segunda etapa, o `cstm.db` é copiado antes de instalar o build de teste do 086 e restaurado ao reinstalar a 0.18.0 (ou o 086 é testado em outra máquina).
 - Mudar a chave ou o intervalo não dispara verificação imediata; vale na próxima conferência horária.
 
 ## Estratégia de validação
