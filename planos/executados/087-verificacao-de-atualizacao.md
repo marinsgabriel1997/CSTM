@@ -1,8 +1,9 @@
 # 087 — Verificação de atualização
 
-- Status: Em execução
+- Status: Concluído
 - Prioridade: Média
 - Criado em: 2026-10-19
+- Concluído em: 2026-10-19
 
 ## Objetivo
 
@@ -108,12 +109,14 @@ Critério: `npm run test:rust`, `npm run lint:rust`, `cargo fmt --check`, `npm r
 - [x] Verificar agora no build `0.18.0-teste-087`: "Você está na versão mais recente."
 - [x] Sem internet, Verificar agora mostra o erro e nada aparece em segundo plano.
 - [x] A Ajuda descreve a verificação de atualização.
-- [ ] Depois da publicação da release do plano 086, com a 0.18.0 instalada: ao iniciar (ou na conferência horária), aparece o toast uma vez; clicar abre a página da release no navegador.
-- [ ] Reiniciar não repete o toast.
-- [ ] A barra aparece na janela principal; Abrir página da release funciona; Dispensar esconde e ela não volta ao reiniciar.
+- [x] Depois da publicação da release do plano 086, com a 0.18.0 instalada: ao iniciar (ou na conferência horária), aparece o toast uma vez; clicar abre a página da release no navegador.
+- [x] Reiniciar não repete o toast.
+- [x] A barra aparece na janela principal; Abrir página da release funciona; Dispensar esconde e ela não volta ao reiniciar.
 
 Resultados:
 
 - 2026-10-19, build `0.18.0-teste-087`: Configurações, Verificar agora (versão mais recente, com a 0.17.0 publicada), falta de rede e Ajuda validados pelo usuário. Toast, barra e Dispensar pendentes até a publicação da release do plano 086.
 
-Aceite: —
+- 2026-10-19: toast, abertura da página da release, toast sem repetir ao reiniciar, barra e Dispensar validados pelo usuário com as releases publicadas.
+
+Aceite: todas as verificações aprovadas pelo usuário em 2026-10-19.

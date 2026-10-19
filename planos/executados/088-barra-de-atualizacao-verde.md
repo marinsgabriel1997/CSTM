@@ -1,8 +1,9 @@
 # 088 — Barra de atualização verde
 
-- Status: Em validação
+- Status: Concluído
 - Prioridade: Média
 - Criado em: 2026-10-19
+- Concluído em: 2026-10-19
 
 ## Objetivo
 
@@ -67,10 +68,12 @@ Critério: documentação revisada e coerente com o código.
 ## Marco — Validação do usuário
 
 - [x] Antes da publicação, no protótipo `docs/prototipo/cadastro.html` (estado **Versão nova**): fundo verde com texto escuro e botões pretos, juntos e centralizados, nos temas claro e escuro.
-- [ ] Depois da publicação da release do plano 089, com a 0.19.1 instalada: a barra aparece verde, com texto escuro, botões pretos e centralizada, nos dois temas; Abrir página da release e Dispensar continuam funcionando.
+- [x] Depois da publicação da release do plano 089, com a 0.19.1 instalada: a barra aparece verde, com texto escuro, botões pretos e centralizada, nos dois temas; Abrir página da release e Dispensar continuam funcionando.
 
 Resultados:
 
 - Primeira versão do protótipo (verde claro #DFF6DD, botões brancos): pouco destaque; pedido fundo verde mais escuro e botões pretos com texto branco. Ajustado no protótipo e aprovado ("ficou bom pode seguir"), depois aplicado no componente. Item do protótipo aceito em 2026-10-19.
 
-Aceite: —
+- 2026-10-19: com a 0.19.1 instalada e versão mais nova publicada, barra verde centralizada com botões pretos nos dois temas, Abrir página da release e Dispensar validados pelo usuário.
+
+Aceite: todas as verificações aprovadas pelo usuário em 2026-10-19.
