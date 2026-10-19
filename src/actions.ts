@@ -15,12 +15,24 @@ export function isHistoryFolder(item: ItemRef | null): boolean {
   return item?.kind === "clip" && item.id === HISTORY_FOLDER.id;
 }
 
+/**
+ * A pasta virtual Raiz da árvore: não existe no banco (ids reais de pasta são positivos) e
+ * representa a raiz, onde os itens têm `folder_id` nulo. Nunca é um item a operar.
+ */
+export const ROOT_FOLDER: ItemRef = { kind: "folder", id: 0 };
+
+export function isRootFolder(item: ItemRef | null): boolean {
+  return item?.kind === "folder" && item.id === ROOT_FOLDER.id;
+}
+
 /** Pastas e textos, sem a pasta Histórico nem os itens dela. */
 export function withoutClips(items: ItemRef[]): ItemRef[] {
   return items.filter((item) => item.kind !== "clip");
 }
 
 export type ActionKey =
+  | "newSnippet"
+  | "newFolder"
   | "cut"
   | "copy"
   | "paste"

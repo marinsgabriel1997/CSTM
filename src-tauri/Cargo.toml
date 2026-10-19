@@ -1,6 +1,6 @@
 [package]
 name = "cstm"
-version = "0.19.1"
+version = "0.20.0"
 description = "CSTM - Clipboard, Snippets & Text Manager"
 authors = ["Gabriel de Marins <contato.gabrielmarins@gmail.com>"]
 license = "MIT"

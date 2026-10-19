@@ -2,6 +2,8 @@
 
 # CSTM
 
+*Clipboard, Snippets & Text Manager*
+
 **Seus textos, atalhos e área de transferência em um só lugar.**
 
 [![Versão](https://img.shields.io/github/v/release/marinsgabriel1997/CSTM?label=vers%C3%A3o)](https://github.com/marinsgabriel1997/CSTM/releases/latest)
@@ -36,7 +38,7 @@ O instalador ainda não tem assinatura digital, por isso o SmartScreen do Window
 
 **Atualizar:** instale a versão nova por cima; os dados são preservados.
 
-**Desinstalar:** use Configurações › Aplicativos do Windows. Os dados ficam guardados, a menos que você marque a opção de apagá-los no desinstalador.
+**Desinstalar:** use Configurações › Aplicativos do Windows. Os dados sempre ficam guardados, para uma reinstalação encontrar tudo como estava. Para apagá-los, exclua os itens e esvazie a Lixeira e use **Limpar histórico** nas Configurações antes de desinstalar, ou apague a pasta `%APPDATA%\com.gabriel.cstm` depois.
 
 ## Como usar
 

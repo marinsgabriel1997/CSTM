@@ -33,9 +33,15 @@ function row(name: string) {
 }
 
 function treeRows() {
-  return tree()
-    .getAllByRole("treeitem")
-    .map((item) => `${"  ".repeat(Number(item.getAttribute("aria-level")) - 1)}${item.getAttribute("aria-label")}`);
+  const rows = tree().getAllByRole("treeitem");
+  const root = rows.findIndex((item) => item.getAttribute("aria-label") === "Raiz" && item.getAttribute("aria-level") === "1");
+  // A pasta Raiz e o nível que ela acrescenta ficam de fora: as linhas mostram a árvore da biblioteca.
+  return rows
+    .filter((_, position) => position !== root)
+    .map((item) => {
+      const level = Number(item.getAttribute("aria-level")) - (rows.indexOf(item) > root ? 1 : 0);
+      return `${"  ".repeat(level - 1)}${item.getAttribute("aria-label")}`;
+    });
 }
 
 function selectedRows() {
@@ -155,7 +161,8 @@ describe("pasta Histórico", () => {
     expect(selectedRows()).toEqual(["Recente"]);
     await user.keyboard("{End}");
     expect(selectedRows()).toEqual(["Telefone"]);
-    await user.keyboard("{ArrowUp}{ArrowUp}");
+    // Entre Telefone e Antigo está a pasta Raiz.
+    await user.keyboard("{ArrowUp}{ArrowUp}{ArrowUp}");
     expect(selectedRows()).toEqual(["Recente"]);
 
     await user.keyboard("{Enter}");

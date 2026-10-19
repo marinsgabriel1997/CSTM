@@ -12,7 +12,7 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 ### 1. Cadastro de textos
 
 - Criar, editar e excluir textos; excluir envia para uma lixeira, de onde os itens podem ser restaurados ou excluídos definitivamente.
-- Organizar em pastas (com subpastas).
+- Organizar em pastas (com subpastas). Na árvore, a pasta **Raiz** (virtual, sem registro no banco) reúne as pastas e os textos sem pasta e é o destino de Novo, Colar e Importar quando selecionada; clicar no espaço vazio ou `Esc` tiram a seleção, e a criação também vai para a raiz. Novo texto e Nova pasta também estão no menu de contexto das pastas, da Raiz e do espaço vazio.
 - Marcar favoritos.
 - Buscar por título e conteúdo.
 - Ordenação manual dentro de cada pasta, por arrastar e soltar ou pelo menu, e ordenação pontual por nome, mais usados ou uso recente.
@@ -210,9 +210,9 @@ CREATE TABLE clipboard_items (
 - Formato: somente NSIS (`bundle.targets: ["nsis"]`); não há instalador MSI.
 - Instalação por usuário (`installMode: "currentUser"`) em `%LOCALAPPDATA%\CSTM`, sem pedir administrador. Atalho no Menu Iniciar.
 - Idioma do instalador: português do Brasil (`PortugueseBR`).
-- Os dados ficam em `%APPDATA%\com.gabriel.cstm` e são preservados ao reinstalar por cima e ao desinstalar, a menos que o usuário marque a opção do desinstalador de apagar os dados do aplicativo (desmarcada por padrão), que remove `%APPDATA%\com.gabriel.cstm` e `%LOCALAPPDATA%\com.gabriel.cstm`.
+- Os dados ficam em `%APPDATA%\com.gabriel.cstm` e são sempre preservados ao reinstalar por cima e ao desinstalar; o desinstalador não oferece apagá-los. Também ficam o cache do WebView2 em `%LOCALAPPDATA%\com.gabriel.cstm` e as chaves de registro do local de instalação e do idioma do instalador. Para apagar os dados, o usuário exclui os itens e esvazia a Lixeira, usa **Limpar histórico** ou apaga a pasta depois de desinstalar.
 - WebView2 no modo padrão do Tauri (baixado se ausente).
-- Executar o instalador com a mesma versão já instalada oferece "Adicionar/Reinstalar componentes" ou "Desinstalar CSTM"; desinstalar por ali encerra o instalador ao fim da desinstalação. O comportamento vem do template próprio `src-tauri/windows/installer.nsi`, cópia do template do Tauri CLI 2.12.1 com as mudanças do CSTM (esta e o link da página final); ao atualizar o Tauri CLI, copiar o template da nova versão e reaplicá-las.
+- Executar o instalador com a mesma versão já instalada oferece "Adicionar/Reinstalar componentes" ou "Desinstalar CSTM"; desinstalar por ali encerra o instalador ao fim da desinstalação. O comportamento vem do template próprio `src-tauri/windows/installer.nsi`, cópia do template do Tauri CLI 2.12.1 com as mudanças do CSTM (esta, o link da página final e a remoção da caixa "apagar os dados do aplicativo" e do bloco que apagava os dados ao desinstalar); ao atualizar o Tauri CLI, copiar o template da nova versão e reaplicá-las.
 - O link do repositório (`bundle.homepage`, <https://github.com/marinsgabriel1997/CSTM>) aparece na página final do instalador ("CSTM no GitHub") e em "Aplicativos instalados" do Windows.
 - Sem assinatura de código: o SmartScreen do Windows avisa ao executar o instalador.
 

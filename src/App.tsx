@@ -12,6 +12,7 @@ import {
 import {
   includesItem,
   isHistoryFolder,
+  isRootFolder,
   sameItem,
   withoutClips,
   type ActionKey,
@@ -30,7 +31,15 @@ import {
   type TrashItem,
 } from "./api";
 import AboutPage from "./components/AboutPage";
-import { ClipEditor, FolderEditor, HistoryPlaceholder, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
+import {
+  ClipEditor,
+  FolderEditor,
+  HistoryPlaceholder,
+  NoSelection,
+  RootEditor,
+  SnippetEditor,
+  Welcome,
+} from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
 import HelpPage from "./components/HelpPage";
 import LibraryTree, { type DropTarget, type SelectMode } from "./components/LibraryTree";
@@ -475,6 +484,9 @@ function App() {
   const collapsed = new Set(preferences.collapsed);
   // Durante a busca ou o filtro, as pastas com resultados ficam abertas.
   const isOpen = (folderId: number) => filtering || !collapsed.has(folderId);
+  const rootOpen = filtering || !preferences.rootCollapsed;
+  // Itens visíveis da biblioteca, na ordem da tela; vazio com a Raiz recolhida.
+  const visibleNow = () => (rootOpen ? visibleItems(nodes, isOpen) : []);
 
   const selectedFolder =
     selection?.kind === "folder" ? folders.find((folder) => folder.id === selection.id) : undefined;
@@ -486,6 +498,7 @@ function App() {
   // A pasta Histórico some com a busca ou o filtro de favoritos ativos.
   const historyShown = clips.length > 0 && !filtering;
   const exists = (item: ItemRef) => {
+    if (isRootFolder(item)) return !empty;
     if (item.kind === "clip") return isHistoryFolder(item) ? clips.length > 0 : clips.some((clip) => clip.id === item.id);
     return item.kind === "folder"
       ? folders.some((folder) => folder.id === item.id)
@@ -504,19 +517,22 @@ function App() {
 
   /**
    * Itens a operar: na ordem da tela, sem os que já vão junto com uma pasta da lista e sem os do
-   * Histórico, que só aceitam excluir (ver `deleteClip`).
+   * Histórico, que só aceitam excluir (ver `deleteClip`), e sem a Raiz, que não é um item a operar.
    */
   function prepare(items: ItemRef[]): ItemRef[] {
-    return inTreeOrder(topLevel(withoutClips(items), folders, displaySnippets));
+    return inTreeOrder(topLevel(withoutClips(items).filter((item) => !isRootFolder(item)), folders, displaySnippets));
   }
 
   function nameOf(item: ItemRef): string {
+    if (isRootFolder(item)) return "Raiz";
     if (item.kind === "clip") return clips.find((clip) => clip.id === item.id)?.title ?? "";
     if (item.kind === "folder") return folders.find((folder) => folder.id === item.id)?.name ?? "";
     return displaySnippets.find((snippet) => snippet.id === item.id)?.title.trim() || "Sem título";
   }
 
   function targetFolder(): number | null {
+    // Com a Raiz ou nada selecionado, o destino é a raiz.
+    if (!selection || isRootFolder(selection)) return null;
     if (selection?.kind === "folder") return selectedFolder ? selection.id : null;
     return openSnippet?.folderId ?? null;
   }
@@ -584,7 +600,14 @@ function App() {
 
   function selectWith(item: ItemRef, mode: SelectMode) {
     // O Histórico não tem seleção múltipla: Ctrl+clique e Shift+clique selecionam só o item.
-    if (mode === "single" || item.kind === "clip" || selection?.kind === "clip") {
+    // A Raiz também não entra na seleção múltipla: Ctrl+clique e Shift+clique nela, ou a partir dela, selecionam só o item.
+    if (
+      mode === "single" ||
+      item.kind === "clip" ||
+      selection?.kind === "clip" ||
+      isRootFolder(item) ||
+      isRootFolder(selection)
+    ) {
       select(item);
       return;
     }
@@ -596,27 +619,39 @@ function App() {
       selectMany(next, includesItem(next, item) ? item : (next[next.length - 1] ?? null));
       return;
     }
-    const visible = visibleItems(nodes, isOpen);
+    const visible = visibleNow();
     const from = visible.findIndex((candidate) => sameItem(candidate, anchor.current ?? selection));
     const to = visible.findIndex((candidate) => sameItem(candidate, item));
     selectMany(from < 0 || to < 0 ? [item] : visible.slice(Math.min(from, to), Math.max(from, to) + 1), item);
   }
 
   function selectAll() {
-    const visible = visibleItems(nodes, isOpen);
+    const visible = visibleNow();
     selectMany(visible, selection && includesItem(visible, selection) ? selection : (visible[0] ?? null));
   }
 
-  /** Esc desfaz o recorte, se houver; senão, volta a seleção a um item. */
+  /** Esc desfaz o recorte, se houver; senão, volta a seleção a um item e, com um só, tira a seleção. */
   function escape() {
     if (marked?.mode === "cut") setMarked(null);
     else if (multiSelection.length > 1) select(selection);
+    else if (selection) select(null);
+  }
+
+  /** Clique no espaço vazio da árvore: sem seleção, o destino de Novo, Colar e Importar é a raiz. */
+  function clearSelection() {
+    select(null);
+    treeRef.current?.focus();
   }
 
   /** Abre as pastas até `folderId` para que o item criado ou movido fique visível. */
   function reveal(folderId: number | null) {
     const path = new Set(folderPath(folders, folderId).map((folder) => folder.id));
-    setPreferences((current) => ({ ...current, collapsed: current.collapsed.filter((id) => !path.has(id)) }));
+    // Todo item está na Raiz ou dentro dela: ela também abre.
+    setPreferences((current) => ({
+      ...current,
+      collapsed: current.collapsed.filter((id) => !path.has(id)),
+      rootCollapsed: false,
+    }));
   }
 
   /** Itens novos precisam aparecer na árvore: busca e filtro são encerrados. */
@@ -670,6 +705,10 @@ function App() {
     }));
   }
 
+  function toggleRoot(open: boolean) {
+    setPreferences((current) => ({ ...current, rootCollapsed: !open }));
+  }
+
   /** O item faz parte de uma seleção múltipla: as ações valem para todos os selecionados. */
   function inSelection(item: ItemRef): boolean {
     return selectedItems.length > 1 && includesItem(selectedItems, item);
@@ -697,6 +736,18 @@ function App() {
 
   function actionsFor(item: ItemRef): ItemAction[] {
     if (item.kind === "clip") return [];
+    if (isRootFolder(item)) {
+      return [
+        { key: "newSnippet", label: "Novo texto" },
+        { key: "newFolder", label: "Nova pasta" },
+        { key: "paste", label: "Colar", disabled: marked === null },
+        { key: "sortName", label: "Por nome (A–Z)", disabled: filtering },
+        { key: "sortUses", label: "Por mais usados", disabled: filtering },
+        { key: "sortRecent", label: "Por uso mais recente", disabled: filtering },
+        { key: "exportJson", label: "Backup JSON…" },
+        { key: "exportTxt", label: "Pastas e arquivos .txt…" },
+      ];
+    }
     if (inSelection(item)) {
       const favorite = favoriteLabel(selectedItems);
       return [
@@ -714,6 +765,8 @@ function App() {
       const siblings = siblingsOf(folders, folder.parentId);
       const index = siblings.findIndex((sibling) => sibling.id === folder.id);
       return [
+        { key: "newSnippet", label: "Novo texto" },
+        { key: "newFolder", label: "Nova pasta" },
         ...clipboardActions(),
         { key: "rename", label: "Renomear" },
         { key: "move", label: "Mover para…" },
@@ -755,8 +808,18 @@ function App() {
 
   function runAction(item: ItemRef, key: ActionKey) {
     if (item.kind === "clip") return;
+    if (isRootFolder(item)) {
+      runRootAction(key);
+      return;
+    }
     const items = inSelection(item) ? selectedItems : [item];
     switch (key) {
+      case "newSnippet":
+        newSnippet(item.id);
+        break;
+      case "newFolder":
+        newFolder(item.id);
+        break;
       case "cut":
       case "copy":
         mark(key, items);
@@ -795,6 +858,30 @@ function App() {
         break;
       case "delete":
         void trashItems(items);
+        break;
+    }
+  }
+
+  /** Ações do menu da Raiz e do espaço vazio, sempre sobre a raiz; as demais não se aplicam a ela. */
+  function runRootAction(key: ActionKey) {
+    switch (key) {
+      case "newSnippet":
+        newSnippet(null);
+        break;
+      case "newFolder":
+        newFolder(null);
+        break;
+      case "paste":
+        void paste(null);
+        break;
+      case "sortName":
+      case "sortUses":
+      case "sortRecent":
+        sortGroup(null, SORTS[key]!);
+        break;
+      case "exportJson":
+      case "exportTxt":
+        void runExport(key === "exportJson" ? "json" : "txt", []);
         break;
     }
   }
@@ -898,10 +985,11 @@ function App() {
     return targetFolder();
   }
 
-  async function paste() {
+  /** Cola no destino do Novo, ou em `target` quando o menu da Raiz pede a raiz (`null`). */
+  async function paste(target?: number | null) {
     // Num item do Histórico, Colar não faz nada.
     if (!marked || trashOpen || selection?.kind === "clip") return;
-    const parentId = pasteTarget();
+    const parentId = target === undefined ? pasteTarget() : target;
     if (marked.mode === "cut") {
       setMarked(null);
       await moveItems(marked.items, parentId);
@@ -1018,7 +1106,7 @@ function App() {
       if (inside(draft.folderId) || includesItem(items, { kind: "snippet", id: draft.id })) store.remove(draft.id);
     }
     if (selectedItems.some(gone)) {
-      const visible = visibleItems(nodes, isOpen);
+      const visible = visibleNow();
       const first = visible.findIndex(gone);
       const remaining = visible.filter((item) => !gone(item));
       select(remaining[Math.min(Math.max(first, 0), remaining.length - 1)] ?? null);
@@ -1061,7 +1149,7 @@ function App() {
     const index = clips.findIndex((clip) => clip.id === id);
     const neighbor = clips[index + 1] ?? clips[index - 1];
     if (neighbor) return { kind: "clip", id: neighbor.id };
-    return visibleItems(nodes, isOpen)[0] ?? null;
+    return visibleNow()[0] ?? null;
   }
 
   /** Del ou o botão Excluir num item do Histórico: lixeira com Desfazer, ou exclusão definitiva após confirmar. */
@@ -1102,6 +1190,7 @@ function App() {
 
   /** Del (lixeira) ou Shift+Del (definitivo) sobre a seleção da árvore. */
   function deleteSelection(permanent: boolean) {
+    if (isRootFolder(selection)) return;
     if (selection?.kind === "clip") {
       if (!isHistoryFolder(selection) && clips.some((clip) => clip.id === selection.id)) {
         void deleteClip(selection.id, permanent);
@@ -1336,6 +1425,18 @@ function App() {
         onDelete={() => void deleteClip(openClipId, false)}
       />
     );
+  } else if (isRootFolder(selection)) {
+    editor = (
+      <RootEditor
+        contents={{
+          folders: folders.filter((folder) => folder.parentId === null).length,
+          snippets: snippets.filter((snippet) => snippet.folderId === null).length,
+          favorites: 0,
+        }}
+        onNewSnippet={() => newSnippet(null)}
+        onNewFolder={() => newFolder(null)}
+      />
+    );
   } else if (selectedFolder) {
     editor = (
       <FolderEditor
@@ -1412,7 +1513,7 @@ function App() {
           onExport={(format) => void runExport(format, [])}
           onSort={(kind) => sortGroup(null, kind)}
           canSort={!filtering}
-          onExpandAll={() => setPreferences((current) => ({ ...current, collapsed: [] }))}
+          onExpandAll={() => setPreferences((current) => ({ ...current, collapsed: [], rootCollapsed: false }))}
           onCollapseAll={() => setPreferences((current) => ({ ...current, collapsed: folders.map((f) => f.id) }))}
           trashCount={trash.length}
           trashSelected={trashOpen}
@@ -1436,6 +1537,8 @@ function App() {
             selected={selectedItems}
             cut={marked?.mode === "cut" ? marked.items : []}
             isOpen={isOpen}
+            rootOpen={rootOpen}
+            onToggleRoot={toggleRoot}
             terms={searching ? searchTerms(searchTerm) : []}
             drafts={drafts}
             newFolderIn={newFolderIn}
@@ -1447,6 +1550,7 @@ function App() {
             menuHeaderFor={menuHeaderFor}
             onSelect={selectWith}
             onSelectAll={selectAll}
+            onClearSelection={clearSelection}
             onEscape={escape}
             onDelete={deleteSelection}
             onToggle={toggleFolder}

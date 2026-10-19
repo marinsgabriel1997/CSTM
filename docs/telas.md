@@ -27,17 +27,18 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 +-------------------------------+------------------------------------------------+
 | [ Buscar... ] [+ Novo v] [...]|  Trabalho > E-mails                    *  ...  |
 | ( Favoritos )                 |                                                |
-|                               |  Resposta padrão                               |
-| v Trabalho                    |  Usado 12 vezes · último uso em 10/10/2026     |
-|   v E-mails                   |  --------------------------------------------  |
-| =>  Resposta padrão       ... |  Olá!                                          |
-|     Follow-up                 |                                                |
-|   > Clientes                  |  Obrigado pelo contato. Recebemos sua          |
-|   Saudação formal          *  |  mensagem e retornaremos em até 24 horas.      |
-|   Assinatura               *  |                                                |
-| > Pessoal                     |  Atenciosamente,                               |
-| Telefone                   *  |  Gabriel                                       |
-| Link da agenda                |                                                |
+| > Histórico                   |  Resposta padrão                               |
+| v Raiz                        |  Usado 12 vezes · último uso em 10/10/2026     |
+|   v Trabalho                  |  --------------------------------------------  |
+|     v E-mails                 |  Olá!                                          |
+| =>    Resposta padrão     ... |                                                |
+|       Follow-up               |  Obrigado pelo contato. Recebemos sua          |
+|     > Clientes                |  mensagem e retornaremos em até 24 horas.      |
+|     Saudação formal        *  |                                                |
+|     Assinatura             *  |  Atenciosamente,                               |
+|   > Pessoal                   |  Gabriel                                       |
+|   Telefone                 *  |                                                |
+|   Link da agenda              |                                                |
 |-------------------------------|                                                |
 | Lixeira                     3 |                                                |
 +-------------------------------+------------------------------------------------+
@@ -49,18 +50,20 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 
 | Elemento | Decisão |
 | --- | --- |
-| Árvore | Única, com pastas e textos. Pastas primeiro, depois textos, cada grupo na sua ordem manual. Textos sem pasta ficam na raiz. Ícones distintos para pasta (aberta/fechada) e texto; estrela à direita dos favoritos. A Lixeira fica fixa no fim, fora da rolagem, com a contagem de itens. |
+| Árvore | Única, com pastas e textos. Pastas primeiro, depois textos, cada grupo na sua ordem manual. Textos sem pasta ficam na raiz, mostrada como a pasta **Raiz**. Ícones distintos para pasta (aberta/fechada) e texto; estrela à direita dos favoritos. A Lixeira fica fixa no fim, fora da rolagem, com a contagem de itens. |
 | Histórico | Pasta fixa no topo da árvore, acima das pastas, com o ícone de relógio, enquanto a opção "Guardar o histórico do clipboard" (Tela 3) estiver ligada e houver itens. Abre e fecha como uma pasta (começa fechada) e mostra os itens do histórico do clipboard do mais recente para o mais antigo, como no menu de colagem: textos pela primeira linha não vazia, imagens com a miniatura e "Imagem L × A", e a hora da cópia à direita, em cinza. Some com a busca ou o filtro de favoritos ativos. Não tem menu de contexto nem `...`, e não aceita arrastar, soltar, renomear, ordenar nem seleção múltipla (Ctrl+clique ou Shift+clique num item do Histórico seleciona só ele). Selecionar a própria pasta Histórico mostra no editor "Selecione um item do histórico para ver ou editar o que foi copiado." Com um item do Histórico selecionado, Novo cria na raiz e Colar fica desabilitado. A lista acompanha as cópias novas com a janela aberta. Ver Histórico na árvore. |
-| Seleção | Item selecionado com fundo e marca de destaque à esquerda. Clicar na seta abre/fecha a pasta; clicar no item o seleciona. Ctrl+clique, Shift+clique e Ctrl+A selecionam vários (ver Operações da árvore). |
-| Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Recortar (Ctrl+X), Copiar (Ctrl+C), Colar (Ctrl+V), Renomear (F2), Mover para…, Mover para cima, Mover para baixo, Adicionar/Remover dos favoritos (só textos), Ordenar (só pastas; submenu), Exportar (só pastas; submenu, ver Importação e exportação), Excluir (Del). Sobre uma seleção múltipla, ver Operações da árvore. |
-| Criação | Botão único `+ Novo` com menu: Novo texto (Ctrl+N) e Nova pasta (Ctrl+Shift+N). O destino é a pasta selecionada, ou a pasta do texto selecionado, ou a raiz; o menu informa o destino. Itens novos entram no fim do grupo. |
+| Raiz | Pasta fixa logo abaixo do Histórico (ou no topo, sem ele), com o ícone de pasta e o nome "Raiz", que contém as pastas e os textos sem pasta, um nível abaixo. Não existe no banco: os itens dela continuam sem pasta. Abre e fecha como uma pasta (começa aberta, e a escolha é lembrada); **Expandir tudo** a abre e **Recolher tudo** não mexe nela. Com a busca ou o filtro de favoritos ativos, continua visível e aberta, com os resultados dentro. Selecionada, é o destino de Novo, Colar e Importar, e o menu do `+ Novo` mostra "Raiz". Aceita itens soltos sobre ela, que vão para a raiz, no fim do grupo. Não pode ser renomeada, movida, copiada, recortada, favoritada nem excluída, não é arrastável e não entra na seleção múltipla (Ctrl+clique ou Shift+clique nela seleciona só ela). Ver Raiz na árvore. |
+| Seleção | Item selecionado com fundo e marca de destaque à esquerda. Clicar na seta abre/fecha a pasta; clicar no item o seleciona. Ctrl+clique, Shift+clique e Ctrl+A selecionam vários (ver Operações da árvore). Clicar no espaço vazio da árvore, abaixo dos itens, ou `Esc` tiram a seleção: o destino de Novo, Colar e Importar passa a ser a raiz, e o editor mostra o mesmo que sem nada selecionado. |
+| Menu de contexto | Botão `...` (visível ao passar o mouse e no item selecionado) ou clique direito: Novo texto e Nova pasta (só pastas, criam dentro dela; não aparecem com seleção múltipla), Recortar (Ctrl+X), Copiar (Ctrl+C), Colar (Ctrl+V), Renomear (F2), Mover para…, Mover para cima, Mover para baixo, Adicionar/Remover dos favoritos (só textos), Ordenar (só pastas; submenu), Exportar (só pastas; submenu, ver Importação e exportação), Excluir (Del). Sobre uma seleção múltipla, ver Operações da árvore. Clique direito no espaço vazio da árvore: Novo texto e Nova pasta, que criam na raiz. |
+| Criação | Botão único `+ Novo` com menu: Novo texto (Ctrl+N) e Nova pasta (Ctrl+Shift+N). O destino é a pasta selecionada (com a **Raiz** selecionada, a raiz), ou a pasta do texto selecionado, ou a raiz, sem seleção; o menu informa o destino. Itens novos entram no fim do grupo. |
 | Botão `...` | Ao lado do `+ Novo` (rótulo acessível "Mais opções"): submenus Importar e Exportar tudo (ver Importação e exportação), Ordenar a raiz, Expandir tudo e Recolher tudo. |
 | Nova pasta | Entra na árvore com o nome em edição; Enter grava, Esc cancela. |
-| Editor de texto | Caminho da pasta no topo (cada parte seleciona a pasta na árvore), estrela e `...` à direita. Título grande editável direto; abaixo dele, em cinza, "Usado 12 vezes · último uso em 10/10/2026" ou "Ainda não usado"; linha fina, conteúdo editável direto. Sem rótulos nem caixas. |
+| Editor de texto | Caminho da pasta no topo (cada parte seleciona a pasta na árvore), estrela e `...` à direita. Título grande editável direto; abaixo dele, em cinza, "Usado 12 vezes · último uso em 10/10/2026" ou "Ainda não usado"; linha fina, conteúdo editável direto. Sem rótulos nem caixas. Num texto grande, só o conteúdo rola: o caminho, o título, a linha de uso e a linha fina ficam parados, e a barra de rolagem fica na borda direita do painel, com o texto na mesma largura (até 820 px). O mesmo vale para o conteúdo de um item de texto do Histórico. |
 | Editor de pasta | Selecionar uma pasta mostra o nome como título (renomear editando), a contagem de textos e subpastas e os atalhos "Novo texto aqui" e "Nova subpasta". |
 | Favoritos | Estrela na árvore e no editor; filtro `Favoritos` reduz a árvore aos textos marcados, mantendo as pastas onde estão. |
 | Busca | Filtra a própria árvore: mantém as pastas que contêm resultados (abertas) e destaca o termo. Quando a correspondência é só no conteúdo, o item mostra um trecho. Contagem de resultados ao lado do filtro. Limpar a busca restaura a árvore. |
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
+| Barras de rolagem | Finas, sem setas, com o polegar arredondado em cinza no tom do tema, que escurece ao passar o mouse, e sem faixa de fundo. Valem para todas as áreas roláveis do cadastro e do menu de colagem. |
 | Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos da versão em execução ("v0.19.0", em cinza, só informativa) e dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Versão nova | Quando a verificação de atualização (Tela 3) encontra uma versão mais nova, uma barra aparece no topo da janela, acima da árvore e do editor, com fundo verde e texto quase preto iguais nos dois temas, e botões pretos com texto branco: ícone de download, "Versão X do CSTM disponível.", **Abrir página da release** (abre no navegador) e **Dispensar**, juntos e centralizados numa linha só. Dispensar esconde a barra para aquela versão, inclusive ao reiniciar; uma versão mais nova mostra a barra de novo. Na mesma verificação em segundo plano, uma notificação do Windows ("CSTM X disponível", "Clique para abrir a página da release.") aparece uma única vez por versão; clicar nela abre a página no navegador. |
@@ -112,7 +115,7 @@ Seleção múltipla (Ctrl+clique em Resposta padrão, Follow-up e Assinatura):
 +-------------------------------+------------------------------------------------+
 ```
 
-Menu de contexto de um texto (de uma pasta, com Ordenar e Exportar no lugar de favoritos):
+Menu de contexto de um texto (de uma pasta, com Novo texto e Nova pasta no topo e Ordenar e Exportar no lugar de favoritos):
 
 ```text
   Recortar            Ctrl+X
@@ -176,9 +179,9 @@ Teclado (somente atalhos que funcionam igual em qualquer programa do Windows; o 
 | Ctrl+clique | Inclui ou retira o item da seleção |
 | Shift+clique / Shift+setas | Seleciona o intervalo, na ordem visível |
 | Ctrl+A | Seleciona todos os itens visíveis |
-| Esc | Desfaz o recorte, se houver; senão, volta a seleção a um item |
+| Esc | Desfaz o recorte, se houver; senão, com vários itens, volta a seleção a um item; com um item, tira a seleção (destino: raiz) |
 | Enter | Texto: leva o foco ao conteúdo do editor. Pasta: abre ou fecha |
-| → / ← | Abre ou fecha a pasta; ← num item vai para a pasta dele |
+| → / ← | Abre ou fecha a pasta (inclusive a Raiz); ← num item vai para a pasta dele (num item da raiz, para a Raiz) |
 | Letras | Salta para o próximo item visível que começa com elas |
 | F2 | Renomeia (um item) |
 | Ctrl+X / Ctrl+C / Ctrl+V | Recorta, copia e cola itens |
@@ -189,14 +192,62 @@ Teclado (somente atalhos que funcionam igual em qualquer programa do Windows; o 
 
 Regras:
 
-1. **Seleção múltipla:** com mais de um item, o editor dá lugar ao painel da seleção (contagem e lista dos itens com o caminho) e às ações Mover para…, Recortar, Copiar, Adicionar aos favoritos (ou Remover, quando todos os textos já são favoritos; só com textos na seleção), Exportar e Excluir. Renomear e Mover para cima/baixo não aparecem. Clique direito fora da seleção seleciona só aquele item; dentro dela, o menu age em todos. Uma pasta selecionada leva junto os itens de dentro, mesmo que também estejam selecionados. As pendências do editor são gravadas antes de abrir o painel.
-2. **Recortar, copiar e colar:** Ctrl+X e Ctrl+C marcam os itens selecionados; Ctrl+V cola no destino do `+ Novo` (pasta selecionada, pasta do texto selecionado ou raiz), no fim do grupo. Recortados são movidos e ficam esmaecidos até colar; Esc desfaz o recorte sem mover nada. Copiados são duplicados com todo o conteúdo; colar na mesma pasta duplica com " - Cópia" no nome (depois " - Cópia (2)"...), como no Explorer, e em outra pasta mantém o nome. A cópia começa sem favorito e com o uso zerado. Copiar um único texto também põe o conteúdo dele no clipboard do Windows, sem contar como uso. Colar fica desabilitado no menu sem itens marcados.
-3. **Arrastar e soltar:** soltar sobre uma pasta (destacada) move para dentro dela, no fim do grupo; soltar entre itens (linha de inserção) coloca naquela posição. Pastas ficam sempre antes dos textos, então a linha só aparece em posições válidas. Ctrl ao soltar copia em vez de mover (o indicador mostra `+`). Parar sobre uma pasta fechada por 700 ms a abre; arrastar perto das bordas rola a árvore. Arrastar um item selecionado leva a seleção inteira, com a contagem no indicador. Soltar uma pasta nela mesma ou numa subpasta dela não é aceito. Soltar sobre a Lixeira exclui. Esc cancela.
-4. **Ordenar:** submenu no menu de contexto da pasta e no botão `...` (Ordenar a raiz): Por nome (A–Z), Por mais usados, Por uso mais recente. Reorganiza uma vez os itens diretos (não os das subpastas): pastas sempre por nome, textos pelo critério, empates por nome. Depois disso, a ordem manual continua editável.
-5. **Busca e filtro:** com a busca ou o filtro de favoritos ativos, arrastar, Mover para cima/baixo e Ordenar ficam indisponíveis, porque a ordem mostrada é parcial.
-6. **Lixeira:** Excluir (Del) move os itens para a lixeira sem confirmação; uma pasta vai com todo o conteúdo. A notificação "N itens movidos para a lixeira." traz **Desfazer** e some após 6 segundos. A Lixeira fica fixa no fim da árvore, com a contagem, e aceita itens soltos sobre ela. Selecionada, mostra os itens excluídos (nome, de onde vieram, data), com seleção múltipla, Restaurar e Excluir definitivamente (também por item, ao passar o mouse) e Esvaziar lixeira. Restaurar devolve o item à pasta de origem, no fim do grupo, ou à raiz se a pasta não existir mais ou também estiver na lixeira. Itens na lixeira não aparecem na árvore, na busca, no menu de colagem, nos totais nem nas exportações, e só saem dela pelo usuário.
-7. **Exclusão definitiva:** Shift+Del, Excluir definitivamente e Esvaziar lixeira pedem confirmação, informando o que vai junto (subpastas, textos, favoritos).
-8. **Desfazer (Ctrl+Z):** com o foco na árvore, no painel da seleção ou na Lixeira, desfaz a última operação: excluir, mover (Mover para…, arrastar, recortar e colar), reordenar (Mover para cima/baixo, arrastar), ordenar, colar cópias e favoritar em lote. Guarda até 50 operações enquanto o aplicativo estiver aberto. Nos campos de texto, Ctrl+Z é o desfazer do próprio campo. Se uma operação não puder mais ser desfeita (por exemplo, o item foi excluído definitivamente), uma notificação informa e ela é descartada. Não há refazer.
+1. **Seleção vazia:** clicar no espaço vazio da árvore, abaixo dos itens, tira a seleção. `Esc` também, depois de desfazer o recorte e de voltar uma seleção múltipla a um item. Sem seleção, Novo, Colar e Importar usam a raiz. O clique direito no espaço vazio abre o menu da raiz vazia (Novo texto, Nova pasta).
+2. **Seleção múltipla:** com mais de um item, o editor dá lugar ao painel da seleção (contagem e lista dos itens com o caminho) e às ações Mover para…, Recortar, Copiar, Adicionar aos favoritos (ou Remover, quando todos os textos já são favoritos; só com textos na seleção), Exportar e Excluir. Renomear e Mover para cima/baixo não aparecem. Clique direito fora da seleção seleciona só aquele item; dentro dela, o menu age em todos. Uma pasta selecionada leva junto os itens de dentro, mesmo que também estejam selecionados. As pendências do editor são gravadas antes de abrir o painel.
+3. **Recortar, copiar e colar:** Ctrl+X e Ctrl+C marcam os itens selecionados; Ctrl+V cola no destino do `+ Novo` (pasta selecionada, Raiz, pasta do texto selecionado ou raiz), no fim do grupo. Recortados são movidos e ficam esmaecidos até colar; Esc desfaz o recorte sem mover nada. Copiados são duplicados com todo o conteúdo; colar na mesma pasta duplica com " - Cópia" no nome (depois " - Cópia (2)"...), como no Explorer, e em outra pasta mantém o nome. A cópia começa sem favorito e com o uso zerado. Copiar um único texto também põe o conteúdo dele no clipboard do Windows, sem contar como uso. Colar fica desabilitado no menu sem itens marcados.
+4. **Arrastar e soltar:** soltar sobre uma pasta (destacada) move para dentro dela, no fim do grupo, e soltar sobre a Raiz move para a raiz, no fim do grupo; soltar entre itens (linha de inserção) coloca naquela posição. Pastas ficam sempre antes dos textos, então a linha só aparece em posições válidas. Ctrl ao soltar copia em vez de mover (o indicador mostra `+`). Parar sobre uma pasta fechada por 700 ms a abre; arrastar perto das bordas rola a árvore. Arrastar um item selecionado leva a seleção inteira, com a contagem no indicador. Soltar uma pasta nela mesma ou numa subpasta dela não é aceito. Soltar sobre a Lixeira exclui. Esc cancela.
+5. **Ordenar:** submenu no menu de contexto da pasta, no da Raiz e no botão `...` (Ordenar a raiz): Por nome (A–Z), Por mais usados, Por uso mais recente. Reorganiza uma vez os itens diretos (não os das subpastas): pastas sempre por nome, textos pelo critério, empates por nome. Depois disso, a ordem manual continua editável.
+6. **Busca e filtro:** com a busca ou o filtro de favoritos ativos, arrastar, Mover para cima/baixo e Ordenar ficam indisponíveis, porque a ordem mostrada é parcial.
+7. **Lixeira:** Excluir (Del) move os itens para a lixeira sem confirmação; uma pasta vai com todo o conteúdo. A notificação "N itens movidos para a lixeira." traz **Desfazer** e some após 6 segundos. A Lixeira fica fixa no fim da árvore, com a contagem, e aceita itens soltos sobre ela. Selecionada, mostra os itens excluídos (nome, de onde vieram, data), com seleção múltipla, Restaurar e Excluir definitivamente (também por item, ao passar o mouse) e Esvaziar lixeira. Restaurar devolve o item à pasta de origem, no fim do grupo, ou à raiz se a pasta não existir mais ou também estiver na lixeira. Itens na lixeira não aparecem na árvore, na busca, no menu de colagem, nos totais nem nas exportações, e só saem dela pelo usuário.
+8. **Exclusão definitiva:** Shift+Del, Excluir definitivamente e Esvaziar lixeira pedem confirmação, informando o que vai junto (subpastas, textos, favoritos).
+9. **Desfazer (Ctrl+Z):** com o foco na árvore, no painel da seleção ou na Lixeira, desfaz a última operação: excluir, mover (Mover para…, arrastar, recortar e colar), reordenar (Mover para cima/baixo, arrastar), ordenar, colar cópias e favoritar em lote. Guarda até 50 operações enquanto o aplicativo estiver aberto. Nos campos de texto, Ctrl+Z é o desfazer do próprio campo. Se uma operação não puder mais ser desfeita (por exemplo, o item foi excluído definitivamente), uma notificação informa e ela é descartada. Não há refazer.
+
+### Raiz na árvore
+
+Raiz selecionada:
+
+```text
++-------------------------------+------------------------------------------------+
+| [ Buscar... ] [+ Novo v] [...]|                                                |
+| ( Favoritos )                 |  Raiz                                          |
+| > Histórico                   |  4 textos · 2 pastas                           |
+| => Raiz                       |                                                |
+|   > Trabalho                  |  [Novo texto aqui] [Nova subpasta]             |
+|   > Pessoal                   |                                                |
+|   Telefone                 *  |                                                |
+|   Link da agenda              |                                                |
+|                               |                                                |
+|-------------------------------|                                                |
+| Lixeira                     3 |                                                |
++-------------------------------+------------------------------------------------+
+```
+
+Menu de contexto da Raiz (clique direito ou `...`):
+
+```text
+  Novo texto
+  Nova pasta
+  ------------------------
+  Colar               Ctrl+V
+  ------------------------
+  Ordenar        >   Por nome (A-Z)
+  Exportar       >   Por mais usados
+                     Por uso mais recente
+```
+
+Clique direito no espaço vazio da árvore:
+
+```text
+  Novo texto
+  Nova pasta
+```
+
+Regras:
+
+1. **Editor:** como o de uma pasta, com o título fixo "Raiz" (sem edição, sem caminho no topo), a contagem de textos e pastas diretos da raiz e os atalhos "Novo texto aqui" e "Nova subpasta", que criam na raiz. Não tem estrela, Excluir nem `...` de ações de item.
+2. **Menu:** Novo texto e Nova pasta criam na raiz; Colar cola na raiz (desabilitado sem itens marcados); Ordenar é o mesmo Ordenar a raiz do botão `...`; Exportar é o mesmo Exportar tudo. Ordenar fica indisponível com a busca ou o filtro de favoritos ativos.
+3. **Teclado:** setas, `Home`/`End` e letras navegam até ela como num item; `→` e `←` abrem e fecham; `Enter` abre ou fecha. `F2`, `Del`, `Shift+Del`, `Ctrl+X` e `Ctrl+C` não fazem nada com ela; `Ctrl+V` cola na raiz.
+4. **Espaço vazio:** o clique direito abaixo dos itens tira a seleção e abre o menu com Novo texto e Nova pasta, que criam na raiz.
 
 ### Histórico na árvore
 
@@ -269,6 +320,9 @@ Botão `...` ao lado do `+ Novo`:
 Menu de contexto de uma pasta:
 
 ```text
+  Novo texto
+  Nova pasta
+  ------------------------
   Recortar            Ctrl+X
   Copiar              Ctrl+C
   Colar               Ctrl+V
@@ -331,7 +385,7 @@ Regras:
 
 ### Preferências de interface
 
-A largura da árvore e as pastas recolhidas são guardadas no `localStorage` do WebView: não são dados do usuário e ficam fora do SQLite.
+A largura da árvore e as pastas recolhidas (inclusive a Raiz) são guardadas no `localStorage` do WebView: não são dados do usuário e ficam fora do SQLite.
 
 ## Bandeja e ciclo de vida da janela `main`
 

@@ -14,3 +14,30 @@ body,
 #root > .fui-FluentProvider {
   height: 100%;
 }
+
+/* Barras de rolagem finas, sem setas, com o polegar arredondado no tom do tema. */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-thumb {
+  min-height: 32px;
+  border: 3px solid transparent;
+  border-radius: 6px;
+  background-clip: content-box;
+  background-color: color-mix(in srgb, var(--colorNeutralForeground1, #242424) 28%, transparent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--colorNeutralForeground1, #242424) 45%, transparent);
+}

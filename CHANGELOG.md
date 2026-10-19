@@ -6,6 +6,25 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-10-19
+
+### Added
+
+- Pasta **Raiz** na árvore do cadastro, logo abaixo do Histórico, com as pastas e os textos que não estão em nenhuma pasta. Selecionada, é o destino de **Novo**, **Colar** e **Importar**; tem menu próprio (Novo texto, Nova pasta, Colar, Ordenar e Exportar), aceita itens soltos sobre ela e pode ser recolhida, e a escolha é lembrada.
+- **Novo texto** e **Nova pasta** no menu de contexto das pastas, que criam dentro delas, e no clique direito sobre o espaço vazio da árvore, que cria na raiz.
+- Clicar no espaço vazio da árvore ou pressionar `Esc` tira a seleção, e os itens novos passam a ser criados na raiz.
+
+### Changed
+
+- O desinstalador sempre preserva os dados: a opção de apagá-los saiu, porque marcá-la sem querer apagava todos os textos. A Ajuda e o README explicam como apagar os dados pelo próprio CSTM ou removendo a pasta depois de desinstalar.
+- O README explica a sigla CSTM: Clipboard, Snippets & Text Manager.
+
+- Barras de rolagem finas, sem setas e no tom do tema, no cadastro e no menu de colagem.
+
+### Fixed
+
+- Num texto grande, a barra de rolagem do conteúdo fica na borda direita do editor, e não mais no meio da janela; o título fica parado e só o conteúdo rola. Vale também para os itens de texto do Histórico.
+
 ## [0.19.1] - 2026-10-19
 
 ### Changed

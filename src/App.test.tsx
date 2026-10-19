@@ -31,9 +31,15 @@ function tree() {
 
 /** Nomes das linhas da árvore, na ordem da tela, com a indentação como prefixo. */
 function treeRows() {
-  return tree()
-    .getAllByRole("treeitem")
-    .map((row) => `${"  ".repeat(Number(row.getAttribute("aria-level")) - 1)}${row.getAttribute("aria-label")}`);
+  const rows = tree().getAllByRole("treeitem");
+  const root = rows.findIndex((item) => item.getAttribute("aria-label") === "Raiz" && item.getAttribute("aria-level") === "1");
+  // A pasta Raiz e o nível que ela acrescenta ficam de fora: as linhas mostram a árvore da biblioteca.
+  return rows
+    .filter((_, position) => position !== root)
+    .map((item) => {
+      const level = Number(item.getAttribute("aria-level")) - (rows.indexOf(item) > root ? 1 : 0);
+      return `${"  ".repeat(level - 1)}${item.getAttribute("aria-label")}`;
+    });
 }
 
 function status() {
@@ -323,7 +329,8 @@ describe("teclado na árvore", () => {
     await tree().findByRole("treeitem", { name: "Primeiro" });
 
     screen.getByRole("tree", { name: "Biblioteca" }).focus();
-    await user.keyboard("{ArrowDown}{ArrowDown}");
+    // A primeira linha é a pasta Raiz.
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}");
     expect(tree().getByRole("treeitem", { name: "Segundo" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("textbox", { name: "Título" })).toHaveValue("Segundo");
 
@@ -380,7 +387,8 @@ describe("teclado na árvore", () => {
     await tree().findByRole("treeitem", { name: "Resposta" });
 
     screen.getByRole("tree", { name: "Biblioteca" }).focus();
-    await user.keyboard("{ArrowDown}{ArrowLeft}");
+    // A primeira linha é a pasta Raiz.
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowLeft}");
 
     expect(tree().getByRole("treeitem", { name: "Trabalho" })).toHaveAttribute("aria-expanded", "false");
     expect(treeRows()).toEqual(["Trabalho"]);

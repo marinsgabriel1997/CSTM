@@ -19,7 +19,7 @@ import {
   type RefObject,
 } from "react";
 
-import { HISTORY_FOLDER, includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "../actions";
+import { HISTORY_FOLDER, ROOT_FOLDER, includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "../actions";
 import type { ClipboardItem, Snippet } from "../api";
 import { copiedLabel } from "../clipboardHistory";
 import type { Draft } from "../drafts";
@@ -36,6 +36,12 @@ const SCROLL_EDGE = 24;
 const SCROLL_STEP = 12;
 /** Pausa na digitação que recomeça a busca pelas primeiras letras. */
 const TYPE_AHEAD_RESET_MS = 1000;
+
+/** Menu do clique direito no espaço vazio da árvore: cria na raiz. */
+const EMPTY_SPACE_ACTIONS: ItemAction[] = [
+  { key: "newSnippet", label: "Novo texto" },
+  { key: "newFolder", label: "Nova pasta" },
+];
 
 const useStyles = makeStyles({
   tree: {
@@ -152,6 +158,7 @@ type Row =
   | { kind: "folder"; node: Extract<TreeNode, { kind: "folder" }>; depth: number; parentId: number | null }
   | { kind: "snippet"; snippet: Snippet; depth: number; parentId: number | null }
   | { kind: "new-folder"; depth: number; parentId: number | null }
+  | { kind: "root"; depth: number; parentId: null }
   | { kind: "history"; depth: number; parentId: null }
   | { kind: "clip"; clip: ClipboardItem; depth: number; parentId: null };
 
@@ -175,6 +182,7 @@ type DropView = { target: DropTarget; row: ItemRef; place: "into" | "before" | "
 function refOf(row: Row): ItemRef | null {
   if (row.kind === "folder") return { kind: "folder", id: row.node.folder.id };
   if (row.kind === "snippet") return { kind: "snippet", id: row.snippet.id };
+  if (row.kind === "root") return ROOT_FOLDER;
   if (row.kind === "history") return HISTORY_FOLDER;
   if (row.kind === "clip") return { kind: "clip", id: row.clip.id };
   return null;
@@ -183,6 +191,7 @@ function refOf(row: Row): ItemRef | null {
 function labelOf(row: Row): string {
   if (row.kind === "folder") return row.node.folder.name;
   if (row.kind === "snippet") return row.snippet.title.trim() || "Sem título";
+  if (row.kind === "root") return "Raiz";
   if (row.kind === "history") return "Histórico";
   if (row.kind === "clip") return row.clip.title;
   return "";
@@ -256,6 +265,9 @@ interface LibraryTreeProps {
   /** Itens recortados, aguardando colar. */
   cut: ItemRef[];
   isOpen: (folderId: number) => boolean;
+  /** Se a pasta virtual Raiz está aberta (sempre aberta com busca ou filtro ativos). */
+  rootOpen: boolean;
+  onToggleRoot: (open: boolean) => void;
   /** Termos da busca ativa, para destacar nos nomes e trechos. */
   terms: string[];
   drafts: ReadonlyMap<number, Draft>;
@@ -273,6 +285,8 @@ interface LibraryTreeProps {
   menuHeaderFor: (item: ItemRef) => string | undefined;
   onSelect: (item: ItemRef, mode: SelectMode) => void;
   onSelectAll: () => void;
+  /** Clique no espaço vazio da árvore: tira a seleção. */
+  onClearSelection: () => void;
   onEscape: () => void;
   /** Del (lixeira) ou Shift+Del (definitivo) sobre a seleção. */
   onDelete: (permanent: boolean) => void;
@@ -297,6 +311,8 @@ function LibraryTree({
   selected,
   cut,
   isOpen,
+  rootOpen,
+  onToggleRoot,
   terms,
   drafts,
   newFolderIn,
@@ -308,6 +324,7 @@ function LibraryTree({
   menuHeaderFor,
   onSelect,
   onSelectAll,
+  onClearSelection,
   onEscape,
   onDelete,
   onToggle,
@@ -320,14 +337,21 @@ function LibraryTree({
   onDrop,
 }: LibraryTreeProps) {
   const styles = useStyles();
-  const [menu, setMenu] = useState<{ item: ItemRef; target: HTMLElement | PositioningVirtualElement } | null>(
+  // `item` nulo é o menu do espaço vazio da árvore.
+  const [menu, setMenu] = useState<{ item: ItemRef | null; target: HTMLElement | PositioningVirtualElement } | null>(
     null,
   );
   const [focused, setFocused] = useState(false);
   const [drop, setDrop] = useState<DropView | null>(null);
   const opening = useRef<{ folderId: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const typed = useRef({ text: "", time: 0 });
-  const rows = [...historyRows(history), ...visibleRows(nodes, isOpen, newFolderIn)];
+  const rootShown = rootOpen || newFolderIn === null;
+  const rows: Row[] = [
+    ...historyRows(history),
+    { kind: "root", depth: 0, parentId: null },
+    // Os itens da raiz ficam um nível abaixo da pasta Raiz.
+    ...(rootShown ? visibleRows(nodes, isOpen, newFolderIn, null, 1) : []),
+  ];
   const items = rows.map(refOf);
   const index = items.findIndex((item) => sameItem(item, selection));
 
@@ -374,7 +398,11 @@ function LibraryTree({
         step(items.length, -1, mode);
         break;
       case "ArrowRight":
-        if (row?.kind === "history") {
+        if (row?.kind === "root") {
+          if (nodes.length === 0) break;
+          if (!rootOpen) onToggleRoot(true);
+          else step(index, 1, "single");
+        } else if (row?.kind === "history") {
           if (history && !history.open) onToggleHistory(true);
           else step(index, 1, "single");
         } else if (row?.kind === "folder" && row.node.children.length > 0) {
@@ -383,7 +411,9 @@ function LibraryTree({
         }
         break;
       case "ArrowLeft":
-        if (row?.kind === "history") {
+        if (row?.kind === "root") {
+          if (rootOpen && nodes.length > 0) onToggleRoot(false);
+        } else if (row?.kind === "history") {
           if (history?.open) onToggleHistory(false);
         } else if (row?.kind === "clip") {
           onSelect(HISTORY_FOLDER, "single");
@@ -391,10 +421,14 @@ function LibraryTree({
           onToggle(row.node.folder.id, false);
         } else if (row && row.parentId !== null) {
           onSelect({ kind: "folder", id: row.parentId }, "single");
+        } else if (row && row.depth === 1) {
+          // Item da raiz: a pasta pai é a Raiz.
+          onSelect(ROOT_FOLDER, "single");
         }
         break;
       case "Enter":
         if (row?.kind === "folder") onToggle(row.node.folder.id, !isOpen(row.node.folder.id));
+        else if (row?.kind === "root") onToggleRoot(!rootOpen);
         else if (row?.kind === "history") onToggleHistory(!history?.open);
         else if (row?.kind === "snippet" || row?.kind === "clip") onOpenEditor();
         break;
@@ -452,6 +486,10 @@ function LibraryTree({
   function dropAt(row: Row, item: ItemRef, event: DragEvent): DropView | null {
     // A pasta Histórico e os itens dela não recebem itens soltos.
     if (!dragging || row.kind === "history" || row.kind === "clip") return null;
+    // Sobre a Raiz, os itens vão para a raiz, no fim do grupo.
+    if (row.kind === "root") {
+      return { target: { kind: "line", parentId: null, before: null }, row: item, place: "into" };
+    }
     const rect = event.currentTarget.getBoundingClientRect();
     const offset = rect.height > 0 ? (event.clientY - rect.top) / rect.height : 0.5;
     const into: DropView | null =
@@ -486,11 +524,20 @@ function LibraryTree({
       current && sameItem(current.row, view.row) && current.place === view.place ? current : view,
     );
     // Uma pasta fechada abre depois de um instante com o ponteiro parado sobre ela.
-    const folderId = row.kind === "folder" && view.place === "into" && !isOpen(row.node.folder.id) ? row.node.folder.id : null;
+    // A Raiz fechada conta como a pasta 0.
+    const folderId =
+      row.kind === "root"
+        ? rootOpen
+          ? null
+          : ROOT_FOLDER.id
+        : row.kind === "folder" && view.place === "into" && !isOpen(row.node.folder.id)
+          ? row.node.folder.id
+          : null;
     if (opening.current?.folderId === folderId) return;
     stopOpening();
     if (folderId !== null) {
-      opening.current = { folderId, timer: setTimeout(() => onToggle(folderId, true), DRAG_OPEN_DELAY_MS) };
+      const open = () => (folderId === ROOT_FOLDER.id ? onToggleRoot(true) : onToggle(folderId, true));
+      opening.current = { folderId, timer: setTimeout(open, DRAG_OPEN_DELAY_MS) };
     }
   }
 
@@ -604,6 +651,28 @@ function LibraryTree({
       />
     );
 
+    if (row.kind === "root") {
+      const open = rootOpen && nodes.length > 0;
+      return (
+        <div key={common.id} {...common} aria-label="Raiz" aria-expanded={nodes.length > 0 ? open : undefined}>
+          <span
+            className={styles.twisty}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (nodes.length > 0) onToggleRoot(!open);
+            }}
+          >
+            {nodes.length > 0 && (open ? <ChevronDown12Regular /> : <ChevronRight12Regular />)}
+          </span>
+          {open ? <FolderOpen20Regular className={styles.folderIcon} /> : <Folder20Regular className={styles.folderIcon} />}
+          <span className={mergeClasses("cstm-row-label", styles.label)}>
+            <span className={styles.name}>Raiz</span>
+          </span>
+          {more}
+        </div>
+      );
+    }
+
     if (row.kind === "history") {
       const open = history?.open ?? false;
       return (
@@ -716,6 +785,15 @@ function LibraryTree({
         className={styles.tree}
         aria-activedescendant={selection && index >= 0 ? rowId(selection) : undefined}
         onKeyDown={handleKeyDown}
+        // Só o espaço vazio (abaixo das linhas) chega aqui com o alvo no próprio contêiner.
+        onClick={(event) => event.target === event.currentTarget && onClearSelection()}
+        onContextMenu={(event) => {
+          if (event.target !== event.currentTarget) return;
+          event.preventDefault();
+          onClearSelection();
+          const { clientX: x, clientY: y } = event;
+          setMenu({ item: null, target: { getBoundingClientRect: () => new DOMRect(x, y, 0, 0) } });
+        }}
         onFocus={(event) => event.target === event.currentTarget && setFocused(true)}
         onBlur={() => setFocused(false)}
         onDragOver={handleTreeDragOver}
@@ -728,9 +806,9 @@ function LibraryTree({
       {menu && (
         <ItemContextMenu
           target={menu.target}
-          header={menuHeaderFor(menu.item)}
-          actions={actionsFor(menu.item)}
-          onAction={(key) => onAction(menu.item, key)}
+          header={menu.item ? menuHeaderFor(menu.item) : undefined}
+          actions={menu.item ? actionsFor(menu.item) : EMPTY_SPACE_ACTIONS}
+          onAction={(key) => onAction(menu.item ?? ROOT_FOLDER, key)}
           onClose={() => setMenu(null)}
         />
       )}

@@ -21,7 +21,9 @@ import {
   Copy20Regular,
   Cut20Regular,
   Delete20Regular,
+  DocumentAdd20Regular,
   DocumentMultiple20Regular,
+  FolderAdd20Regular,
   FolderArrowRight20Regular,
   History20Regular,
   MoreHorizontal20Regular,
@@ -34,6 +36,8 @@ import { Fragment, type ReactElement } from "react";
 import { SHORTCUTS, type ActionKey, type ItemAction } from "../actions";
 
 const ICONS: Record<ActionKey, ReactElement> = {
+  newSnippet: <DocumentAdd20Regular />,
+  newFolder: <FolderAdd20Regular />,
   cut: <Cut20Regular />,
   copy: <Copy20Regular />,
   paste: <ClipboardPaste20Regular />,
@@ -58,6 +62,7 @@ interface Submenu {
 
 // Grupos separados por divisórias, na ordem do menu; um submenu aparece pelo rótulo de quem o abre.
 const GROUPS: (ActionKey | Submenu)[][] = [
+  ["newSnippet", "newFolder"],
   ["cut", "copy", "paste"],
   ["rename", "move"],
   ["up", "down"],

@@ -7,6 +7,8 @@ export interface Preferences {
   treeWidth: number;
   /** Pastas recolhidas; as demais aparecem abertas. */
   collapsed: number[];
+  /** Pasta virtual Raiz recolhida; por padrão aparece aberta. */
+  rootCollapsed: boolean;
 }
 
 const KEY = "cstm.preferences";
@@ -16,7 +18,7 @@ export function clampTreeWidth(width: number): number {
 }
 
 export function loadPreferences(): Preferences {
-  const defaults: Preferences = { treeWidth: TREE_WIDTH.initial, collapsed: [] };
+  const defaults: Preferences = { treeWidth: TREE_WIDTH.initial, collapsed: [], rootCollapsed: false };
   try {
     const stored = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<Preferences>;
     return {
@@ -25,6 +27,7 @@ export function loadPreferences(): Preferences {
       collapsed: Array.isArray(stored.collapsed)
         ? stored.collapsed.filter((id) => typeof id === "number")
         : defaults.collapsed,
+      rootCollapsed: typeof stored.rootCollapsed === "boolean" ? stored.rootCollapsed : defaults.rootCollapsed,
     };
   } catch {
     return defaults;

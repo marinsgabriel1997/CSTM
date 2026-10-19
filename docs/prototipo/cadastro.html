@@ -218,6 +218,17 @@
   .results-info { margin-left: auto; font-size: 12px; color: var(--text-3); padding-right: 6px; }
 
   .tree { flex: 1; overflow: auto; padding-right: 4px; }
+  /* Barras de rolagem da janela: finas, sem setas, polegar arredondado no tom do tema. */
+  .window ::-webkit-scrollbar { width: 12px; height: 12px; }
+  .window ::-webkit-scrollbar-track, .window ::-webkit-scrollbar-corner { background: transparent; }
+  .window ::-webkit-scrollbar-button { display: none; }
+  .window ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.28); background-clip: content-box;
+    border: 3px solid transparent; border-radius: 6px; min-height: 32px;
+  }
+  .window ::-webkit-scrollbar-thumb:hover { background-color: rgba(0, 0, 0, 0.45); }
+  .window.theme-dark ::-webkit-scrollbar-thumb { background-color: rgba(255, 255, 255, 0.26); }
+  .window.theme-dark ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.42); }
   .row {
     position: relative;
     display: flex;
@@ -351,6 +362,13 @@
     display: flex; flex-direction: column;
   }
   .doc-inner { max-width: 760px; width: 100%; display: flex; flex-direction: column; flex: 1; }
+  /* Texto: só o conteúdo rola, numa área da largura do painel (barra na borda); o título fica parado. */
+  .doc.split { overflow: hidden; padding-right: 0; padding-bottom: 0; }
+  .doc.split > .doc-inner { flex: none; padding-right: 28px; box-sizing: content-box; }
+  .content-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 28px 24px 0; }
+  .content-scroll > .content { max-width: 760px; }
+  .tree-blank { min-height: 48px; }
+  .placeholder-view { flex: 1; display: grid; place-items: center; color: var(--text-3); }
   .title {
     font-family: var(--font-display);
     font-size: 28px; font-weight: 600; line-height: 1.25;
@@ -679,12 +697,12 @@
     "arrastar-pasta": {
       label: "Arrastar: para uma pasta",
       note: "Arrastar sobre uma pasta destaca a pasta: soltar move para dentro dela (no fim). Parar sobre uma pasta fechada por um instante a abre. Com Ctrl pressionado, soltar copia (aparece um +).",
-      selected: "followup", multi: ["resposta", "followup"], drop: { into: "clientes" }, ghost: { label: "2 itens", count: 2, top: 248 }, status: { kind: "ok" },
+      selected: "followup", multi: ["resposta", "followup"], drop: { into: "clientes" }, ghost: { label: "2 itens", count: 2, top: 280 }, status: { kind: "ok" },
     },
     "arrastar-posicao": {
       label: "Arrastar: reordenar",
       note: "Entre dois itens aparece a linha de inserção: soltar coloca o item naquela posição. Pastas ficam sempre antes dos textos, então a linha só aparece em posições válidas. Soltar sobre a Lixeira exclui; Esc cancela.",
-      selected: "agenda", drop: { before: "telefone" }, ghost: { label: "Link da agenda", top: 372 }, status: { kind: "ok" },
+      selected: "agenda", drop: { before: "telefone" }, ghost: { label: "Link da agenda", top: 404 }, status: { kind: "ok" },
     },
     "ordenar": {
       label: "Ordenar pasta",
@@ -695,6 +713,36 @@
       label: "Botão … da raiz",
       note: "O botão … ao lado do Novo reúne importar, exportar, ordenar a raiz e expandir ou recolher todas as pastas.",
       selected: "emails", folderView: "emails", libMenu: "more", status: { kind: "ok" },
+    },
+    "raiz": {
+      label: "Raiz selecionada",
+      note: "A pasta Raiz, abaixo do Histórico, contém as pastas e os textos sem pasta. Selecionada, é o destino de Novo, Colar e Importar; o editor mostra a contagem e os atalhos de criação, sem renomear. Abre e fecha como uma pasta, e a escolha é lembrada.",
+      selected: "raiz", folderView: "raiz", newMenu: true, status: { kind: "ok" },
+    },
+    "raiz-menu": {
+      label: "Raiz: menu",
+      note: "Clique direito ou … na Raiz: Novo texto, Nova pasta, Colar (na raiz), Ordenar (o mesmo Ordenar a raiz) e Exportar (o mesmo Exportar tudo). Não há Renomear, Mover, Favoritar nem Excluir.",
+      selected: "raiz", folderView: "raiz", rootContext: true, status: { kind: "ok" },
+    },
+    "sem-selecao": {
+      label: "Sem seleção",
+      note: "Clicar no espaço vazio da árvore, abaixo dos itens, ou Esc tiram a seleção: Novo, Colar e Importar passam a criar na raiz.",
+      noSelection: true, status: { kind: "ok" },
+    },
+    "vazio-menu": {
+      label: "Espaço vazio: menu",
+      note: "Clique direito no espaço vazio da árvore tira a seleção e oferece Novo texto e Nova pasta, que criam na raiz.",
+      noSelection: true, blankContext: 520, status: { kind: "ok" },
+    },
+    "pasta-novo": {
+      label: "Pasta: menu com Novo",
+      note: "O menu de contexto de uma pasta começa com Novo texto e Nova pasta, que criam dentro dela. Com vários itens selecionados, eles não aparecem.",
+      selected: "emails", folderView: "emails", folderContext: "emails", status: { kind: "ok" },
+    },
+    "texto-grande": {
+      label: "Texto grande",
+      note: "Num texto grande, só o conteúdo rola: o caminho, o título, o uso e a linha ficam parados, e a barra de rolagem fica na borda direita do painel. O texto mantém a mesma largura. Vale também para os itens de texto do Histórico.",
+      selected: "resposta", longText: true, status: { kind: "ok" },
     },
     "excluido": {
       label: "Excluir (Del)",
@@ -939,11 +987,19 @@
       nodes = prune(LIB, (t) => t.fav);
     }
 
-    let rows = (st.query || st.favFilter ? "" : historyRows(st)) + treeRows(nodes, 0, st);
+    // Pasta virtual Raiz: contém as pastas e os textos sem pasta; com busca ou filtro, fica sempre aberta.
+    const rootOpen = !st.rootClosed || st.query || st.favFilter;
+    const rootRow = `<div class="row folder${st.selected === "raiz" ? " selected" : ""}${st.rootContext ? " context" : ""}${st.drop?.into === "raiz" ? " drop-into" : ""}" style="--depth:0">
+          <span class="tw">${ic(rootOpen ? "chev-d" : "chev-r")}</span>
+          <svg class="i ic"><use href="#i-${rootOpen ? "folder-open" : "folder"}"/></svg>
+          <span class="label"><span class="name">Raiz</span></span>
+          <span class="more">${ic("more", "f")}</span>
+        </div>`;
+    let rows = (st.query || st.favFilter ? "" : historyRows(st)) + rootRow + (rootOpen ? treeRows(nodes, 1, st) : "");
     if (st.renaming) {
       // Itens novos entram no fim: a nova pasta vem depois das pastas da raiz e antes dos textos.
-      const firstRootText = rows.indexOf('<div class="row text" style="--depth:0">');
-      rows = rows.slice(0, firstRootText) + `<div class="row folder selected" style="--depth:0">
+      const firstRootText = rows.indexOf('<div class="row text" style="--depth:1">');
+      rows = rows.slice(0, firstRootText) + `<div class="row folder selected" style="--depth:1">
           <span class="tw"></span><svg class="i ic"><use href="#i-folder"/></svg>
           <span class="rename-input">Nova pasta<span class="caret" style="display:inline-block;width:1px;height:15px;background:var(--text);margin-left:1px"></span></span>
         </div>` + rows.slice(firstRootText);
@@ -954,7 +1010,7 @@
         <span class="chip${st.favFilter ? " on" : ""}">${st.favFilter ? icFill("star") : ic("star")} Favoritos</span>
         ${info}
       </div>
-      <div class="tree">${rows}</div>
+      <div class="tree">${rows}<div class="tree-blank"></div></div>
       <div class="tree-foot">
         <div class="row trash${st.selected === "lixeira" ? " selected" : ""}" style="--depth:0">
           <span class="tw"></span><svg class="i ic"><use href="#i-trash"/></svg>
@@ -993,13 +1049,13 @@
       return `
         <div class="editor-head"><div class="crumbs"><span class="seg">Histórico</span></div><span class="spacer"></span>
           <button class="btn" title="Excluir (Del)">${ic("trash")} Excluir</button></div>
-        <div class="doc"><div class="doc-inner">
+        <div class="doc${hist.kind === "image" ? "" : " split"}"><div class="doc-inner">
           <p class="folder-meta">${meta}</p>
           ${hist.formatted && !st.histEmptied ? `<div class="hist-info">${ic("info")} Editar remove a formatação que veio junto (negrito, links…); o texto continua.</div>` : ""}
           ${st.histEmptied ? `<div class="hist-info warn">${ic("warn")} Um item do histórico não pode ficar vazio.</div>` : ""}
           <div class="rule"></div>
-          ${body}
-        </div></div>`;
+          ${hist.kind === "image" ? body : ""}
+        </div>${hist.kind === "image" ? "" : `<div class="content-scroll">${body}</div>`}</div>`;
     }
 
     if (st.selected === "lixeira") {
@@ -1061,6 +1117,25 @@
         </div></div>`;
     }
 
+    if (st.noSelection) {
+      return `<div class="placeholder-view">Selecione um texto ou uma pasta na árvore.</div>`;
+    }
+
+    if (st.folderView === "raiz") {
+      const texts = LIB.filter((n) => n.type === "text").length;
+      const folders = LIB.length - texts;
+      return `
+        <div class="editor-head"><span class="spacer"></span></div>
+        <div class="doc"><div class="doc-inner">
+          <div class="title">Raiz</div>
+          <p class="folder-meta">${texts} textos · ${folders} pastas</p>
+          <div class="folder-actions">
+            <button class="btn">${ic("doc-add")} Novo texto aqui</button>
+            <button class="btn">${ic("folder-add")} Nova subpasta</button>
+          </div>
+        </div></div>`;
+    }
+
     if (st.folderView) {
       const isNew = st.folderView === "nova-pasta";
       const f = isNew ? { node: { name: "Nova pasta", children: [] }, path: [] } : find(st.folderView);
@@ -1114,16 +1189,21 @@
       : `<div class="title">${esc(t.title)}</div>
          <p class="usage">${t.uses ? `Usado ${t.uses} vez${t.uses === 1 ? "" : "es"} · último uso em ${t.lastUsed}` : "Ainda não usado"}</p>`;
 
+    if (st.longText) {
+      const para = "Obrigado pelo contato. Recebemos sua mensagem e retornaremos em até 24 horas úteis. Enquanto isso, confira as perguntas frequentes no nosso site.";
+      content = esc(Array.from({ length: 30 }, (_, i) => `${i + 1}. ${para}`).join("\n\n"));
+    }
+    // O conteúdo rola numa área da largura do painel; título, uso e linha ficam parados.
     let html = `
       <div class="editor-head">${crumbs(path)}<span class="spacer"></span>
         <button class="btn subtle icon fav-btn${t.fav ? " on" : ""}" title="Favorito">${t.fav ? icFill("star") : ic("star")}</button>
         <button class="btn subtle icon">${ic("more", "f")}</button></div>
       ${error}
-      <div class="doc"><div class="doc-inner">
+      <div class="doc split"><div class="doc-inner">
         ${title}
         <div class="rule"></div>
-        <div class="content">${content}</div>
-      </div></div>`;
+      </div>
+      <div class="content-scroll"><div class="content">${content}</div></div></div>`;
     return html;
   }
 
@@ -1147,7 +1227,7 @@
         <div class="item hl">${ic("doc-add")} Novo texto <span class="kb">Ctrl+N</span></div>
         <div class="item">${ic("folder-add")} Nova pasta <span class="kb">Ctrl+Shift+N</span></div>
         <div class="sep"></div>
-        <div class="hint">Em Trabalho › E-mails</div>
+        <div class="hint">${st.selected === "raiz" ? "Na Raiz" : "Em Trabalho › E-mails"}</div>
       </div>`;
     }
     const sub = ic("chev-r").replace('class="i"', 'class="i sub"');
@@ -1166,7 +1246,7 @@
         <div class="sep"></div>`;
     const remove = `<div class="item danger">${ic("trash")} Excluir <span class="kb">Del</span></div>`;
     if (st.context) {
-      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:236px">
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:268px">
         ${clip(false)}${arrange(true)}
         <div class="item">${ic("star")} Adicionar aos favoritos</div>
         <div class="sep"></div>
@@ -1174,7 +1254,7 @@
       </div>`;
     }
     if (st.multiContext) {
-      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:300px">
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 40, 300)}px; top:332px">
         <div class="hint">3 itens selecionados</div>
         ${clip(false)}
         <div class="item">${ic("move")} Mover para…</div>
@@ -1221,16 +1301,36 @@
         html += formats(left + 232, top + 32);
       }
     }
-    if (st.folderContext) {
+    const create = `
+        <div class="item">${ic("doc-add")} Novo texto</div>
+        <div class="item">${ic("folder-add")} Nova pasta</div>`;
+    if (st.rootContext) {
       const left = Math.min(treeWidth - 40, 300), top = 150;
       html += `<div class="menu" style="left:${left}px; top:${top}px">
+        ${create}
+        <div class="sep"></div>
+        <div class="item off">${ic("paste")} Colar <span class="kb">Ctrl+V</span></div>
+        <div class="sep"></div>
+        <div class="item hl">${ic("sort")} Ordenar ${sub}</div>
+        <div class="item">${ic("export")} Exportar ${sub}</div>
+      </div>`;
+      html += sorts(left + 232, top + 4 + 3 * 32 + 2 * 9);
+    }
+    if (st.blankContext) {
+      html += `<div class="menu" style="left:${Math.min(treeWidth - 120, 170)}px; top:${st.blankContext}px">${create}</div>`;
+    }
+    if (st.folderContext) {
+      const left = Math.min(treeWidth - 40, 300), top = 182;
+      html += `<div class="menu" style="left:${left}px; top:${top}px">
+        ${create}
+        <div class="sep"></div>
         ${clip(false)}${arrange(false)}
         <div class="item${st.sortMenu ? " hl" : ""}">${ic("sort")} Ordenar ${sub}</div>
         <div class="item${st.sortMenu ? "" : " hl"}">${ic("export")} Exportar ${sub}</div>
         <div class="sep"></div>
         ${remove}
       </div>`;
-      const subTop = top + 4 + 7 * 32 + 3 * 9;
+      const subTop = top + 4 + 9 * 32 + 4 * 9;
       html += st.sortMenu ? sorts(left + 232, subTop) : formats(left + 232, subTop + 32);
     }
     if (st.ghost) {

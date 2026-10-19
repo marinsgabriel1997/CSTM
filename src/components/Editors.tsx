@@ -75,6 +75,14 @@ const useStyles = makeStyles({
     paddingRight: "28px",
     paddingBottom: tokens.spacingVerticalXL,
   },
+  // Editores de texto: a barra de rolagem do conteúdo fica na borda do painel, não da coluna de 820px.
+  // O contêiner ocupa o painel todo; os itens fixos e o texto (via padding do textarea) ficam na coluna de 764px.
+  docWide: { maxWidth: "none", paddingRight: 0 },
+  column: { maxWidth: "764px" },
+  contentWide: {
+    boxSizing: "border-box",
+    paddingRight: "max(28px, calc(100% - 764px))",
+  },
   // Título e conteúdo editados diretamente, sem caixas nem rótulos.
   title: {
     flex: "none",
@@ -90,6 +98,8 @@ const useStyles = makeStyles({
     lineHeight: "1.25",
     "::placeholder": { color: tokens.colorNeutralForeground4 },
   },
+  // Título sem edição, como o da Raiz.
+  fixedTitle: { margin: 0 },
   rule: {
     flex: "none",
     height: "1px",
@@ -285,10 +295,10 @@ export function SnippetEditor({
         </MessageBar>
       )}
 
-      <div className={styles.doc}>
+      <div className={mergeClasses(styles.doc, styles.docWide)}>
         <input
           ref={titleRef}
-          className={styles.title}
+          className={mergeClasses(styles.title, styles.column)}
           aria-label="Título"
           placeholder="Sem título"
           value={title}
@@ -300,21 +310,21 @@ export function SnippetEditor({
             }
           }}
         />
-        {!isNew && <p className={styles.usage}>{usage}</p>}
+        {!isNew && <p className={mergeClasses(styles.usage, styles.column)}>{usage}</p>}
         {invalid && title.trim() === "" && (
-          <div className={styles.hint}>
+          <div className={mergeClasses(styles.hint, styles.column)}>
             <Warning16Regular /> O título é obrigatório. Enquanto estiver vazio, as alterações não são salvas.
           </div>
         )}
-        <div className={styles.rule} />
+        <div className={mergeClasses(styles.rule, styles.column)} />
         {invalid && content.trim() === "" && (
-          <div className={styles.hint}>
+          <div className={mergeClasses(styles.hint, styles.column)}>
             <Warning16Regular /> O conteúdo é obrigatório. Enquanto estiver vazio, as alterações não são salvas.
           </div>
         )}
         <textarea
           ref={contentRef}
-          className={styles.content}
+          className={mergeClasses(styles.content, styles.contentWide)}
           aria-label="Conteúdo"
           placeholder="Escreva o texto que será colado…"
           value={content}
@@ -338,12 +348,12 @@ interface FolderEditorProps {
   onNewFolder: () => void;
 }
 
-function describe(contents: FolderContents): string {
+function describe(contents: FolderContents, empty = "Pasta vazia", folderNoun = ["subpasta", "subpastas"]): string {
   const { snippets, folders } = contents;
-  if (snippets === 0 && folders === 0) return "Pasta vazia";
+  if (snippets === 0 && folders === 0) return empty;
   const texts = `${snippets} ${snippets === 1 ? "texto" : "textos"}`;
   const subfolders =
-    folders === 0 ? "nenhuma subpasta" : `${folders} ${folders === 1 ? "subpasta" : "subpastas"}`;
+    folders === 0 ? `nenhuma ${folderNoun[0]}` : `${folders} ${folders === 1 ? folderNoun[0] : folderNoun[1]}`;
   return `${texts} · ${subfolders}`;
 }
 
@@ -400,6 +410,35 @@ export function FolderEditor({
   );
 }
 
+interface RootEditorProps {
+  /** Textos e pastas diretos da raiz. */
+  contents: FolderContents;
+  onNewSnippet: () => void;
+  onNewFolder: () => void;
+}
+
+/** A pasta virtual Raiz: como o editor de pasta, mas sem nome editável, caminho nem ações do item. */
+export function RootEditor({ contents, onNewSnippet, onNewFolder }: RootEditorProps) {
+  const styles = useStyles();
+  return (
+    <section className={styles.editor} aria-label="Raiz">
+      <div className={styles.head} />
+      <div className={styles.doc}>
+        <h2 className={mergeClasses(styles.title, styles.fixedTitle)}>Raiz</h2>
+        <p className={styles.meta}>{describe(contents, "Raiz vazia", ["pasta", "pastas"])}</p>
+        <div className={styles.folderActions}>
+          <Button icon={<DocumentAdd20Regular />} onClick={onNewSnippet}>
+            Novo texto aqui
+          </Button>
+          <Button icon={<FolderAdd20Regular />} onClick={onNewFolder}>
+            Nova subpasta
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 interface ClipEditorProps {
   /** `null` enquanto o item carrega. */
   editing: ClipEditing | null;
@@ -441,19 +480,19 @@ export function ClipEditor({ editing, contentRef, onChange, onRetry, onDelete }:
       )}
 
       {editing && detail && (
-        <div className={styles.doc}>
-          <p className={styles.usage}>
+        <div className={mergeClasses(styles.doc, styles.docWide)}>
+          <p className={mergeClasses(styles.usage, styles.column)}>
             {copiedAtLabel(detail.copiedAt)}
             {image && ` · Imagem ${detail.width} × ${detail.height}`}
           </p>
           {!image && detail.formatted && (
-            <MessageBar intent="info" className={styles.clipInfo}>
+            <MessageBar intent="info" className={mergeClasses(styles.clipInfo, styles.column)}>
               <MessageBarBody>
                 Editar remove a formatação que veio junto (negrito, links…); o texto continua.
               </MessageBarBody>
             </MessageBar>
           )}
-          <div className={styles.rule} />
+          <div className={mergeClasses(styles.rule, styles.column)} />
           {image ? (
             <img
               className={styles.clipImage}
@@ -463,13 +502,13 @@ export function ClipEditor({ editing, contentRef, onChange, onRetry, onDelete }:
           ) : (
             <>
               {editing.status === "invalid" && (
-                <div className={styles.hint}>
+                <div className={mergeClasses(styles.hint, styles.column)}>
                   <Warning16Regular /> Um item do histórico não pode ficar vazio.
                 </div>
               )}
               <textarea
                 ref={contentRef}
-                className={styles.content}
+                className={mergeClasses(styles.content, styles.contentWide)}
                 aria-label="Conteúdo"
                 value={editing.text}
                 onChange={(event) => onChange(event.target.value)}

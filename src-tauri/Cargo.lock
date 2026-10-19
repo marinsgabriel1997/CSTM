@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "cstm"
-version = "0.19.1"
+version = "0.20.0"
 dependencies = [
  "htmd",
  "image",

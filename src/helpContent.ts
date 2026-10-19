@@ -93,11 +93,20 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     ],
   },
   {
+    title: "Desinstalar e apagar os dados",
+    paragraphs: [
+      "Desinstalar o CSTM (em **Configurações** › **Aplicativos** do Windows) sempre guarda os seus textos, para uma reinstalação encontrar tudo como estava.",
+      "Para apagar os dados, exclua os itens e esvazie a **Lixeira** e use **Limpar histórico** antes de desinstalar, ou, depois de desinstalar, apague a pasta `%APPDATA%\\com.gabriel.cstm`.",
+    ],
+  },
+  {
     title: "Organizar a árvore",
     paragraphs: [
       "Arraste textos e pastas para mudar a ordem ou a pasta; segure `Ctrl` ao soltar para copiar em vez de mover.",
       "`Ctrl+X`, `Ctrl+C` e `Ctrl+V` recortam, copiam e colam itens, `Ctrl+Z` desfaz e `F2` renomeia. Selecione vários itens com `Ctrl` ou `Shift` + clique.",
       "O botão **⋯** (Mais opções) ordena a raiz por nome, por mais usados ou por uso recente; o menu de uma pasta faz o mesmo com o conteúdo dela.",
+      "Os itens novos entram na pasta selecionada. A pasta **Raiz**, logo abaixo do Histórico, reúne as pastas e os textos que não estão em nenhuma pasta: com ela selecionada, **Novo**, `Ctrl+V` e **Importar** usam a raiz. Clicar no espaço vazio da árvore ou `Esc` tiram a seleção, e os itens novos também vão para a raiz.",
+      "O menu de uma pasta (clique direito ou **⋯**) tem **Novo texto** e **Nova pasta**, que criam dentro dela; o da **Raiz** tem também **Colar**, **Ordenar** e **Exportar**. O clique direito no espaço vazio da árvore cria na raiz.",
     ],
   },
   {
