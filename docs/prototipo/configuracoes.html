@@ -248,6 +248,8 @@
   .tray-menu div { padding: 6px 10px; border-radius: 4px; }
   .tray-menu .on { background: var(--hover); }
   .tray-menu hr { border: none; border-top: 1px solid var(--stroke); margin: 4px 0; }
+  .days-row { display: flex; align-items: center; gap: 8px; margin: 10px 0 0 50px; }
+  .days-row input { width: 64px; padding: 4px 6px; font: inherit; }
 </style>
 </head>
 <body>
@@ -289,6 +291,10 @@
     limpar: { label: "Limpar histórico", note: "\"Limpar histórico\" pede confirmação ali mesmo, sem outro diálogo. Cancelar volta ao botão." },
     limpo: { label: "Histórico limpo", note: "Os itens foram apagados; o botão fica desabilitado até haver itens de novo. A opção continua ligada." },
     "historico-desligado": { label: "Histórico desligado", note: "Desligar para de guardar na hora, sem apagar o que já foi guardado; a pasta Histórico some do menu de colagem." },
+    "atualizacao-ok": { label: "Versão mais recente", note: "Resultado de Verificar agora quando não há versão nova." },
+    "atualizacao-nova": { label: "Versão nova", note: "Resultado de Verificar agora com versão nova; o botão abre a página da release no navegador. A barra no topo do cadastro aparece no protótipo do cadastro." },
+    "atualizacao-erro": { label: "Falha ao verificar", note: "Sem internet ou com o GitHub indisponível. Em segundo plano, a falha é silenciosa." },
+    "atualizacao-desligada": { label: "Atualizações desligadas", note: "O campo de dias fica desabilitado; Verificar agora continua disponível." },
   };
 
   let theme = "claro";
@@ -301,6 +307,8 @@
   let autostartOn = false; // Iniciar com o Windows, desligado por padrão
   let historyOn = true; // Guardar o histórico do clipboard, ligado por padrão
   let historyCount = 37; // Itens guardados no histórico
+  let updateOn = true; // Verificar atualizações, ligado por padrão
+  let updateDays = 7; // Intervalo em dias, de 1 a 90
 
   const $ = (id) => document.getElementById(id);
   const label = (keys) => keys.join("+");
@@ -399,6 +407,15 @@
             ? `<div class="confirm bar warning">Apagar os ${historyCount} itens do histórico? Não é possível desfazer.
                  <div class="buttons"><button class="button danger" id="confirm-clear">Limpar</button><button class="button" id="cancel-clear">Cancelar</button></div></div>`
             : `<div class="history-actions"><button class="button" id="clear" ${historyCount === 0 ? "disabled" : ""}>Limpar histórico</button>${state === "limpo" ? `<span class="line success">Histórico limpo.</span>` : ""}</div>`}
+          <div class="setting-sep"></div>
+          <div class="setting-title">Atualizações</div>
+          <label class="switch"><input type="checkbox" role="switch" id="update" ${updateOn ? "checked" : ""} /><span class="switch-track"></span>Verificar atualizações</label>
+          <div class="switch-help">Consulta o GitHub em segundo plano e avisa quando sai uma versão nova.</div>
+          <label class="days-row">A cada <input type="number" id="days" min="1" max="90" value="${updateDays}" ${updateOn ? "" : "disabled"} /> dias</label>
+          <div class="history-actions"><button class="button" id="check">Verificar agora</button></div>
+          ${state === "atualizacao-ok" ? `<div class="line success">Você está na versão mais recente (0.18.0).</div>` : ""}
+          ${state === "atualizacao-nova" ? `<div class="line">Versão 0.19.0 disponível.</div><div class="history-actions"><button class="button">Abrir página da release</button></div>` : ""}
+          ${state === "atualizacao-erro" ? `<div class="bar error">Não foi possível verificar: sem conexão com a internet.</div>` : ""}
         </section>`;
     document.querySelectorAll('input[name="nav"]').forEach((input) => {
       input.addEventListener("change", () => { navMode = input.value; });
@@ -413,6 +430,12 @@
     });
     $("autostart").addEventListener("change", (event) => { autostartOn = event.target.checked; });
     $("history").addEventListener("change", (event) => { historyOn = event.target.checked; });
+    $("update").addEventListener("change", (event) => { updateOn = event.target.checked; render(); });
+    $("days").addEventListener("change", (event) => {
+      updateDays = Math.min(90, Math.max(1, Math.round(Number(event.target.value) || 7)));
+      event.target.value = updateDays;
+    });
+    $("check").addEventListener("click", () => go("atualizacao-ok"));
     $("clear")?.addEventListener("click", () => go("limpar"));
     $("cancel-clear")?.addEventListener("click", () => go("atual"));
     $("confirm-clear")?.addEventListener("click", () => { historyCount = 0; go("limpo"); });
@@ -466,6 +489,7 @@
     if (next === "invalida") pending = [];
     historyOn = next !== "historico-desligado";
     historyCount = next === "limpo" ? 0 : 37;
+    updateOn = next !== "atualizacao-desligada";
     location.hash = `estado=${next}&tema=${theme}`;
     render();
   }

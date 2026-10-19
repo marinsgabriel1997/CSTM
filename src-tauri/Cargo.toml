@@ -1,6 +1,6 @@
 [package]
 name = "cstm"
-version = "0.17.2"
+version = "0.18.0"
 description = "CSTM - Clipboard, Snippets & Text Manager"
 authors = ["Gabriel de Marins <contato.gabrielmarins@gmail.com>"]
 license = "MIT"
@@ -32,9 +32,12 @@ tauri-plugin-opener = "2"
 image = { version = "0.25", default-features = false, features = ["png", "bmp"] }
 pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
 htmd = "0.5"
+ureq = "3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.62", features = [
+    "Data_Xml_Dom",
+    "UI_Notifications",
     "Win32_Foundation",
     "Win32_Graphics_Gdi",
     "Win32_System_DataExchange",

@@ -501,6 +501,12 @@
 
   svg.i { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
   svg.f { fill: currentColor; stroke: none; }
+  .window.with-update { grid-template-rows: 32px auto 1fr 28px; }
+  .update-bar {
+    display: flex; align-items: center; gap: 8px; padding: 6px 12px;
+    background: var(--accent-soft); border-bottom: 1px solid var(--accent-soft); font-size: 13px;
+  }
+  .update-bar span { margin-right: auto; }
 </style>
 </head>
 <body>
@@ -737,6 +743,11 @@
       label: "Erro ao salvar",
       note: "Falha na gravação: o texto digitado continua no editor, o item fica marcado e é possível tentar de novo. Nova edição também tenta de novo.",
       selected: "resposta", editedContent: true, error: true, status: { kind: "error" }, dot: "err",
+    },
+    "atualizacao": {
+      label: "Versão nova",
+      note: "A verificação de atualização encontrou uma versão mais nova: a barra fica no topo até Dispensar (vale para aquela versão) ou até instalar a versão nova. Abrir página da release abre o navegador.",
+      selected: "resposta", update: true, status: { kind: "ok" },
     },
   };
 
@@ -1198,10 +1209,11 @@
   function render() {
     const st = STATES[current];
     const win = document.getElementById("win");
-    win.className = "window " + (theme === "escuro" ? "theme-dark" : "theme-light");
+    win.className = "window " + (theme === "escuro" ? "theme-dark" : "theme-light") + (st.update ? " with-update" : "");
     win.innerHTML = `
       <div class="titlebar"><span class="app-icon">C</span> CSTM
         <div class="controls"><span>${ic("min")}</span><span>${ic("max")}</span><span>${ic("x")}</span></div></div>
+      ${st.update ? `<div class="update-bar"><span>Versão 0.19.0 do CSTM disponível.</span><button class="btn">Abrir página da release</button><button class="btn">Dispensar</button></div>` : ""}
       <div class="body" style="--tree-w:${treeWidth}px">
         <aside class="tree-pane">${renderTree(st)}</aside>
         <div class="divider" id="divider" title="Arraste para redimensionar"></div>

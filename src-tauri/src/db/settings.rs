@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::Result;
 use crate::markdown::PasteFormat;
+use crate::update::AvailableUpdate;
 
 /// Estado lembrado da janela principal. Posição em pixels físicos e tamanho em pixels
 /// lógicos, ambos do estado "normal" (não maximizado): é para ele que a janela volta
@@ -151,6 +152,102 @@ pub fn set_main_window(conn: &Connection, state: &MainWindowState) -> Result<()>
     // Estruturas simples com números e booleano nunca falham ao serializar.
     let json = serde_json::to_string(state).expect("MainWindowState é serializável");
     set_setting(conn, MAIN_WINDOW, &json)
+}
+
+/// Verificação de atualização ligada: `on` ou `off`.
+pub const UPDATE_CHECK: &str = "update_check";
+
+/// Intervalo, em dias, entre as verificações automáticas.
+pub const UPDATE_INTERVAL_DAYS: &str = "update_interval_days";
+
+/// Instante da última verificação bem-sucedida, em segundos Unix.
+pub const UPDATE_LAST_CHECK: &str = "update_last_check";
+
+/// Última release encontrada, em JSON (ver `update::AvailableUpdate`).
+pub const UPDATE_LATEST: &str = "update_latest";
+
+/// Última versão avisada por notificação do Windows.
+pub const UPDATE_NOTIFIED: &str = "update_notified";
+
+/// Última versão dispensada na barra de aviso da janela principal.
+pub const UPDATE_DISMISSED: &str = "update_dismissed";
+
+pub const UPDATE_INTERVAL_DEFAULT: u32 = 7;
+pub const UPDATE_INTERVAL_MIN: u32 = 1;
+pub const UPDATE_INTERVAL_MAX: u32 = 90;
+
+/// Configuração da verificação automática de atualização.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSettings {
+    pub enabled: bool,
+    pub interval_days: u32,
+}
+
+fn clamp_interval(days: u32) -> u32 {
+    days.clamp(UPDATE_INTERVAL_MIN, UPDATE_INTERVAL_MAX)
+}
+
+/// Verificação ligada e intervalo; valem ligada e 7 dias enquanto nada válido foi gravado.
+pub fn get_update_settings(conn: &Connection) -> Result<UpdateSettings> {
+    let interval_days = get_setting(conn, UPDATE_INTERVAL_DAYS)?
+        .and_then(|value| value.trim().parse::<u32>().ok())
+        .map_or(UPDATE_INTERVAL_DEFAULT, clamp_interval);
+    Ok(UpdateSettings {
+        enabled: get_setting(conn, UPDATE_CHECK)?.as_deref() != Some(OFF),
+        interval_days,
+    })
+}
+
+/// Grava a configuração com o intervalo limitado a 1..=90 e devolve o valor gravado.
+pub fn set_update_settings(
+    conn: &Connection,
+    enabled: bool,
+    interval_days: u32,
+) -> Result<UpdateSettings> {
+    let interval_days = clamp_interval(interval_days);
+    set_setting(conn, UPDATE_CHECK, if enabled { ON } else { OFF })?;
+    set_setting(conn, UPDATE_INTERVAL_DAYS, &interval_days.to_string())?;
+    Ok(UpdateSettings {
+        enabled,
+        interval_days,
+    })
+}
+
+/// Instante da última verificação; `None` se nunca ocorreu ou o valor é inválido.
+pub fn get_update_last_check(conn: &Connection) -> Result<Option<i64>> {
+    Ok(get_setting(conn, UPDATE_LAST_CHECK)?.and_then(|value| value.trim().parse().ok()))
+}
+
+pub fn set_update_last_check(conn: &Connection, timestamp: i64) -> Result<()> {
+    set_setting(conn, UPDATE_LAST_CHECK, &timestamp.to_string())
+}
+
+/// Última release encontrada; `None` se nunca houve ou o JSON é inválido.
+pub fn get_update_latest(conn: &Connection) -> Result<Option<AvailableUpdate>> {
+    Ok(get_setting(conn, UPDATE_LATEST)?.and_then(|json| serde_json::from_str(&json).ok()))
+}
+
+pub fn set_update_latest(conn: &Connection, update: &AvailableUpdate) -> Result<()> {
+    // Duas strings nunca falham ao serializar.
+    let json = serde_json::to_string(update).expect("AvailableUpdate é serializável");
+    set_setting(conn, UPDATE_LATEST, &json)
+}
+
+pub fn get_update_notified(conn: &Connection) -> Result<Option<String>> {
+    get_setting(conn, UPDATE_NOTIFIED)
+}
+
+pub fn set_update_notified(conn: &Connection, version: &str) -> Result<()> {
+    set_setting(conn, UPDATE_NOTIFIED, version)
+}
+
+pub fn get_update_dismissed(conn: &Connection) -> Result<Option<String>> {
+    get_setting(conn, UPDATE_DISMISSED)
+}
+
+pub fn set_update_dismissed(conn: &Connection, version: &str) -> Result<()> {
+    set_setting(conn, UPDATE_DISMISSED, version)
 }
 
 /// Se a Ajuda ainda deve abrir sozinha; marca-a como mostrada, para abrir uma vez só.
@@ -307,6 +404,99 @@ mod tests {
 
         set_clipboard_history(&conn, true).unwrap();
         assert!(get_clipboard_history(&conn).unwrap());
+    }
+
+    #[test]
+    fn update_settings_default_to_on_every_7_days() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(
+            get_update_settings(&conn).unwrap(),
+            UpdateSettings {
+                enabled: true,
+                interval_days: 7
+            }
+        );
+    }
+
+    #[test]
+    fn update_settings_round_trip_and_clamp_on_write() {
+        let conn = open_in_memory().unwrap();
+
+        let saved = set_update_settings(&conn, false, 30).unwrap();
+        assert_eq!(
+            saved,
+            UpdateSettings {
+                enabled: false,
+                interval_days: 30
+            }
+        );
+        assert_eq!(get_update_settings(&conn).unwrap(), saved);
+        assert_eq!(
+            get_setting(&conn, UPDATE_CHECK).unwrap().as_deref(),
+            Some("off")
+        );
+
+        assert_eq!(
+            set_update_settings(&conn, true, 0).unwrap().interval_days,
+            1
+        );
+        assert_eq!(
+            set_update_settings(&conn, true, 500).unwrap().interval_days,
+            90
+        );
+        assert_eq!(get_update_settings(&conn).unwrap().interval_days, 90);
+    }
+
+    #[test]
+    fn update_interval_is_clamped_or_defaulted_on_read() {
+        let conn = open_in_memory().unwrap();
+        for (raw, expected) in [
+            ("0", 1),
+            ("1000", 90),
+            ("14", 14),
+            ("abc", 7),
+            ("-3", 7),
+            ("", 7),
+        ] {
+            set_setting(&conn, UPDATE_INTERVAL_DAYS, raw).unwrap();
+            assert_eq!(get_update_settings(&conn).unwrap().interval_days, expected);
+        }
+        set_setting(&conn, UPDATE_CHECK, "talvez").unwrap();
+        assert!(get_update_settings(&conn).unwrap().enabled);
+    }
+
+    #[test]
+    fn update_state_values_round_trip() {
+        let conn = open_in_memory().unwrap();
+        assert_eq!(get_update_last_check(&conn).unwrap(), None);
+        assert_eq!(get_update_latest(&conn).unwrap(), None);
+        assert_eq!(get_update_notified(&conn).unwrap(), None);
+        assert_eq!(get_update_dismissed(&conn).unwrap(), None);
+
+        set_update_last_check(&conn, 1_700_000_000).unwrap();
+        assert_eq!(get_update_last_check(&conn).unwrap(), Some(1_700_000_000));
+        set_setting(&conn, UPDATE_LAST_CHECK, "ontem").unwrap();
+        assert_eq!(get_update_last_check(&conn).unwrap(), None);
+
+        let latest = AvailableUpdate {
+            version: "0.19.0".into(),
+            url: "https://github.com/marinsgabriel1997/CSTM/releases/tag/v0.19.0".into(),
+        };
+        set_update_latest(&conn, &latest).unwrap();
+        assert_eq!(get_update_latest(&conn).unwrap(), Some(latest));
+        set_setting(&conn, UPDATE_LATEST, "não é json").unwrap();
+        assert_eq!(get_update_latest(&conn).unwrap(), None);
+
+        set_update_notified(&conn, "0.19.0").unwrap();
+        assert_eq!(
+            get_update_notified(&conn).unwrap().as_deref(),
+            Some("0.19.0")
+        );
+        set_update_dismissed(&conn, "0.19.0").unwrap();
+        assert_eq!(
+            get_update_dismissed(&conn).unwrap().as_deref(),
+            Some("0.19.0")
+        );
     }
 
     #[test]

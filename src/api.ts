@@ -107,6 +107,26 @@ export interface TransferSummary {
   path: string | null;
 }
 
+/** Configuração da verificação de atualização. */
+export interface UpdateSettings {
+  enabled: boolean;
+  intervalDays: number;
+}
+
+/** Resultado de "Verificar agora". */
+export interface UpdateCheck {
+  currentVersion: string;
+  latestVersion: string;
+  url: string;
+  newer: boolean;
+}
+
+/** Versão mais nova publicada e a página da release. */
+export interface AvailableUpdate {
+  version: string;
+  url: string;
+}
+
 /** Posição de destino que coloca o item no fim da pasta (o backend limita ao fim). */
 export const END = Number.MAX_SAFE_INTEGER;
 
@@ -253,6 +273,24 @@ export const api = {
   setClipboardMonitoring: (enabled: boolean) => invoke<boolean>("set_clipboard_monitoring", { enabled }),
   /** Avisa quando o histórico muda. Devolve a função que remove o aviso. */
   onClipboardHistoryChanged: async (onChange: () => void) => listen("clipboard-history-changed", () => onChange()),
+
+  // Verificação de atualização.
+  /** Se a verificação em segundo plano está ligada e de quantos em quantos dias. */
+  getUpdateSettings: () => invoke<UpdateSettings>("get_update_settings"),
+  /** Grava a configuração e devolve o valor gravado, com o intervalo limitado a 1–90 dias. */
+  setUpdateSettings: (enabled: boolean, intervalDays: number) =>
+    invoke<UpdateSettings>("set_update_settings", { enabled, intervalDays }),
+  /** Consulta o GitHub agora, mesmo com a verificação desligada; rejeita se a consulta falhar. */
+  checkUpdateNow: () => invoke<UpdateCheck>("check_update_now"),
+  /** Versão mais nova já encontrada, exceto a dispensada; `null` se não há. */
+  getAvailableUpdate: () => invoke<AvailableUpdate | null>("get_available_update"),
+  /** Esconde o aviso dessa versão; uma versão mais nova avisa de novo. */
+  dismissUpdate: (version: string) => invoke<void>("dismiss_update", { version }),
+  /** Abre a página da release no navegador. */
+  openRelease: (url: string) => invoke<void>("open_release", { url }),
+  /** Avisa quando a verificação encontra uma versão nova. Devolve a função que remove o aviso. */
+  onUpdateAvailable: async (onAvailable: (update: AvailableUpdate) => void) =>
+    listen<AvailableUpdate>("update-available", (event) => onAvailable(event.payload)),
 };
 
 export type Api = typeof api;

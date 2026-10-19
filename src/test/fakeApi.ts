@@ -4,6 +4,7 @@ import type { ItemRef } from "../actions";
 import type {
   AfterPaste,
   Api,
+  AvailableUpdate,
   ClipboardItem,
   Folder,
   Page,
@@ -16,6 +17,7 @@ import type {
   ThemeChoice,
   TransferSummary,
   TrashItem,
+  UpdateSettings,
 } from "../api";
 import { DEFAULT_SHORTCUT } from "../shortcut";
 
@@ -86,6 +88,20 @@ export function createFakeApi() {
   const historyCopied: number[] = [];
   // Modo pedido em cada colagem do histórico (undefined = original), em paralelo a historyPasted.
   const historyPastedFormats: (PasteFormat | undefined)[] = [];
+  /**
+   * Verificação de atualização: configuração, versão instalada, release "publicada" (`null` = nenhuma),
+   * versão dispensada, falha simulada da consulta e páginas de release abertas.
+   */
+  const updates = {
+    settings: { enabled: true, intervalDays: 7 } as UpdateSettings,
+    currentVersion: "0.18.0",
+    latest: null as AvailableUpdate | null,
+    dismissed: null as string | null,
+    checkFailure: null as string | null,
+    settingsFailure: null as string | null,
+    opened: [] as string[],
+  };
+  const updateListeners = new Set<(update: AvailableUpdate) => void>();
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
@@ -544,6 +560,43 @@ export function createFakeApi() {
       return enabled;
     },
     onClipboardHistoryChanged: async (onChange) => subscribe(historyListeners, onChange),
+    getUpdateSettings: async () => {
+      if (updates.settingsFailure) throw updates.settingsFailure;
+      return { ...updates.settings };
+    },
+    setUpdateSettings: async (enabled, intervalDays) => {
+      if (updates.settingsFailure) throw updates.settingsFailure;
+      // Como no backend, o intervalo é arredondado e limitado a 1–90.
+      updates.settings = { enabled, intervalDays: Math.min(90, Math.max(1, Math.round(intervalDays))) };
+      return { ...updates.settings };
+    },
+    checkUpdateNow: async () => {
+      if (updates.checkFailure) throw updates.checkFailure;
+      const latest = updates.latest;
+      if (!latest) {
+        return { currentVersion: updates.currentVersion, latestVersion: updates.currentVersion, url: "", newer: false };
+      }
+      return {
+        currentVersion: updates.currentVersion,
+        latestVersion: latest.version,
+        url: latest.url,
+        newer: isNewer(latest.version, updates.currentVersion),
+      };
+    },
+    getAvailableUpdate: async () => {
+      const latest = updates.latest;
+      if (!latest || !isNewer(latest.version, updates.currentVersion) || latest.version === updates.dismissed) {
+        return null;
+      }
+      return { ...latest };
+    },
+    dismissUpdate: async (version) => {
+      updates.dismissed = version;
+    },
+    openRelease: async (url) => {
+      updates.opened.push(url);
+    },
+    onUpdateAvailable: async (onAvailable) => subscribe(updateListeners, onAvailable),
     importTxtFiles: (folderId) => runTransfer({ command: "importTxtFiles", folderId }),
     importFolder: (folderId, includeRoot) => runTransfer({ command: "importFolder", folderId, includeRoot }),
     importJson: (folderId) => runTransfer({ command: "importJson", folderId }),
@@ -579,6 +632,22 @@ export function createFakeApi() {
     history.unshift(entry);
     historyChanged();
     return entry;
+  }
+
+  /** Compara versões `X.Y.Z` numericamente. */
+  function isNewer(version: string, than: string): boolean {
+    const a = version.split(".").map(Number);
+    const b = than.split(".").map(Number);
+    for (let i = 0; i < 3; i++) {
+      if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+    }
+    return false;
+  }
+
+  /** Simula a verificação em segundo plano encontrando uma versão nova. */
+  function announceUpdate(update: AvailableUpdate) {
+    updates.latest = update;
+    updateListeners.forEach((listener) => listener({ ...update }));
   }
 
   function subscribe<T>(listeners: Set<T>, listener: T) {
@@ -642,5 +711,7 @@ export function createFakeApi() {
     openPicker,
     requestPage,
     about,
+    updates,
+    announceUpdate,
   };
 }

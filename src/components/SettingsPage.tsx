@@ -8,6 +8,7 @@ import {
   MessageBarBody,
   Radio,
   RadioGroup,
+  SpinButton,
   Switch,
   Text,
   tokens,
@@ -22,6 +23,8 @@ import {
   type PickerNavigation,
   type ShortcutStatus,
   type ThemeChoice,
+  type UpdateCheck,
+  type UpdateSettings,
 } from "../api";
 import { DEFAULT_SHORTCUT, recordKey, shortcutKeys, shortcutLabel, usesAltGr } from "../shortcut";
 import Page from "./Page";
@@ -69,6 +72,9 @@ const useStyles = makeStyles({
   switchHelp: { color: tokens.colorNeutralForeground2, marginTop: `calc(-1 * ${tokens.spacingVerticalM})` },
   // Alinhados ao texto do interruptor, como a explicação.
   historyActions: { display: "flex", alignItems: "center", gap: tokens.spacingHorizontalS },
+  intervalRow: { display: "flex", alignItems: "center", gap: tokens.spacingHorizontalS },
+  intervalField: { width: "96px" },
+  updateResult: { display: "flex", alignItems: "center", gap: tokens.spacingHorizontalS, flexWrap: "wrap" },
   confirm: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalS },
   confirmButtons: { display: "flex", gap: tokens.spacingHorizontalS },
   danger: {
@@ -88,9 +94,13 @@ interface SettingsPageProps {
   onShortcutChange: (status: ShortcutStatus) => void;
 }
 
+/** Resultado de "Verificar agora": em andamento, concluído ou com falha. */
+type UpdateCheckState = { status: "checking" } | { status: "done"; check: UpdateCheck } | { status: "failed"; message: string };
+
 /**
  * Página de configurações, na área do editor: o atalho do menu de colagem, a navegação nas
- * pastas dele, o tema, a inicialização com o Windows e o histórico do clipboard.
+ * pastas dele, o modo de colagem, o que fica no clipboard depois de colar, o tema, a
+ * inicialização com o Windows, o histórico do clipboard e a verificação de atualização.
  */
 function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
   const styles = useStyles();
@@ -121,6 +131,10 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [cleared, setCleared] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  // Verificação de atualização; `null` até carregar.
+  const [updateSettings, setUpdateSettings] = useState<UpdateSettings | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [updateCheck, setUpdateCheck] = useState<UpdateCheckState | null>(null);
   const fieldRef = useRef<HTMLDivElement>(null);
   // Espelho de `recording` para os avisos de janela e a saída da página.
   const recordingRef = useRef(false);
@@ -175,6 +189,12 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
     api.getClipboardMonitoring().then(
       (value) => current && setMonitoring(value),
       (reason) => current && setHistoryError(`Não foi possível ler o histórico do clipboard: ${errorMessage(reason)}`),
+    );
+    api.getUpdateSettings().then(
+      (value) => current && setUpdateSettings(value),
+      (reason) =>
+        current &&
+        setUpdateError(`Não foi possível ler as configurações de atualização: ${errorMessage(reason)}`),
     );
     const countHistory = () =>
       api.listClipboardHistory().then(
@@ -252,6 +272,33 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       setMonitoring(await api.setClipboardMonitoring(enabled));
     } catch (reason) {
       setHistoryError(`Não foi possível alterar o histórico do clipboard: ${errorMessage(reason)}`);
+    }
+  }
+
+  // Vale na próxima conferência horária; o backend devolve o intervalo já limitado a 1–90.
+  async function changeUpdateSettings(enabled: boolean, intervalDays: number) {
+    setUpdateError(null);
+    try {
+      setUpdateSettings(await api.setUpdateSettings(enabled, intervalDays));
+    } catch (reason) {
+      setUpdateError(`Não foi possível alterar as configurações de atualização: ${errorMessage(reason)}`);
+    }
+  }
+
+  async function openRelease(url: string) {
+    try {
+      await api.openRelease(url);
+    } catch (reason) {
+      setUpdateError(`Não foi possível abrir a página da release: ${errorMessage(reason)}`);
+    }
+  }
+
+  async function checkUpdateNow() {
+    setUpdateCheck({ status: "checking" });
+    try {
+      setUpdateCheck({ status: "done", check: await api.checkUpdateNow() });
+    } catch (reason) {
+      setUpdateCheck({ status: "failed", message: errorMessage(reason) });
     }
   }
 
@@ -557,6 +604,66 @@ function SettingsPage({ shortcut, onShortcutChange }: SettingsPageProps) {
       {historyError && (
         <MessageBar intent="error">
           <MessageBarBody>{historyError}</MessageBarBody>
+        </MessageBar>
+      )}
+      <Divider className={styles.section} />
+      <Text className={styles.title}>Atualizações</Text>
+      <Switch
+        className={styles.switch}
+        label="Verificar atualizações"
+        checked={updateSettings?.enabled ?? false}
+        disabled={updateSettings === null}
+        onChange={(_, data) => updateSettings && void changeUpdateSettings(data.checked, updateSettings.intervalDays)}
+      />
+      <Caption1 className={styles.switchHelp}>
+        Consulta o GitHub em segundo plano e avisa quando sai uma versão nova.
+      </Caption1>
+      <div className={styles.intervalRow}>
+        <Text>A cada</Text>
+        <SpinButton
+          className={styles.intervalField}
+          aria-label="Intervalo em dias"
+          min={1}
+          max={90}
+          step={1}
+          value={updateSettings?.intervalDays ?? 7}
+          disabled={updateSettings === null || !updateSettings.enabled}
+          onChange={(_, data) => {
+            if (!updateSettings) return;
+            const typed = data.value ?? (data.displayValue === undefined ? NaN : Number(data.displayValue));
+            // Vazio ou inválido mantém o valor anterior; fora dos limites vai ao mais próximo.
+            if (!Number.isFinite(typed)) return;
+            void changeUpdateSettings(updateSettings.enabled, Math.min(90, Math.max(1, Math.round(typed))));
+          }}
+        />
+        <Text>dias</Text>
+      </div>
+      <div className={styles.updateResult}>
+        <Button disabled={updateCheck?.status === "checking"} onClick={() => void checkUpdateNow()}>
+          {updateCheck?.status === "checking" ? "Verificando…" : "Verificar agora"}
+        </Button>
+      </div>
+      {updateCheck?.status === "done" &&
+        (updateCheck.check.newer ? (
+          <div className={styles.updateResult}>
+            <Caption1 className={styles.hint}>Versão {updateCheck.check.latestVersion} disponível.</Caption1>
+            <Button onClick={() => void openRelease(updateCheck.check.url)}>
+              Abrir página da release
+            </Button>
+          </div>
+        ) : (
+          <Caption1 className={styles.success}>
+            Você está na versão mais recente ({updateCheck.check.currentVersion}).
+          </Caption1>
+        ))}
+      {updateCheck?.status === "failed" && (
+        <MessageBar intent="error">
+          <MessageBarBody>Não foi possível verificar: {updateCheck.message}.</MessageBarBody>
+        </MessageBar>
+      )}
+      {updateError && (
+        <MessageBar intent="error">
+          <MessageBarBody>{updateError}</MessageBarBody>
         </MessageBar>
       )}
     </Page>

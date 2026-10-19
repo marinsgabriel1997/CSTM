@@ -717,6 +717,101 @@ describe("configurações", () => {
     expect(fake.history).toHaveLength(1);
   });
 
+  it("mostra a seção Atualizações com os padrões", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+
+    expect(dialog.getByText("Atualizações")).toBeInTheDocument();
+    const toggle = dialog.getByRole("switch", { name: "Verificar atualizações" });
+    await waitFor(() => expect(toggle).toBeChecked());
+    expect(dialog.getByText("Consulta o GitHub em segundo plano e avisa quando sai uma versão nova.")).toBeInTheDocument();
+    expect(dialog.getByRole("spinbutton", { name: "Intervalo em dias" })).toHaveValue("7");
+    expect(dialog.getByRole("button", { name: "Verificar agora" })).toBeEnabled();
+  });
+
+  it("desligar a verificação grava e desabilita o intervalo", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    const toggle = dialog.getByRole("switch", { name: "Verificar atualizações" });
+    await waitFor(() => expect(toggle).toBeChecked());
+    const days = dialog.getByRole("spinbutton", { name: "Intervalo em dias" });
+    expect(days).toBeEnabled();
+
+    await user.click(toggle);
+
+    await waitFor(() => expect(days).toBeDisabled());
+    expect(fake.updates.settings).toEqual({ enabled: false, intervalDays: 7 });
+    // Verificar agora funciona com a verificação desligada.
+    expect(dialog.getByRole("button", { name: "Verificar agora" })).toBeEnabled();
+  });
+
+  it.each([
+    ["3", 3],
+    ["0", 1],
+    ["200", 90],
+  ])("grava o intervalo digitado %s como %i dias", async (typed, saved) => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+    const days = dialog.getByRole("spinbutton", { name: "Intervalo em dias" });
+    await waitFor(() => expect(days).toBeEnabled());
+
+    await user.clear(days);
+    await user.type(days, `${typed}{Enter}`);
+
+    await waitFor(() => expect(fake.updates.settings.intervalDays).toBe(saved));
+    await waitFor(() => expect(days).toHaveValue(String(saved)));
+  });
+
+  it("mostra o erro ao ler as configurações de atualização", async () => {
+    const user = userEvent.setup();
+    fake.updates.settingsFailure = "banco indisponível";
+    renderApp();
+    const dialog = await openSettings(user);
+
+    expect(
+      await dialog.findByText("Não foi possível ler as configurações de atualização: banco indisponível"),
+    ).toBeInTheDocument();
+  });
+
+  it("Verificar agora informa que já está na versão mais recente", async () => {
+    const user = userEvent.setup();
+    renderApp();
+    const dialog = await openSettings(user);
+
+    await user.click(dialog.getByRole("button", { name: "Verificar agora" }));
+
+    expect(await dialog.findByText("Você está na versão mais recente (0.18.0).")).toBeInTheDocument();
+    expect(dialog.queryByRole("button", { name: "Abrir página da release" })).not.toBeInTheDocument();
+  });
+
+  it("Verificar agora mostra a versão nova e abre a página da release", async () => {
+    const user = userEvent.setup();
+    fake.updates.latest = { version: "0.19.0", url: "https://github.com/x/releases/tag/v0.19.0" };
+    renderApp();
+    const dialog = await openSettings(user);
+
+    await user.click(dialog.getByRole("button", { name: "Verificar agora" }));
+    await user.click(await dialog.findByRole("button", { name: "Abrir página da release" }));
+
+    expect(dialog.getByText("Versão 0.19.0 disponível.")).toBeInTheDocument();
+    expect(fake.updates.opened).toEqual(["https://github.com/x/releases/tag/v0.19.0"]);
+  });
+
+  it("Verificar agora mostra o erro da consulta", async () => {
+    const user = userEvent.setup();
+    fake.updates.checkFailure = "sem conexão com o GitHub";
+    renderApp();
+    const dialog = await openSettings(user);
+
+    await user.click(dialog.getByRole("button", { name: "Verificar agora" }));
+
+    expect(await dialog.findByText("Não foi possível verificar: sem conexão com o GitHub.")).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Verificar agora" })).toBeEnabled();
+  });
+
   it("restaurar o atalho padrão não altera a navegação nas pastas", async () => {
     const user = userEvent.setup();
     fake.setNavigation("click");
@@ -839,6 +934,75 @@ describe("configurações", () => {
     act(() => fake.requestPage("settings"));
 
     expect(await screen.findByRole("region", { name: "Configurações" })).toBeInTheDocument();
+  });
+});
+
+describe("aviso de atualização", () => {
+  const RELEASE = { version: "0.19.0", url: "https://github.com/x/releases/tag/v0.19.0" };
+
+  function bar() {
+    return screen.queryByRole("region", { name: "Atualização disponível" });
+  }
+
+  it("não aparece sem versão nova", async () => {
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    expect(bar()).not.toBeInTheDocument();
+  });
+
+  it("aparece ao abrir quando há versão nova", async () => {
+    fake.updates.latest = RELEASE;
+    renderApp();
+
+    const found = await screen.findByRole("region", { name: "Atualização disponível" });
+    expect(within(found).getByText("Versão 0.19.0 do CSTM disponível.")).toBeInTheDocument();
+  });
+
+  it("aparece ao receber o aviso da verificação em segundo plano", async () => {
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+
+    act(() => fake.announceUpdate(RELEASE));
+
+    expect(await screen.findByText("Versão 0.19.0 do CSTM disponível.")).toBeInTheDocument();
+  });
+
+  it("Abrir página da release abre a página e mantém o aviso", async () => {
+    const user = userEvent.setup();
+    fake.updates.latest = RELEASE;
+    renderApp();
+
+    await user.click(await screen.findByRole("button", { name: "Abrir página da release" }));
+
+    expect(fake.updates.opened).toEqual([RELEASE.url]);
+    expect(bar()).toBeInTheDocument();
+  });
+
+  it("Dispensar esconde o aviso e ele não volta para a mesma versão", async () => {
+    const user = userEvent.setup();
+    fake.updates.latest = RELEASE;
+    renderApp();
+
+    await user.click(await screen.findByRole("button", { name: "Dispensar" }));
+
+    expect(bar()).not.toBeInTheDocument();
+    expect(fake.updates.dismissed).toBe("0.19.0");
+    cleanup();
+    renderApp();
+    await screen.findByText("Nenhum texto ainda");
+    expect(bar()).not.toBeInTheDocument();
+  });
+
+  it("uma versão mais nova mostra o aviso de novo depois de dispensar", async () => {
+    const user = userEvent.setup();
+    fake.updates.latest = RELEASE;
+    renderApp();
+    await user.click(await screen.findByRole("button", { name: "Dispensar" }));
+
+    act(() => fake.announceUpdate({ version: "0.20.0", url: "https://github.com/x/releases/tag/v0.20.0" }));
+
+    expect(await screen.findByText("Versão 0.20.0 do CSTM disponível.")).toBeInTheDocument();
   });
 });
 

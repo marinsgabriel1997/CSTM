@@ -1,8 +1,9 @@
 # 085 — Política de segurança e atualizações do Dependabot
 
-- Status: Em validação
+- Status: Concluído
 - Prioridade: Baixa
 - Criado em: 2026-10-16
+- Concluído em: 2026-10-19
 
 ## Objetivo
 
@@ -80,11 +81,13 @@ Verificações possíveis antes do envio:
 
 Verificações depois do envio ao GitHub, na próxima release:
 
-- [ ] Security → Policy mostra a política.
-- [ ] Insights → Dependency graph → Dependabot lista npm e cargo, sem erro de configuração.
+- [x] Security → Policy mostra a política.
+- [x] Insights → Dependency graph → Dependabot lista npm e cargo, sem erro de configuração.
 
 Validação técnica (2026-10-16): o `dependabot.yml` foi lido sem erros pelo pacote `yaml` 2, instalado numa pasta temporária fora do projeto, e corresponde ao escopo (npm em `/` e cargo em `/src-tauri`, mensal, grupo minor+patch, prefixo `chore(deps)`). Os manifestos existem nos dois diretórios. O diff contém só `SECURITY.md`, `.github/dependabot.yml`, `CHANGELOG.md` e este plano; o `README.md` pendente do usuário não foi alterado.
 
 Resultados do usuário (2026-10-16): `SECURITY.md` e `dependabot.yml` aprovados. Verificações no GitHub pendentes até o envio.
 
-Aceite: parcial (verificações antes do envio aprovadas em 2026-10-16).
+Resultados do usuário (2026-10-19): Security → Policy mostra a política. A aba Dependabot do Dependency graph lista `package.json` e `src-tauri/Cargo.toml`, sem erro de configuração.
+
+Aceite: total (verificações antes do envio aprovadas em 2026-10-16; verificações no GitHub aprovadas em 2026-10-19).

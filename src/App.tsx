@@ -1,4 +1,4 @@
-import { makeStyles, Toaster, tokens, useId, useToastController } from "@fluentui/react-components";
+import { makeStyles, mergeClasses, Toaster, tokens, useId, useToastController } from "@fluentui/react-components";
 import {
   useEffect,
   useMemo,
@@ -10,7 +10,16 @@ import {
 } from "react";
 
 import { includesItem, sameItem, type ActionKey, type ItemAction, type ItemRef } from "./actions";
-import { api, errorMessage, type Folder, type Page, type ShortcutStatus, type Snippet, type TrashItem } from "./api";
+import {
+  api,
+  errorMessage,
+  type AvailableUpdate,
+  type Folder,
+  type Page,
+  type ShortcutStatus,
+  type Snippet,
+  type TrashItem,
+} from "./api";
 import AboutPage from "./components/AboutPage";
 import { FolderEditor, NoSelection, SnippetEditor, Welcome } from "./components/Editors";
 import { ConfirmDialog, ErrorMessage, NoticeToast, type Confirmation } from "./components/Feedback";
@@ -21,6 +30,7 @@ import { SelectionPanel, TrashPanel } from "./components/Panels";
 import SettingsPage from "./components/SettingsPage";
 import StatusBar from "./components/StatusBar";
 import TreePane from "./components/TreePane";
+import UpdateBar from "./components/UpdateBar";
 import { DraftStore } from "./drafts";
 import { capitalize, type Notice } from "./notice";
 import {
@@ -77,6 +87,8 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground3,
     color: tokens.colorNeutralForeground1,
   },
+  // Com o aviso de atualização, uma linha automática no topo empurra o corpo e a barra inferior.
+  appWithUpdate: { gridTemplateRows: "auto 1fr 28px" },
   body: {
     display: "grid",
     minHeight: 0,
@@ -214,6 +226,8 @@ function App() {
   // Atalho do menu de colagem; `null` até carregar (ou fora do Tauri).
   const [shortcut, setShortcut] = useState<ShortcutStatus | null>(null);
   const [shortcutWarningDismissed, setShortcutWarningDismissed] = useState(false);
+  // Versão nova a avisar; `null` sem versão nova ou depois de dispensada.
+  const [update, setUpdate] = useState<AvailableUpdate | null>(null);
   // Página aberta no lugar do editor (Configurações, Ajuda ou Sobre); `null` mostra o editor.
   const [page, setPage] = useState<Page | null>(null);
   const toasterId = useId("notices");
@@ -251,6 +265,21 @@ function App() {
     );
     return () => {
       current = false;
+    };
+  }, []);
+
+  // Assina o aviso antes de consultar, para não perder uma versão encontrada nesse intervalo.
+  useEffect(() => {
+    let current = true;
+    const stop = listenWindow(api.onUpdateAvailable, (available) => setUpdate(available));
+    api.getAvailableUpdate().then(
+      (available) => current && available && setUpdate((found) => found ?? available),
+      // Fora do Tauri (frontend no navegador) não há verificação de atualização.
+      () => undefined,
+    );
+    return () => {
+      current = false;
+      stop();
     };
   }, []);
 
@@ -459,6 +488,23 @@ function App() {
       return undefined;
     } finally {
       reload();
+    }
+  }
+
+  async function openRelease(target: AvailableUpdate) {
+    try {
+      await api.openRelease(target.url);
+    } catch (reason) {
+      setError(`Não foi possível abrir a página da release: ${errorMessage(reason)}`);
+    }
+  }
+
+  async function dismissUpdate(target: AvailableUpdate) {
+    try {
+      await api.dismissUpdate(target.version);
+      setUpdate((current) => (current?.version === target.version ? null : current));
+    } catch (reason) {
+      setError(`Não foi possível dispensar o aviso: ${errorMessage(reason)}`);
     }
   }
 
@@ -1201,7 +1247,14 @@ function App() {
   }
 
   return (
-    <div className={styles.app} onKeyDown={handleKeyDown}>
+    <div className={mergeClasses(styles.app, update !== null && styles.appWithUpdate)} onKeyDown={handleKeyDown}>
+      {update && (
+        <UpdateBar
+          update={update}
+          onOpenRelease={() => void openRelease(update)}
+          onDismiss={() => void dismissUpdate(update)}
+        />
+      )}
       <div
         className={styles.body}
         style={{ gridTemplateColumns: `${preferences.treeWidth}px 5px minmax(0, 1fr)` }}

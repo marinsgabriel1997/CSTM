@@ -62,6 +62,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
 | Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos dos botões Configurações, Ajuda e Sobre o CSTM (Tela 3, Páginas na área do editor). |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
+| Versão nova | Quando a verificação de atualização (Tela 3) encontra uma versão mais nova, uma barra (`MessageBar` do Fluent UI, tipo informação) aparece no topo da janela, acima da árvore e do editor: "Versão X do CSTM disponível.", com **Abrir página da release** (abre no navegador) e **Dispensar**. Dispensar esconde a barra para aquela versão, inclusive ao reiniciar; uma versão mais nova mostra a barra de novo. Na mesma verificação em segundo plano, uma notificação do Windows ("CSTM X disponível", "Clique para abrir a página da release.") aparece uma única vez por versão; clicar nela abre a página no navegador. |
 | Confirmação | Diálogo modal somente para o que não tem volta: excluir definitivamente e esvaziar a lixeira, informando o que vai junto (subpastas, textos, favoritos). Botão de confirmar em vermelho. Excluir comum vai para a lixeira, sem diálogo. |
 
 ### Salvamento automático
@@ -562,7 +563,23 @@ Página com todas as opções (cada uma separada da anterior por uma linha):
 |      que gerenciadores de senha marcam como    |
 |      sensível não é guardado.                  |
 |      [ Limpar histórico ]                      |
+| ---------------------------------------------- |
+| Atualizações                                   |
+| [o ] Verificar atualizações                    |
+|      Consulta o GitHub em segundo plano e      |
+|      avisa quando sai uma versão nova.         |
+|      A cada [ 7 ] dias                         |
+|      [ Verificar agora ]                       |
+|      Você está na versão mais recente (0.18.0).|
 +------------------------------------------------+
+```
+
+Resultado de Verificar agora com versão nova (no lugar da frase):
+
+```text
+|      [ Verificar agora ]                       |
+|      Versão 0.19.0 disponível.                 |
+|      [ Abrir página da release ]               |
 ```
 
 Confirmando a limpeza do histórico (no lugar do botão):
@@ -600,13 +617,14 @@ Gravando um novo atalho:
 
 ### Estrutura
 
-- Página com título "Configurações", sem botão de fechar (ver Páginas na área do editor). Tem sete configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o modo de colagem padrão, o que fazer depois de colar, o tema, a inicialização com o Windows e o histórico do clipboard.
+- Página com título "Configurações", sem botão de fechar (ver Páginas na área do editor). Tem oito configurações, nesta ordem: o atalho do menu de colagem, a navegação nas pastas, o modo de colagem padrão, o que fazer depois de colar, o tema, a inicialização com o Windows, o histórico do clipboard e as atualizações.
 - **Navegação nas pastas:** grupo de opções exclusivas (`RadioGroup` do Fluent UI, rótulo "Navegação nas pastas") abaixo do atalho: **Abrir ao passar o mouse** (padrão, marcada na primeira abertura) e **Clicar para abrir**. A escolha é gravada ao selecionar, sem botão de confirmar, e vale na próxima abertura do menu de colagem (um menu já aberto não muda). "Restaurar padrão (Alt+Q)" restaura somente o atalho, sem mexer nas demais opções. Os modos estão descritos em Tela 2, Navegação nas pastas.
 - **Modo de colagem padrão:** opções exclusivas (`RadioGroup`, rótulo "Modo de colagem padrão"): **Markdown** (padrão, cola o conteúdo como está, como antes desta opção existir), **Sem formatação**, **Formatado** e **Google Chat**. Vale para `Enter`, clique e Copiar nos textos cadastrados do menu de colagem; os outros três modos aparecem como botões na linha selecionada (Tela 2). A escolha é gravada ao selecionar e vale na próxima abertura do menu. Não afeta o Histórico, que cola o original com `Enter`, clique e Copiar e oferece os quatro modos em botões.
 - **Depois de colar:** opções exclusivas (`RadioGroup`, rótulo "Depois de colar"), cada uma com uma explicação abaixo: **Manter o que foi colado** (padrão, também para quem já usava o CSTM; "Se a colagem falhar, é só pressionar Ctrl+V.") e **Restaurar o conteúdo anterior** ("Devolve o que estava copiado, com a formatação e imagens."). Com Manter, o texto colado fica na área de transferência e não entra no Histórico. Com Restaurar, 500 ms depois da colagem o CSTM devolve o que estava copiado antes (texto, formatação HTML/RTF ou imagem), se nenhum outro programa tiver copiado algo nesse intervalo; arquivos copiados no Explorer e formatos que o CSTM não lê não voltam. Vale para a colagem de textos cadastrados e de itens do Histórico, por `Enter`, clique ou botões de modo; Copiar não restaura em nenhuma das opções. A escolha é gravada ao selecionar e vale na próxima colagem.
 - **Tema:** opções exclusivas em linha (rótulo "Tema"): **Seguir o Windows** (padrão), **Claro** e **Escuro**. A escolha é gravada ao selecionar e vale na hora no cadastro (inclusive na barra de título) e no menu de colagem. "Seguir o Windows" acompanha a troca de tema do sistema com o aplicativo aberto.
 - **Iniciar com o Windows:** interruptor (`Switch` do Fluent UI), desligado por padrão, com a explicação "Abre na bandeja ao entrar no Windows, com o atalho já ativo." Ligar cria a entrada do CSTM na inicialização do Windows do usuário; desligar a remove. O estado mostrado vem do Windows: se o CSTM for desativado no Gerenciador de Tarefas, a opção aparece desligada. Uma falha ao ler ou alterar aparece numa faixa de erro abaixo do interruptor.
 - **Histórico do clipboard:** interruptor "Guardar o histórico do clipboard", ligado por padrão, com a explicação do que é guardado. Desligar para de guardar na hora, sem apagar os itens já guardados (a pasta Histórico some do menu enquanto a opção estiver desligada); religar volta a guardar as próximas cópias. Abaixo, o botão **Limpar histórico**, desabilitado quando não há itens. Ele pede confirmação no mesmo lugar ("Apagar os N itens do histórico? Não é possível desfazer.", com **Limpar** em vermelho e **Cancelar**); ao confirmar, apaga todos os itens e mostra "Histórico limpo.". Falhas ao ler, alterar ou limpar aparecem numa faixa de erro abaixo da seção.
+- **Atualizações:** seção com título "Atualizações". Interruptor **Verificar atualizações**, ligado por padrão, com a explicação "Consulta o GitHub em segundo plano e avisa quando sai uma versão nova." Abaixo, o campo numérico **A cada N dias** (`SpinButton` do Fluent UI, padrão 7, de 1 a 90), desabilitado com o interruptor desligado; valores fora dos limites voltam ao limite mais próximo. As mudanças são gravadas na hora e valem na próxima conferência horária. O botão **Verificar agora** funciona mesmo com o interruptor desligado; durante a consulta fica desabilitado, com "Verificando…", e depois mostra abaixo: "Você está na versão mais recente (X)."; "Versão X disponível." com o botão **Abrir página da release**; ou, em faixa de erro, "Não foi possível verificar: …". Verificar agora não mostra notificação do Windows.
 - O atalho aparece como teclas (`Alt` + `Q`) num campo somente leitura, com o botão "Alterar" ao lado.
 - "Restaurar padrão (Alt+Q)" fica logo abaixo do campo do atalho, desabilitado quando o atalho já é o padrão ou durante a gravação.
 

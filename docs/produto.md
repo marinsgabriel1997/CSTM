@@ -60,6 +60,7 @@ Este documento descreve as funcionalidades do produto, o que fica fora do escopo
 - Modo de colagem padrão (Markdown, padrão; Sem formatação; Formatado; Google Chat), usado por `Enter` e Copiar nos textos cadastrados.
 - Depois de colar: manter o que foi colado na área de transferência (padrão), para colar de novo com `Ctrl+V` se a colagem falhar, ou restaurar o conteúdo anterior.
 - Histórico do clipboard (ligado por padrão): desligar para de guardar na hora, sem apagar o que já foi guardado; "Limpar histórico" apaga todos os itens, com confirmação.
+- Atualizações (ligada por padrão, a cada 7 dias, de 1 a 90): em segundo plano, o CSTM consulta a release mais recente na API do GitHub (`releases/latest`, sem rascunhos nem pré-releases) e, com versão nova, mostra uma notificação do Windows (uma vez por versão; o clique abre a página da release) e uma barra no topo do cadastro, que pode ser dispensada até a próxima versão. "Verificar agora" consulta na hora. É a única requisição de rede do aplicativo e envia só o `User-Agent` `CSTM/<versão>`; falhas em segundo plano são silenciosas e tentadas de novo na conferência horária; no limite de consultas da API, a próxima tentativa é reagendada para quando o GitHub indica que o limite volta (entre 1 minuto e 1 hora). A instalação continua manual, pelo instalador baixado da release.
 
 ### 5. Importação e exportação
 
@@ -121,6 +122,7 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `tray` | Ícone e menu da bandeja |
 | `theme` | Tema escolhido: gravação, aviso às janelas e barra de título do cadastro |
 | `autostart` | Iniciar com o Windows: entrada na chave `Run` do usuário e leitura da `StartupApproved` |
+| `update` | Verificação de atualização: consulta à API de releases do GitHub, comparação de versões, conferência horária do intervalo numa thread própria, notificação do Windows e evento `update-available` para o cadastro |
 
 ### Dependências
 
@@ -134,9 +136,10 @@ Antes do `Ctrl+V`, o CSTM aguarda até 1 s que as teclas modificadoras sejam sol
 | `image` (features `png` e `bmp`) | Conversão das imagens do clipboard em PNG e miniatura, e de volta em bitmap ao colar |
 | `pulldown-cmark` | Leitura do markdown nos modos de colagem |
 | `htmd` | Conversão da formatação HTML do histórico em markdown |
+| `ureq` (TLS rustls) | Consulta à API de releases do GitHub na verificação de atualização |
 | `tauri-plugin-single-instance` | Instância única |
 | `tauri` (feature `tray-icon`) | Ícone na bandeja |
-| `windows` | `GetForegroundWindow`, `SetForegroundWindow`, `SendInput`, região da janela, registro (inicialização com o Windows) e clipboard (formatos, memória global e `AddClipboardFormatListener`) |
+| `windows` | `GetForegroundWindow`, `SetForegroundWindow`, `SendInput`, região da janela, registro (inicialização com o Windows), clipboard (formatos, memória global e `AddClipboardFormatListener`) e notificação do Windows (WinRT `ToastNotificationManager`) |
 
 O banco fica na pasta de dados do aplicativo (`%APPDATA%\com.gabriel.cstm\cstm.db`).
 O frontend acessa os dados somente por comandos Tauri; não executa SQL.
@@ -175,7 +178,8 @@ CREATE VIRTUAL TABLE snippets_fts USING fts5(
 -- + gatilhos para manter snippets_fts sincronizada
 
 -- Configurações do aplicativo (atalho, navegação nas pastas, modo de colagem padrão, tema,
--- histórico do clipboard, Ajuda já mostrada, estado da janela do cadastro); chaves ausentes usam o padrão
+-- depois de colar, histórico do clipboard, verificação de atualização e versões já avisadas ou dispensadas,
+-- Ajuda já mostrada, estado da janela do cadastro); chaves ausentes usam o padrão
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL

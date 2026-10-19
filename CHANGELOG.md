@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-19
+
+### Added
+
+- Verificação de atualização: o CSTM consulta o GitHub em segundo plano (a cada 7 dias por padrão, de 1 a 90, em **Configurações** › **Atualizações**) e, quando sai uma versão nova, avisa com uma notificação do Windows e uma barra no topo do cadastro que levam à página da release. **Verificar agora** consulta na hora; a opção pode ser desligada.
+
 ## [0.17.2] - 2026-10-17
 
 ### Changed

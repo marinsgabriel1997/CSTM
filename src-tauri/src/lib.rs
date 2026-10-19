@@ -15,6 +15,7 @@ mod picker;
 mod theme;
 mod transfer;
 mod tray;
+mod update;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -82,6 +83,12 @@ pub fn run() {
             commands::set_paste_format,
             commands::get_after_paste,
             commands::set_after_paste,
+            commands::get_update_settings,
+            commands::set_update_settings,
+            commands::check_update_now,
+            commands::get_available_update,
+            commands::dismiss_update,
+            commands::open_release,
             commands::layout_picker,
             commands::picker_ready,
             commands::get_shortcut,
@@ -115,6 +122,7 @@ fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let saved_window = db::settings::get_main_window(&conn)?;
     let clipboard_history = db::settings::get_clipboard_history(&conn)?;
     app.manage(Mutex::new(conn));
+    update::start(app.handle());
     app.manage(paste::PasteState::default());
     app.manage(picker::PickerGeometry::default());
     app.manage(main_window::MainWindowTracker::default());

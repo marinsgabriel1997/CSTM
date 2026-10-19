@@ -18,7 +18,7 @@ use crate::clipboard_history;
 use crate::db::clipboard::{self as history, HistoryItem};
 use crate::db::folders::{self, Folder};
 use crate::db::items::{self, ItemRef, TrashItem};
-use crate::db::settings::{self, AfterPaste};
+use crate::db::settings::{self, AfterPaste, UpdateSettings};
 use crate::db::snippets::{self, Snippet};
 use crate::main_window;
 use crate::markdown::{self, PasteFormat};
@@ -27,6 +27,7 @@ use crate::picker::{self, ShortcutStatus};
 use crate::theme;
 use crate::transfer::{self, Summary};
 use crate::tray;
+use crate::update::{self, AvailableUpdate, UpdateCheck};
 
 type Db<'a> = State<'a, Mutex<Connection>>;
 type CommandResult<T> = Result<T, String>;
@@ -260,6 +261,47 @@ pub fn set_after_paste(state: Db, value: AfterPaste) -> CommandResult<AfterPaste
     Ok(value)
 }
 
+#[tauri::command]
+pub fn get_update_settings(state: Db) -> CommandResult<UpdateSettings> {
+    respond(settings::get_update_settings(&lock(&state)))
+}
+
+/// Grava a verificação de atualização e devolve o valor gravado (intervalo limitado a 1..=90).
+#[tauri::command]
+pub fn set_update_settings(
+    state: Db,
+    enabled: bool,
+    interval_days: u32,
+) -> CommandResult<UpdateSettings> {
+    respond(settings::set_update_settings(
+        &lock(&state),
+        enabled,
+        interval_days,
+    ))
+}
+
+/// Verifica a atualização agora. Assíncrono e em thread de bloqueio: a requisição de rede
+/// travaria a janela se rodasse na thread principal.
+#[tauri::command]
+pub async fn check_update_now(app: AppHandle) -> CommandResult<UpdateCheck> {
+    tauri::async_runtime::spawn_blocking(move || update::check(&app))
+        .await
+        .map_err(|error| error.to_string())?
+}
+
+/// Versão nova já encontrada e ainda não dispensada, para a barra de aviso.
+#[tauri::command]
+pub fn get_available_update(app: AppHandle, state: Db) -> CommandResult<Option<AvailableUpdate>> {
+    let current = app.package_info().version.to_string();
+    Ok(update::available(&lock(&state), &current))
+}
+
+/// Dispensa o aviso da versão na barra da janela principal.
+#[tauri::command]
+pub fn dismiss_update(state: Db, version: String) -> CommandResult<()> {
+    respond(settings::set_update_dismissed(&lock(&state), &version))
+}
+
 /// Configuração de restauração do clipboard; se não puder ser lida, a colagem mantém o item.
 fn after_paste(state: &Db) -> AfterPaste {
     settings::get_after_paste(&lock(state)).unwrap_or_default()
@@ -415,6 +457,17 @@ const REPOSITORY_URL: &str = "https://github.com/marinsgabriel1997/CSTM";
 pub fn open_repository(app: AppHandle) -> CommandResult<()> {
     app.opener()
         .open_url(REPOSITORY_URL, None::<&str>)
+        .map_err(|error| error.to_string())
+}
+
+/// Abre uma página de release do CSTM no navegador padrão; outros endereços são recusados.
+#[tauri::command]
+pub fn open_release(app: AppHandle, url: String) -> CommandResult<()> {
+    if !update::is_release_url(&url) {
+        return Err("endereço fora das releases do CSTM".into());
+    }
+    app.opener()
+        .open_url(url, None::<&str>)
         .map_err(|error| error.to_string())
 }
 

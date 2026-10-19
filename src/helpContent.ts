@@ -115,7 +115,8 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
   {
     title: "Configurações",
     paragraphs: [
-      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, o que fazer depois de colar, tema, iniciar com o Windows e histórico do clipboard.",
+      "Pela engrenagem na barra inferior ou pelo ícone da bandeja: atalho do menu de colagem, navegação nas pastas, modo de colagem padrão, o que fazer depois de colar, tema, iniciar com o Windows, histórico do clipboard e atualizações.",
+      "Em **Configurações** › **Atualizações**, o CSTM consulta o GitHub a cada 7 dias (de 1 a 90, à sua escolha) para saber se saiu uma versão nova; a consulta não envia nenhum dado seu. Quando sai, aparecem uma notificação do Windows e uma barra no topo do cadastro com **Abrir página da release**, de onde se baixa o instalador; **Dispensar** esconde a barra até a próxima versão. **Verificar agora** consulta na hora.",
     ],
   },
   {
