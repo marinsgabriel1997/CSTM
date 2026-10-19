@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-10-19
+
+### Changed
+
+- A barra de versão nova, no topo do cadastro, ficou verde, com texto escuro e botões pretos nos dois temas, com ícone de download e o texto e os botões juntos no centro, para não passar despercebida.
+
 ## [0.19.0] - 2026-10-19
 
 ### Added

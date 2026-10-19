@@ -502,11 +502,15 @@
   svg.i { fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
   svg.f { fill: currentColor; stroke: none; }
   .window.with-update { grid-template-rows: 32px auto 1fr 28px; }
+  /* Verde médio com texto quase preto nos dois temas, para chamar a atenção; botões pretos com texto branco. */
   .update-bar {
-    display: flex; align-items: center; gap: 8px; padding: 6px 12px;
-    background: var(--accent-soft); border-bottom: 1px solid var(--accent-soft); font-size: 13px;
+    display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px;
+    background: #3cb043; color: #06200a; border-bottom: 1px solid #2a8a30; font-size: 13px;
   }
-  .update-bar span { margin-right: auto; }
+  .update-bar svg { flex: none; }
+  .update-bar span { margin-right: 4px; font-weight: 600; }
+  .update-bar .btn { height: 28px; background: #000; color: #fff; border-color: #000; }
+  .update-bar .btn:hover { background: #2b2b2b; }
   .row .thumb { width: 16px; height: 12px; border-radius: 2px; background: linear-gradient(135deg, #8ab4f8, #34a853); flex: none; }
   .hist-info { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-2); margin: 6px 0; }
   .hist-info.warn { color: #c42b1c; }
@@ -600,8 +604,7 @@
 
   // Itens do histórico do clipboard, do mais recente para o mais antigo (pasta Histórico da árvore).
   const HIST = [
-    { id: "h1", kind: "text", title: "Reunião às 15h", content: "Reunião às 15h
-na sala 2, levar o relatório.", at: "09:42", copied: "hoje às 09:42", formatted: true },
+    { id: "h1", kind: "text", title: "Reunião às 15h", content: "Reunião às 15h\nna sala 2, levar o relatório.", at: "09:42", copied: "hoje às 09:42", formatted: true },
     { id: "h2", kind: "text", title: "https://exemplo.com/relatorio", content: "https://exemplo.com/relatorio", at: "09:30", copied: "hoje às 09:30" },
     { id: "h3", kind: "image", title: "Imagem 640 × 480", at: "ontem", copied: "ontem às 18:20" },
   ];
@@ -986,8 +989,7 @@ na sala 2, levar o relatório.", at: "09:42", copied: "hoje às 09:42", formatte
       const meta = `Copiado ${hist.copied}${hist.kind === "image" ? ` · ${hist.title}` : ""}`;
       const body = hist.kind === "image"
         ? `<div class="hist-image">640 × 480</div>`
-        : `<div class="content">${st.histEmptied ? "" : esc(hist.content).replace(/
-/g, "<br>")}</div>`;
+        : `<div class="content">${st.histEmptied ? "" : esc(hist.content).replace(/\n/g, "<br>")}</div>`;
       return `
         <div class="editor-head"><div class="crumbs"><span class="seg">Histórico</span></div><span class="spacer"></span>
           <button class="btn" title="Excluir (Del)">${ic("trash")} Excluir</button></div>
@@ -1289,7 +1291,7 @@ na sala 2, levar o relatório.", at: "09:42", copied: "hoje às 09:42", formatte
     win.innerHTML = `
       <div class="titlebar"><span class="app-icon">C</span> CSTM
         <div class="controls"><span>${ic("min")}</span><span>${ic("max")}</span><span>${ic("x")}</span></div></div>
-      ${st.update ? `<div class="update-bar"><span>Versão 0.19.0 do CSTM disponível.</span><button class="btn">Abrir página da release</button><button class="btn">Dispensar</button></div>` : ""}
+      ${st.update ? `<div class="update-bar"><svg class="i" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v8M4.5 7 8 10.5 11.5 7M3 13.5h10"/></svg><span>Versão 0.19.0 do CSTM disponível.</span><button class="btn">Abrir página da release</button><button class="btn">Dispensar</button></div>` : ""}
       <div class="body" style="--tree-w:${treeWidth}px">
         <aside class="tree-pane">${renderTree(st)}</aside>
         <div class="divider" id="divider" title="Arraste para redimensionar"></div>
