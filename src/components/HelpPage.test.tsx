@@ -1,9 +1,9 @@
 import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADVANCED_SECTIONS, BASIC_STEPS, HELP_INTRO } from "../helpContent";
+import { ADVANCED_SECTIONS, BASIC_STEPS, HELP_IMPORT_TIP, HELP_INTRO } from "../helpContent";
 import HelpPage from "./HelpPage";
 
 afterEach(cleanup);
@@ -17,7 +17,7 @@ function countIn(texts: string[], term: string): number {
     return sum + fold(plain).split(fold(term)).length - 1;
   }, 0);
 }
-const basicTexts = [HELP_INTRO, ...BASIC_STEPS.flatMap((s) => [s.title, s.text])];
+const basicTexts = [HELP_IMPORT_TIP, HELP_INTRO, ...BASIC_STEPS.flatMap((s) => [s.title, s.text])];
 const advancedTexts = ADVANCED_SECTIONS.flatMap((s) => [s.title, ...s.paragraphs]);
 
 function renderHelp() {
@@ -60,6 +60,41 @@ describe("HelpPage", () => {
     const img = screen.getByRole("img", { name: first.alt });
     expect(img.getAttribute("srcset")).toBe(`${first.src} 2x`);
     expect(img).not.toHaveAttribute("src");
+  });
+
+  describe("faixa de importação", () => {
+    it("aparece no Básico com o texto e o botão", () => {
+      renderHelp();
+      expect(screen.getByText(HELP_IMPORT_TIP)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ver como importar" })).toBeInTheDocument();
+    });
+
+    it("leva à seção Importar e exportar no Avançado", async () => {
+      const scrollIntoView = vi.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scrollIntoView;
+      try {
+        renderHelp();
+        await userEvent.setup().click(screen.getByRole("button", { name: "Ver como importar" }));
+        expect(screen.getByRole("tab", { name: /^Avançado/ })).toHaveAttribute("aria-selected", "true");
+        const heading = screen.getByRole("heading", { name: "Importar e exportar" });
+        expect(scrollIntoView).toHaveBeenCalledTimes(1);
+        expect(scrollIntoView.mock.contexts[0]).toBe(heading.closest("section"));
+        expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" });
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
+    });
+
+    it("entra na contagem da busca do Básico", async () => {
+      const term = "Windows e arquivos";
+      expect(countIn(basicTexts, term)).toBe(1);
+      expect(countIn(basicTexts.slice(1), term)).toBe(0);
+      renderHelp();
+      await userEvent.setup().type(screen.getByRole("searchbox"), term);
+      expect(screen.getByRole("tabpanel", { name: "Básico" }).querySelectorAll("mark")).toHaveLength(1);
+      expect(within(screen.getByRole("tab", { name: /^Básico/ })).getAllByText("1").length).toBeGreaterThan(0);
+    });
   });
 
   describe("busca", () => {

@@ -2,6 +2,9 @@ import {
   Button,
   CounterBadge,
   makeStyles,
+  MessageBar,
+  MessageBarActions,
+  MessageBarBody,
   mergeClasses,
   SearchBox,
   Subtitle2,
@@ -14,7 +17,7 @@ import {
 import { ArrowDown20Regular, ArrowUp20Regular } from "@fluentui/react-icons";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
-import { ADVANCED_SECTIONS, BASIC_STEPS, HELP_INTRO } from "../helpContent";
+import { ADVANCED_SECTIONS, BASIC_STEPS, HELP_IMPORT_SECTION, HELP_IMPORT_TIP, HELP_INTRO } from "../helpContent";
 import Page from "./Page";
 
 const useStyles = makeStyles({
@@ -48,6 +51,7 @@ const useStyles = makeStyles({
     borderRadius: "2px",
   },
   hitCurrent: { backgroundColor: "#FFB900", color: "#000000" },
+  tip: { marginBottom: tokens.spacingVerticalL },
   intro: { display: "block", marginBottom: tokens.spacingVerticalM },
   steps: {
     listStyleType: "none",
@@ -73,7 +77,9 @@ const useStyles = makeStyles({
     fontWeight: tokens.fontWeightSemibold,
   },
   stepTitle: { display: "block", fontWeight: tokens.fontWeightSemibold },
-  section: { marginBottom: tokens.spacingVerticalL },
+  // O cabeçalho é sticky (título, busca e abas, cerca de 150px): sem a margem, a rolagem até a
+  // seção a deixaria escondida sob ele.
+  section: { marginBottom: tokens.spacingVerticalL, scrollMarginTop: "160px" },
   sectionTitle: { display: "block", marginBottom: tokens.spacingVerticalXS },
   paragraph: { display: "block", marginBottom: tokens.spacingVerticalS, color: tokens.colorNeutralForeground2 },
   // Só maxWidth: a imagem nunca amplia além do tamanho natural. As imagens são do tema claro;
@@ -147,7 +153,7 @@ function searchablePieces(text: string, shortcut: string): string[] {
 
 /** Textos de cada aba, na ordem em que aparecem na tela. */
 function tabTexts(tab: HelpTab): string[] {
-  if (tab === "basic") return [HELP_INTRO, ...BASIC_STEPS.flatMap((step) => [step.title, step.text])];
+  if (tab === "basic") return [HELP_IMPORT_TIP, HELP_INTRO, ...BASIC_STEPS.flatMap((step) => [step.title, step.text])];
   return ADVANCED_SECTIONS.flatMap((section) => [section.title, ...section.paragraphs]);
 }
 
@@ -256,6 +262,9 @@ function HelpPage({ shortcut }: HelpPageProps) {
   // Muda a cada digitação ou passo, para rolar até a ocorrência atual (a troca manual de aba não rola).
   const [scrollToken, setScrollToken] = useState(0);
   const currentElement = useRef<HTMLElement | null>(null);
+  // Seção do Avançado a levar à vista depois que a aba abrir (vem da faixa do Básico).
+  const sectionToShow = useRef<string | null>(null);
+  const advancedPanel = useRef<HTMLDivElement | null>(null);
 
   const term = fold(query.trim());
   const counts = useMemo(
@@ -269,6 +278,18 @@ function HelpPage({ shortcut }: HelpPageProps) {
     // scrollIntoView não existe no jsdom.
     currentElement.current?.scrollIntoView?.({ block: "center" });
   }, [scrollToken]);
+
+  useEffect(() => {
+    if (!sectionToShow.current || tab !== "advanced") return;
+    // scrollIntoView não existe no jsdom.
+    advancedPanel.current?.querySelector(`[data-section="${sectionToShow.current}"]`)?.scrollIntoView?.({ block: "start" });
+    sectionToShow.current = null;
+  }, [tab]);
+
+  const showImportSection = () => {
+    setTab("advanced");
+    sectionToShow.current = HELP_IMPORT_SECTION;
+  };
 
   const changeQuery = (value: string) => {
     setQuery(value);
@@ -380,6 +401,12 @@ function HelpPage({ shortcut }: HelpPageProps) {
       </div>
       {tab === "basic" ? (
         <div role="tabpanel" aria-label="Básico">
+          <MessageBar intent="info" className={styles.tip}>
+            <MessageBarBody>{plain(HELP_IMPORT_TIP)}</MessageBarBody>
+            <MessageBarActions>
+              <Button onClick={showImportSection}>Ver como importar</Button>
+            </MessageBarActions>
+          </MessageBar>
           <Text className={styles.intro}>{plain(HELP_INTRO)}</Text>
           <ol className={styles.steps}>
             {BASIC_STEPS.map((step, index) => (
@@ -397,9 +424,9 @@ function HelpPage({ shortcut }: HelpPageProps) {
           </ol>
         </div>
       ) : (
-        <div role="tabpanel" aria-label="Avançado">
+        <div role="tabpanel" aria-label="Avançado" ref={advancedPanel}>
           {ADVANCED_SECTIONS.map((section) => (
-            <section key={section.title} className={styles.section}>
+            <section key={section.title} className={styles.section} data-section={section.id}>
               <Subtitle2 as="h2" className={styles.sectionTitle}>
                 {plain(section.title)}
               </Subtitle2>

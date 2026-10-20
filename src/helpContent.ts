@@ -33,12 +33,17 @@ export interface HelpStep {
 }
 
 export interface HelpSection {
+  /** Identificador da seção, para levá-la à vista a partir de outra parte da Ajuda. */
+  id?: string;
   title: string;
   paragraphs: string[];
   image?: HelpImage;
 }
 
-export const HELP_INTRO = "O CSTM salva textos para você reutilizar rapidamente em qualquer programa, sem precisar ficar copiando do Bloco de Notas. Para começar:";
+/** Aviso no topo do Básico que leva à seção de importação do Avançado. */
+export const HELP_IMPORT_TIP = "Veja na aba Avançado como importar os textos que você já tem em pastas do Windows e arquivos .txt.";
+
+export const HELP_INTRO = "O CSTM (Clipboard, Snippets & Text Manager) salva textos para você reutilizar rapidamente em qualquer programa, sem precisar ficar copiando do Bloco de Notas. Para começar:";
 
 /** Aba Básico: onde clicar para começar. */
 export const BASIC_STEPS: HelpStep[] = [
@@ -73,6 +78,9 @@ export const BASIC_STEPS: HelpStep[] = [
     image: { src: basicoBandeja, alt: "Ícone do CSTM na bandeja do Windows, com o menu aberto e o item Sair." },
   },
 ];
+
+/** Identificador da seção "Importar e exportar". */
+export const HELP_IMPORT_SECTION = "importar";
 
 /** Aba Avançado: as demais funcionalidades. */
 export const ADVANCED_SECTIONS: HelpSection[] = [
@@ -145,9 +153,13 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     image: { src: avancadoLixeira, alt: "Lixeira aberta, com os botões Restaurar e Esvaziar lixeira." },
   },
   {
+    id: HELP_IMPORT_SECTION,
     title: "Importar e exportar",
     paragraphs: [
-      "Em **⋯** [1] › **Importar** [2]: arquivos .txt (um texto por arquivo), uma pasta do disco ou um backup JSON. Os itens entram na pasta selecionada.",
+      "Em **⋯** [1] › **Importar** [2], escolha o que trazer. Os itens entram na pasta selecionada na árvore.",
+      "**Arquivos .txt…**: cada arquivo vira um texto, com o nome do arquivo como título.",
+      "**Pasta…**: traz a pasta escolhida com tudo o que há dentro dela: as subpastas viram pastas e cada arquivo .txt vira um texto; os outros arquivos ficam de fora. **Conteúdo de uma pasta…** faz o mesmo sem criar a pasta escolhida: o que está dentro dela entra direto na pasta selecionada.",
+      "**Backup JSON…**: traz um backup feito pelo CSTM.",
       "Em **⋯** › **Exportar tudo**: backup JSON completo ou pastas com arquivos .txt. O menu de uma pasta exporta só ela.",
     ],
     image: { src: avancadoImportar, alt: "Menu do botão Mais opções aberto, com Importar." },

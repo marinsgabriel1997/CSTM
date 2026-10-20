@@ -46,7 +46,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | [⚙] Configurações             |                                                |
 | (i) Sobre o CSTM              |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.21.0               |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v1.0.0               |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -69,7 +69,7 @@ Protótipo visual navegável: [`docs/prototipo/cadastro.html`](prototipo/cadastr
 | Divisor | Entre árvore e editor, arrastável entre 220 e 480 px. |
 | Barras de rolagem | Finas, sem setas, com o polegar arredondado em cinza no tom do tema, que escurece ao passar o mouse, e sem faixa de fundo. Valem para todas as áreas roláveis do cadastro e do menu de colagem. |
 | Páginas no painel | No rodapé do painel, abaixo da Lixeira e separadas dela por uma linha, as linhas **Ajuda** (`?`), **Configurações** (engrenagem) e **Sobre o CSTM** (`i`), no estilo da linha da Lixeira e sempre visíveis (Tela 3, Páginas na área do editor). Até a pessoa abrir a Ajuda por conta própria pela primeira vez (clique, `F1` ou bandeja; a abertura automática da primeira execução não conta), a linha Ajuda fica na cor de destaque, com fundo suave e um brilho que a atravessa a cada 4 s; depois, fica como as outras, e a escolha é lembrada. Com "reduzir movimento" no Windows, fica só a cor. Protótipo: estado **Ajuda em destaque**. |
-| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos da versão em execução ("v0.21.0", em cinza, só informativa). |
+| Barra inferior | Estado do salvamento à esquerda; totais de textos e pastas à direita, sem contar a lixeira, seguidos do nome do aplicativo e da versão em execução ("CSTM — Clipboard, Snippets & Text Manager · v1.0.0", em cinza, só informativo). Com a janela abaixo de 1000 px de largura, o nome por extenso some e fica "CSTM · v1.0.0", para a mensagem de salvamento manter o espaço. |
 | Primeiro uso | Árvore com chamada para criar texto ou pasta; editor com apresentação do aplicativo em três passos. |
 | Versão nova | Quando a verificação de atualização (Tela 3) encontra uma versão mais nova, uma barra aparece no topo da janela, acima da árvore e do editor, com fundo verde e texto quase preto iguais nos dois temas, e botões pretos com texto branco: ícone de download, "Versão X do CSTM disponível.", **Abrir página da release** (abre no navegador) e **Dispensar**, juntos e centralizados numa linha só. Dispensar esconde a barra para aquela versão, inclusive ao reiniciar; uma versão mais nova mostra a barra de novo. Na mesma verificação em segundo plano, uma notificação do Windows ("CSTM X disponível", "Clique para abrir a página da release.") aparece uma única vez por versão; clicar nela abre a página no navegador. |
 | Confirmação | Diálogo modal somente para o que não tem volta: excluir definitivamente e esvaziar a lixeira, informando o que vai junto (subpastas, textos, favoritos). Botão de confirmar em vermelho. Excluir comum vai para a lixeira, sem diálogo. |
@@ -616,7 +616,7 @@ As Configurações, a Ajuda (Tela 4) e o Sobre (Tela 5) são páginas que ocupam
 | [⚙] Configurações             |                                                |
 | (i) Sobre o CSTM              |                                                |
 +-------------------------------+------------------------------------------------+
-| (v) Todas as alterações salvas      9 textos · 4 pastas  v0.21.0               |
+| (v) Todas as alterações salvas      9 textos · 4 pastas  v1.0.0               |
 +--------------------------------------------------------------------------------+
 ```
 
@@ -776,9 +776,16 @@ Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html
 |                                                |
 |  Básico   Avançado                             |
 |  ======                                        |
-| O CSTM salva textos para você reutilizar       |
-| rapidamente em qualquer programa, sem precisar |
-| ficar copiando do Bloco de Notas. Para começar:|
+| +--------------------------------------------+ |
+| | (i) Veja na aba Avançado como importar os  | |
+| |     textos que você já tem em pastas do    | |
+| |     Windows e arquivos .txt.               | |
+| |                       [Ver como importar]  | |
+| +--------------------------------------------+ |
+| O CSTM (Clipboard, Snippets & Text Manager)    |
+| salva textos para você reutilizar rapidamente  |
+| em qualquer programa, sem precisar ficar       |
+| copiando do Bloco de Notas. Para começar:      |
 |                                                |
 | (1) Crie um texto                              |
 |     Clique em Novo (1) › Novo texto (2), ou    |
@@ -794,7 +801,7 @@ Protótipo visual navegável: [`docs/prototipo/ajuda.html`](prototipo/ajuda.html
 
 - Página na área do editor (ver Tela 3, Páginas na área do editor), com o título "Ajuda" e duas abas (`TabList` do Fluent UI): **Básico**, selecionada ao abrir, e **Avançado**.
 - **Busca:** campo **Buscar na Ajuda** acima das abas; o título, a busca e as abas ficam parados no topo enquanto o conteúdo rola. A busca vale para as duas abas, sem diferenciar acentos nem maiúsculas: destaca as ocorrências (a atual com mais ênfase), mostra "N de M" (ou "Nenhum resultado") e, ao lado do nome de cada aba, quantas ocorrências ela tem. `Enter` ou ↓ vai para a próxima e `Shift+Enter` ou ↑ para a anterior, na ordem Básico e depois Avançado, trocando de aba quando a próxima está na outra e rolando até ela; `Esc` limpa a busca. As descrições das imagens não entram na busca. Protótipo: estado **Busca**.
-- **Básico:** uma frase de introdução e passos curtos e numerados de onde clicar para começar: criar um texto; escrever título e conteúdo (salva sozinho); organizar em pastas; pressionar o atalho em qualquer programa para abrir o menu de colagem junto ao mouse; clicar no texto para colar, ou no botão Copiar para só copiar; fechar a janela sem perder o atalho, que continua valendo pela bandeja.
+- **Básico:** no topo, uma faixa informativa (`MessageBar` "info") com "Veja na aba Avançado como importar os textos que você já tem em pastas do Windows e arquivos .txt." e o botão **Ver como importar**, que abre a aba Avançado com a seção "Importar e exportar" no topo da área visível (o texto da faixa entra na busca); depois, uma frase de introdução e passos curtos e numerados de onde clicar para começar: criar um texto; escrever título e conteúdo (salva sozinho); organizar em pastas; pressionar o atalho em qualquer programa para abrir o menu de colagem junto ao mouse; clicar no texto para colar, ou no botão Copiar para só copiar; fechar a janela sem perder o atalho, que continua valendo pela bandeja.
 - **Avançado:** seções curtas, com título: Busca; Favoritos e Mais usados; Textos no menu de colagem; Modos de colagem; Menu de colagem pelo teclado; Histórico da área de transferência; Organizar a árvore; Lixeira; Importar e exportar; Configurações; Desinstalar e apagar os dados; Limites do Windows.
 - **Imagens:** cada passo do Básico tem uma imagem abaixo do texto, e as seções do Avançado em que a tela ajuda (Busca, Favoritos e Mais usados, Modos de colagem, Histórico da área de transferência, Organizar a árvore, Lixeira, Importar e exportar, Configurações) têm uma depois dos parágrafos. As imagens são capturas dos protótipos, no tema claro (também no tema escuro do aplicativo, com uma borda leve), na largura da coluna, sem ampliar além do tamanho natural, e com descrição para leitores de tela.
 - **Marcações:** nas imagens, um retângulo vermelho em volta do que importa e, quando há ordem de cliques, um círculo vermelho numerado. O texto cita os mesmos números com o mesmo círculo vermelho (marcação `[1]` em `helpContent.ts`).

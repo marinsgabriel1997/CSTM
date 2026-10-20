@@ -43,6 +43,9 @@ const useStyles = makeStyles({
   error: { color: tokens.colorStatusDangerForeground1 },
   totals: { marginLeft: "auto", flex: "none", color: tokens.colorNeutralForeground3 },
   version: { flex: "none", color: tokens.colorNeutralForeground3 },
+  fullName: {
+    "@media (max-width: 999px)": { display: "none" },
+  },
 });
 
 interface StatusBarProps {
@@ -59,7 +62,7 @@ function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-/** Estado do salvamento (à esquerda), totais da biblioteca e versão (à direita). */
+/** Estado do salvamento (à esquerda), totais da biblioteca, nome do aplicativo e versão (à direita). */
 function StatusBar({
   drafts,
   openId,
@@ -146,7 +149,11 @@ function StatusBar({
           {plural(snippetCount, "texto", "textos")} · {plural(folderCount, "pasta", "pastas")}
         </Caption1>
       </div>
-      {version && <Caption1 className={styles.version}>v{version}</Caption1>}
+      <Caption1 className={styles.version}>
+        CSTM
+        <span className={styles.fullName}>{" — Clipboard, Snippets & Text Manager"}</span>
+        {version && ` · v${version}`}
+      </Caption1>
     </footer>
   );
 }

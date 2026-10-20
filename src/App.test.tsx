@@ -70,10 +70,12 @@ describe("primeiro uso", () => {
     expect(status()).toHaveTextContent("0 textos · 0 pastas");
   });
 
-  it("mostra a versão do aplicativo na barra inferior", async () => {
+  it("mostra o nome do aplicativo e a versão na barra inferior", async () => {
     renderApp();
 
-    expect(await screen.findByText("v0.14.0")).toBeInTheDocument();
+    expect(await screen.findByText(/· v0\.14\.0$/)).toHaveTextContent(
+      "CSTM — Clipboard, Snippets & Text Manager · v0.14.0",
+    );
   });
 });
 

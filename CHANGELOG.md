@@ -6,6 +6,20 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-20
+
+Primeira versão estável.
+
+### Added
+
+- A aba Básico da Ajuda começa com um aviso sobre importar os textos que você já tem em pastas do Windows e arquivos .txt; o botão **Ver como importar** leva à explicação na aba Avançado.
+
+### Changed
+
+- A barra inferior do cadastro mostra o nome completo do aplicativo antes da versão ("CSTM — Clipboard, Snippets & Text Manager · v…"); em janelas com menos de 1000 px de largura, fica só "CSTM · v…".
+- A introdução da Ajuda explica a sigla CSTM.
+- A seção "Importar e exportar" da Ajuda explica cada opção de importação, incluindo como pastas e subpastas viram pastas e textos.
+
 ## [0.21.0] - 2026-10-19
 
 ### Added
