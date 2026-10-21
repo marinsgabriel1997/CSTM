@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-21
+
+### Security
+
+- A verificação de atualização deixa de aceitar certificados de autoridades intermediárias que perderam a confiança (bibliotecas de TLS atualizadas: `rustls-webpki` 0.103.16, RUSTSEC-2026-0382, e `webpki-roots` 1.0.10, RUSTSEC-2026-0381).
+
 ## [1.0.0] - 2026-10-20
 
 Primeira versão estável.
