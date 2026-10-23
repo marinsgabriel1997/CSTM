@@ -35,6 +35,7 @@ import {
   type PasteFormat,
   type PickerColumn,
   type PickerNavigation,
+  type PickerSubcolumn,
   type Snippet,
 } from "./api";
 import { copiedLabel } from "./clipboardHistory";
@@ -49,6 +50,10 @@ const COPY_HEIGHT = 24;
 const MAX_LABEL_LINES = 2;
 /** Largura máxima da pasta/hora ao lado do título. */
 const META_MAX_WIDTH = 120;
+/** Preenchimento do cartão de preview, espaço entre a imagem e a legenda e altura da legenda (Caption1). */
+const PREVIEW_PADDING = 12;
+const PREVIEW_GAP = 8;
+const PREVIEW_CAPTION_HEIGHT = 16;
 
 const useStyles = makeStyles({
   // A janela é transparente e ocupa a área útil do monitor, recortada pelo backend em volta
@@ -78,6 +83,25 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
   },
+  // Preview de imagem: cartão sem interação ao lado da coluna; a imagem encolhe para caber na altura que o backend deu.
+  preview: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: `${PREVIEW_GAP}px`,
+    padding: `${PREVIEW_PADDING}px`,
+    boxSizing: "border-box",
+  },
+  previewImage: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  previewImg: { maxWidth: "100%", maxHeight: "100%", objectFit: "contain" },
+  previewCaption: { flex: "none", color: tokens.colorNeutralForeground3 },
   // Coberta por uma coluna mais nova: some sem sair da árvore, para o campo de busca manter o foco.
   hidden: { opacity: 0, pointerEvents: "none" },
   search: {
@@ -324,6 +348,12 @@ function subColumnContentHeight(rows: Row[]): number {
   return SEARCH_HEIGHT + list;
 }
 
+/** Altura do cartão de preview: a imagem ajustada à largura útil (sem ampliar), a legenda, os preenchimentos e as bordas. */
+function previewContentHeight(width: number, height: number): number {
+  const scale = Math.min(1, (SUB_WIDTH - 2 * PREVIEW_PADDING) / width);
+  return Math.ceil(height * scale) + PREVIEW_GAP + PREVIEW_CAPTION_HEIGHT + 2 * PREVIEW_PADDING + 2;
+}
+
 const folderKey = (place: number | Virtual) => `folder-${place}`;
 const columnId = (column: number) => `picker-column-${column}`;
 const rowId = (column: number, key: string) => `picker-${column}-${key}`;
@@ -560,6 +590,39 @@ function PickerRow({ id, row, selected, opener, onHover, onClick, defaultFormat,
   );
 }
 
+interface PreviewCardProps {
+  item: ClipboardItem;
+  column: PickerColumn;
+  /** Imagem completa; até chegar, vale a miniatura. */
+  src: string | undefined;
+}
+
+/** Cartão sem interação com a imagem inteira do item selecionado do Histórico. */
+function PreviewCard({ item, column, src }: PreviewCardProps) {
+  const styles = useStyles();
+  const size = `${item.width} × ${item.height}`;
+  return (
+    <div
+      className={mergeClasses(styles.card, styles.preview)}
+      style={cardStyle(column)}
+      // Não tira o foco do campo de busca.
+      onMouseDown={(event) => event.preventDefault()}
+    >
+      <div className={styles.previewImage}>
+        <img
+          className={styles.previewImg}
+          src={src ?? item.thumbnail ?? undefined}
+          alt={`Imagem ${size}`}
+          draggable={false}
+          // Sem isso a miniatura ampliada pegaria o tamanho natural dela, não o da imagem.
+          style={{ width: `min(${item.width}px, 100%)`, aspectRatio: `${item.width} / ${item.height}` }}
+        />
+      </div>
+      <Caption1 className={styles.previewCaption}>{size}</Caption1>
+    </div>
+  );
+}
+
 /** Histórico mostrado no menu: nenhum item com a opção desligada. */
 async function loadHistory(): Promise<ClipboardItem[]> {
   const [monitoring, history] = await Promise.all([api.getClipboardMonitoring(), api.listClipboardHistory()]);
@@ -580,14 +643,29 @@ const cardStyle = (column: PickerColumn): CSSProperties => ({
 function useAsyncControl() {
   const requests = useRef(0);
   const point = useRef<{ x: number; y: number } | null>(null);
+  // Há um pedido de layout vigente ainda sem resposta?
+  const busy = useRef(false);
   return useMemo(
     () => ({
       /** Torna obsoletos os pedidos anteriores e devolve o número do novo. */
       invalidate() {
+        busy.current = false;
         return ++requests.current;
       },
       isCurrent(request: number) {
         return request === requests.current;
+      },
+      /** Marca o pedido vigente como em andamento. */
+      start() {
+        busy.current = true;
+      },
+      /** Marca o pedido como respondido, se ainda for o vigente. */
+      settle(request: number) {
+        if (request === requests.current) busy.current = false;
+      },
+      /** Nenhum pedido de layout em andamento? */
+      idle() {
+        return !busy.current;
       },
       /** O mouse mudou de lugar? O navegador repete o movimento quando a lista rola sob ele. */
       moved(x: number, y: number) {
@@ -626,6 +704,17 @@ function Picker() {
   const [subFound, setSubFound] = useState<({ key: string; list: Snippet[] } | undefined)[]>([]);
   // Coluna cujo campo deve receber o foco depois da próxima renderização (um objeto novo a cada pedido).
   const [focusRequest, setFocusRequest] = useState<{ column: number } | null>(null);
+  // Preview de imagem: posição pedida ao backend para o item `id`, válida enquanto as subcolunas forem as mesmas.
+  const [preview, setPreview] = useState<{ id: number; subs: OpenColumn[]; column: PickerColumn } | null>(null);
+  // Imagens completas já buscadas nesta abertura do menu, por id do item.
+  const fullImages = useRef(new Map<number, string>());
+  // Imagem completa do item do cartão, que substitui a miniatura.
+  const [fullImage, setFullImage] = useState<{ id: number; src: string } | null>(null);
+  // A janela foi dimensionada com a coluna do preview (a posição pode ter vindo oculta).
+  const windowHasPreview = useRef(false);
+  // Item do preview que a seleção pede agora e subcolunas abertas agora, para respostas tardias.
+  const wantedPreview = useRef<number | null>(null);
+  const currentSubs = useRef<OpenColumn[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const subInputs = useRef<(HTMLInputElement | null)[]>([]);
   const pending = useAsyncControl();
@@ -638,6 +727,9 @@ function Picker() {
     api
       .onPickerOpened((main) => {
         pending.invalidate();
+        fullImages.current.clear();
+        windowHasPreview.current = false;
+        setPreview(null);
         setFolderId(null);
         setSubs([]);
         setSubFound([]);
@@ -781,16 +873,95 @@ function Picker() {
   }
 
   /** Pede ao backend a posição das colunas; `null` se um pedido mais novo tomou o lugar. */
-  async function requestLayout(columns: OpenColumn[]): Promise<PickerColumn[] | null> {
+  async function requestLayout(columns: PickerSubcolumn[], reportError = true): Promise<PickerColumn[] | null> {
     const request = pending.invalidate();
+    pending.start();
+    windowHasPreview.current = columns.some((column) => column.optional);
     try {
-      const placed = await api.layoutPicker(columns.map(({ contentHeight }) => ({ contentHeight })));
+      const placed = await api.layoutPicker(
+        columns.map(({ contentHeight, optional }) => (optional ? { contentHeight, optional } : { contentHeight })),
+      );
       return pending.isCurrent(request) ? placed : null;
     } catch (reason) {
-      if (pending.isCurrent(request)) setError(errorMessage(reason));
+      // O preview é opcional: sua falha não derruba o menu.
+      if (pending.isCurrent(request) && reportError) setError(errorMessage(reason));
       return null;
+    } finally {
+      pending.settle(request);
     }
   }
+
+  /** Tira a coluna do preview do recorte da janela, se ela estiver lá. */
+  function shrinkWindow() {
+    if (!windowHasPreview.current) return;
+    void requestLayout(currentSubs.current).then((placed) => placed && setPlacements(placed));
+  }
+
+  // O preview aparece quando a linha selecionada da coluna mais funda é uma imagem do Histórico.
+  const previewItem =
+    !error && active?.kind === "clip" && active.item.kind === "image" && subs.length === activeColumn ? active.item : null;
+  const previewId = previewItem?.id ?? null;
+  const previewWidth = previewItem?.width ?? 0;
+  const previewHeight = previewItem?.height ?? 0;
+
+  useEffect(() => {
+    currentSubs.current = subs;
+    wantedPreview.current = previewId;
+  }, [subs, previewId]);
+
+  // Pede ao backend o lugar do cartão, como uma subcoluna opcional depois das abertas.
+  useEffect(() => {
+    if (previewId === null || previewWidth <= 0 || previewHeight <= 0) {
+      // Se um pedido de layout está em andamento (abrir ou fechar coluna), ele já devolve a janela sem o preview.
+      if (pending.idle()) shrinkWindow();
+      return;
+    }
+    let current = true;
+    const column = subs.length + 1;
+    const columns: PickerSubcolumn[] = [
+      ...subs,
+      { contentHeight: previewContentHeight(previewWidth, previewHeight), optional: true },
+    ];
+    // O estado só muda depois da resposta (`await` em `requestLayout`), nunca durante o efeito.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void requestLayout(columns, false).then((placed) => {
+      // `null`: um pedido mais novo tomou o lugar e define a janela.
+      if (!placed) return;
+      if (!current) {
+        // A seleção saiu da imagem e nada tomou o lugar: devolve a janela ao tamanho sem o cartão.
+        if (wantedPreview.current === null) shrinkWindow();
+        return;
+      }
+      if (placed[column]) setPreview({ id: previewId, subs, column: placed[column] });
+    });
+    return () => {
+      current = false;
+    };
+    // `requestLayout` e `shrinkWindow` só leem refs e estado estável.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewId, previewWidth, previewHeight, subs]);
+
+  // Busca a imagem completa; até chegar, o cartão mostra a miniatura.
+  useEffect(() => {
+    if (previewId === null) return;
+    let current = true;
+    const cached = fullImages.current.get(previewId);
+    const loaded = cached
+      ? Promise.resolve(cached)
+      : api.getClipboardItem(previewId).then((detail) => {
+          if (detail.image) fullImages.current.set(previewId, detail.image);
+          return detail.image;
+        });
+    loaded.then(
+      // Resposta de uma seleção anterior não pode mostrar a imagem errada.
+      (src) => current && src && setFullImage({ id: previewId, src }),
+      // Sem a imagem completa fica a miniatura.
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [previewId]);
 
   /**
    * Abre a coluna da pasta `row`, que está na coluna `column`, no lugar das que já estavam
@@ -1233,6 +1404,9 @@ function Picker() {
             </div>
           );
         })}
+      {previewItem && preview?.id === previewItem.id && preview.subs === subs && !preview.column.hidden && (
+        <PreviewCard item={previewItem} column={preview.column} src={fullImage?.id === previewItem.id ? fullImage.src : undefined} />
+      )}
     </div>
   );
 }

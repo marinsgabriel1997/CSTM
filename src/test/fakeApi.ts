@@ -109,7 +109,8 @@ export function createFakeApi() {
   const layouts: PickerSubcolumn[][] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
   let main: PickerColumn = { ...DEFAULT_MAIN };
-  const picker = { readies: 0 };
+  /** `optionalFits` falso simula a falta de espaço ao lado: as colunas opcionais voltam com `hidden: true`. */
+  const picker = { readies: 0, optionalFits: true };
   /** Conteúdos entregues pelo menu de colagem, na ordem. */
   const delivered: string[] = [];
   /** Modo pedido em cada colagem de `delivered` (`undefined` = o padrão). */
@@ -524,7 +525,7 @@ export function createFakeApi() {
           y: main.y,
           width: 380,
           height: Math.min(column.contentHeight, WORK_AREA_HEIGHT - main.y),
-          hidden: false,
+          hidden: column.optional === true && !picker.optionalFits,
         });
       }
       return placed;

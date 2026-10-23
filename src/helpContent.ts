@@ -128,7 +128,7 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
     title: "Histórico da área de transferência",
     paragraphs: [
       "A pasta **Histórico**, no topo do menu de colagem, guarda os últimos 100 itens copiados em qualquer programa: textos (com a formatação) e imagens. Senhas copiadas de gerenciadores de senha não são guardadas.",
-      "Clique num item para colá-lo, ou use **Copiar**. O ícone de lixeira na linha selecionada (ou `Delete`) manda o item para a **Lixeira** do cadastro.",
+      "Clique num item para colá-lo, ou use **Copiar**. Ao selecionar uma imagem, um cartão ao lado mostra a imagem inteira e o tamanho dela. O ícone de lixeira na linha selecionada (ou `Delete`) manda o item para a **Lixeira** do cadastro.",
       "No cadastro, o **Histórico** fica no topo da árvore: selecione um texto para editá-lo (ao gravar, a formatação que veio junto é descartada e o item sobe para o topo) ou use **Excluir** (`Delete`).",
       "Em **Configurações**, desligue o histórico ou apague tudo com **Limpar histórico**.",
     ],

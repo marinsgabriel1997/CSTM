@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-23
+
+### Added
+
+- No menu de colagem, selecionar uma imagem do Histórico (pelo teclado ou pelo mouse) abre ao lado da coluna um cartão com a imagem inteira e o tamanho, para reconhecê-la sem depender da miniatura da linha. Em telas sem espaço ao lado da coluna, o cartão não aparece.
+
 ## [1.0.1] - 2026-10-21
 
 ### Security

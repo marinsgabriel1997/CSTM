@@ -1206,3 +1206,158 @@ describe("modos de colagem", () => {
     expect(fake.historyPastedFormats).toEqual(["chat", undefined]);
   });
 });
+
+describe("preview de imagem do Histórico", () => {
+  const THUMBNAIL = "data:image/png;base64,THUMB";
+  const FULL = "data:image/png;base64,FULL";
+  /** Altura do cartão para 1920 × 1080: imagem em 356 px de largura (201 px), legenda, espaço e preenchimentos. */
+  const CARD_HEIGHT = 201 + 8 + 16 + 24 + 2;
+
+  /** Histórico com um texto e uma imagem 1920 × 1080, a imagem copiada por último (no topo). */
+  function seedHistory() {
+    fake.copyElsewhere({ title: "Reunião às 15h" });
+    fake.copyElsewhere(
+      { kind: "image", title: "Imagem 1920 × 1080", preview: "Imagem 1920 × 1080", thumbnail: THUMBNAIL, width: 1920, height: 1080 },
+      { image: FULL },
+    );
+  }
+
+  const card = () => screen.findByRole("img", { name: "Imagem 1920 × 1080" });
+
+  it("no modo clique, aparece com a imagem selecionada e some ao selecionar um texto pelo teclado", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+
+    const image = await card();
+    await waitFor(() => expect(image).toHaveAttribute("src", FULL));
+    expect(screen.getByText("1920 × 1080")).toBeInTheDocument();
+    expect(fake.layouts[fake.layouts.length - 1]).toEqual([{ contentHeight: CARD_HEIGHT, optional: true }]);
+
+    await user.keyboard("{ArrowDown}");
+    await waitFor(() => expect(screen.queryByRole("img", { name: "Imagem 1920 × 1080" })).not.toBeInTheDocument());
+    // A janela volta ao tamanho sem o cartão.
+    await waitFor(() => expect(fake.layouts[fake.layouts.length - 1]).toEqual([]));
+
+    await user.keyboard("{ArrowUp}");
+    expect(await card()).toBeInTheDocument();
+  });
+
+  it("mostra a miniatura até a imagem completa chegar", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    let deliver: (image: string) => void = () => {};
+    const [imageItem] = fake.history;
+    vi.spyOn(api, "getClipboardItem").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          deliver = (image) =>
+            resolve({ id: imageItem.id, kind: "image", text: null, image, width: 1920, height: 1080, copiedAt: "", formatted: false });
+        }),
+    );
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+
+    const image = await card();
+    expect(image).toHaveAttribute("src", THUMBNAIL);
+    await act(async () => deliver(FULL));
+    await waitFor(() => expect(image).toHaveAttribute("src", FULL));
+  });
+
+  it("não mostra a imagem completa que chega depois de a seleção sair da imagem", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    const [imageItem] = fake.history;
+    let deliver: (image: string) => void = () => {};
+    vi.spyOn(api, "getClipboardItem").mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          deliver = (image) =>
+            resolve({ id: imageItem.id, kind: "image", text: null, image, width: 1920, height: 1080, copiedAt: "", formatted: false });
+        }),
+    );
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await card();
+
+    await user.keyboard("{ArrowDown}");
+    await act(async () => deliver(FULL));
+    expect(screen.queryByRole("img", { name: "Imagem 1920 × 1080" })).not.toBeInTheDocument();
+  });
+
+  it("fica com a miniatura, sem mensagem de erro, se a busca da imagem falha", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    vi.spyOn(api, "getClipboardItem").mockRejectedValue(new Error("falhou"));
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+
+    const image = await card();
+    await wait(20);
+    expect(image).toHaveAttribute("src", THUMBNAIL);
+    expect(screen.queryByText("falhou")).not.toBeInTheDocument();
+  });
+
+  it("aparece ao passar o mouse sobre a imagem e não aparece para texto", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await card();
+
+    await hover(user, list().getByRole("option", { name: /Reunião/ }));
+    await waitFor(() => expect(screen.queryByRole("img", { name: "Imagem 1920 × 1080" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("img", { name: /^Imagem/ })).not.toBeInTheDocument();
+
+    await hover(user, list().getByRole("option", { name: /Imagem/ }));
+    expect(await card()).toBeInTheDocument();
+  });
+
+  it("na cascata, é pedido como subcoluna opcional depois das abertas e fecha ao voltar", async () => {
+    const user = userEvent.setup();
+    fake.setNavigation("cascade");
+    seedHistory();
+    renderPicker();
+    await hover(user, await list().findByRole("option", { name: "Histórico" }));
+    const column = await screen.findByRole("listbox", { name: "Histórico" });
+
+    await hover(user, within(column).getByRole("option", { name: /Imagem/ }));
+    expect(await card()).toBeInTheDocument();
+    expect(fake.layouts[fake.layouts.length - 1]).toEqual([
+      expect.not.objectContaining({ optional: true }),
+      { contentHeight: CARD_HEIGHT, optional: true },
+    ]);
+    // A subcoluna real continua no lugar.
+    expect(screen.getByRole("listbox", { name: "Histórico" })).toBeInTheDocument();
+
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(screen.queryByRole("img", { name: "Imagem 1920 × 1080" })).not.toBeInTheDocument());
+    await waitFor(() => expect(fake.layouts[fake.layouts.length - 1].some((sub) => sub.optional)).toBe(false));
+  });
+
+  it("não aparece sem espaço ao lado", async () => {
+    const user = userEvent.setup();
+    fake.picker.optionalFits = false;
+    seedHistory();
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+    await waitFor(() => expect(fake.layouts.some((sub) => sub.some((column) => column.optional))).toBe(true));
+
+    expect(screen.queryByRole("img", { name: "Imagem 1920 × 1080" })).not.toBeInTheDocument();
+  });
+
+  it("clicar no cartão não cola nem fecha o menu", async () => {
+    const user = userEvent.setup();
+    seedHistory();
+    const hide = vi.spyOn(api, "hidePicker");
+    renderPicker();
+    await user.click(await list().findByRole("option", { name: "Histórico" }));
+
+    await user.click(await card());
+
+    expect(hide).not.toHaveBeenCalled();
+    expect(fake.historyPasted).toEqual([]);
+    expect(await card()).toBeInTheDocument();
+  });
+});

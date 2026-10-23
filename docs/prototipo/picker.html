@@ -283,6 +283,13 @@
     user-select: none;
   }
   .card .list { flex: 1; min-height: 0; }
+  /* Cartão de preview da imagem do histórico selecionada: a imagem inteira e o tamanho. */
+  .card.preview { align-items: center; justify-content: center; gap: 6px; padding: 12px; }
+  .card.preview .image {
+    width: 100%; flex: 0 1 auto; min-height: 0; border-radius: 4px;
+    background: linear-gradient(135deg, #7fb3e6 0 45%, #f3c26b 45% 70%, #4f8a4f 70%);
+  }
+  .card.preview .size { color: var(--text-3); font-size: 12px; }
   .subsearch { position: relative; padding: 6px; border-bottom: 1px solid var(--stroke); }
   .subsearch input { padding: 4px 26px 4px 8px; font-size: 13px; }
   .subsearch .clear {
@@ -369,7 +376,7 @@
   // antigo. O título de um texto é a primeira linha não vazia; uma imagem mostra a miniatura.
   const history = [
     { id: "h1", title: "Reunião confirmada para quinta às 15h, sala 2.", content: "Reunião confirmada para quinta às 15h, sala 2.\nLevar o relatório impresso.", when: "14:32" },
-    { id: "h2", title: "Imagem 1920 × 1080", content: "Imagem 1920 × 1080", image: true, when: "14:10" },
+    { id: "h2", title: "Imagem 1920 × 1080", content: "Imagem 1920 × 1080", image: true, width: 1920, height: 1080, when: "14:10" },
     { id: "h3", title: "Proposta comercial — resumo", content: "Proposta comercial — resumo\n(com formatação do Word: negrito, listas e tabela)", when: "11:05" },
     { id: "h4", title: "https://github.com/marinsgabriel1997/CSTM", content: "https://github.com/marinsgabriel1997/CSTM", when: "ontem" },
   ];
@@ -382,7 +389,8 @@
 
   const STATES = {
     raiz: { label: "Raiz", note: "Estado ao abrir: as pastas Histórico, Mais usados e Favoritos no topo, depois o conteúdo da raiz, com a busca focada. Cada uma some quando está vazia; o Histórico também some com a opção desligada nas Configurações." },
-    historico: { label: "Histórico", note: "Os itens copiados em qualquer programa, do mais recente para o mais antigo, com a hora da cópia à direita (ou a data, se não foi hoje). Texto: a primeira linha; imagem: miniatura e tamanho. Enter ou clique cola (com a formatação, se havia; a imagem como imagem); Copiar ou Ctrl+C deixa no clipboard. O item usado sobe para o topo. A lixeira (ou Delete) move o item selecionado para a Lixeira do cadastro, sem fechar o menu. A busca não inclui o histórico." },
+    historico: { label: "Histórico", note: "Os itens copiados em qualquer programa, do mais recente para o mais antigo, com a hora da cópia à direita (ou a data, se não foi hoje). Texto: a primeira linha; imagem: miniatura e tamanho. Enter ou clique cola (com a formatação, se havia; a imagem como imagem); Copiar ou Ctrl+C deixa no clipboard. O item usado sobe para o topo. A lixeira (ou Delete) move o item selecionado para a Lixeira do cadastro, sem fechar o menu. A busca não inclui o histórico. Selecionar uma imagem abre ao lado do menu um cartão com a imagem inteira e o tamanho; aqui o menu está longe das bordas e o cartão não cabe de nenhum lado, então não aparece (veja o estado \"Imagem do Histórico\")." },
+    imagem: { label: "Imagem do Histórico", note: "Com uma imagem do Histórico selecionada (setas ou mouse), um cartão ao lado do menu mostra a imagem inteira e o tamanho, pela regra das subcolunas: à direita; sem espaço, à esquerda; sem espaço dos dois lados, não aparece. Selecionar um texto fecha o cartão. Aqui o menu abriu junto à borda esquerda para o cartão caber." },
     "mais-usados": { label: "Mais usados", note: "Os 10 textos mais colados, do mais usado para o menos usado; a pasta de cada um aparece à direita, como na busca." },
     favoritos: { label: "Favoritos", note: "Os textos favoritos, por título, com a pasta de cada um à direita." },
     "sem-historico": { label: "Histórico desligado", note: "Com \"Guardar o histórico do clipboard\" desligado nas Configurações (ou sem nenhum item guardado), a pasta Histórico não aparece." },
@@ -463,6 +471,7 @@
     document.body.className = theme === "escuro" ? "theme-dark" : "theme-light";
     $("desk").className = `desk ${theme === "escuro" ? "theme-dark" : "theme-light"}`;
     $("picker").style.display = open ? "" : "none";
+    $("picker").style.left = mode === "imagem" ? "40px" : "";
     renderBar();
     rows = buildRows();
     const indexes = rows.map((row, index) => (selectable(row) ? index : -1)).filter((i) => i >= 0);
@@ -489,6 +498,32 @@
     if (rows.length && !query.trim()) hints.push(folder === null ? `<span><kbd>→</kbd> abrir pasta</span>` : `<span><kbd>←</kbd> voltar</span>`);
     hints.push(`<span class="end"><kbd>Esc</kbd> fechar</span>`);
     $("hints").innerHTML = hints.join("");
+    renderPreview();
+  }
+
+  // Cartão de preview da imagem do Histórico selecionada, pela regra das subcolunas (380 de largura,
+  // topo no do menu): à direita do menu; sem espaço, à esquerda; sem espaço dos dois lados, não aparece.
+  function renderPreview() {
+    $("preview")?.remove();
+    const item = open ? rows[selected]?.item : null;
+    if (!item?.image) return;
+    const W = 380, GAP = 2, PAD = 12, CAPTION_H = 22, AREA_W = 900, AREA_H = 560;
+    const menu = $("picker");
+    const left = menu.offsetLeft, top = menu.offsetTop;
+    let x = left + menu.offsetWidth + GAP;
+    if (x + W > AREA_W) x = left - W - GAP;
+    if (x < 0) return;
+    const imageH = Math.min(item.height, (W - 2 * PAD) * item.height / item.width);
+    const el = document.createElement("div");
+    el.id = "preview";
+    el.className = "card preview";
+    el.innerHTML = `<div class="image" role="img"></div><span class="size"></span>`;
+    const size = `${item.width} × ${item.height}`;
+    el.querySelector(".image").setAttribute("aria-label", `Imagem ${size}`);
+    el.querySelector(".image").style.aspectRatio = `${item.width} / ${item.height}`;
+    el.querySelector(".size").textContent = size;
+    Object.assign(el.style, { left: `${x}px`, top: `${top}px`, width: `${W}px`, height: `${Math.min(imageH + CAPTION_H + 2 * PAD, AREA_H - top)}px` });
+    $("desk").appendChild(el);
   }
 
   function renderRow(row, index) {
@@ -615,16 +650,17 @@
 
   // Clique fora do menu fecha sem colar.
   $("desk").addEventListener("mousedown", (event) => {
-    if (open && !$("picker").contains(event.target)) close();
+    if (open && !$("picker").contains(event.target) && !$("preview")?.contains(event.target)) close();
   });
 
   function setState(state) {
     mode = state;
     open = true;
-    folder = state === "pasta" ? 2 : state === "mais-usados" || state === "favoritos" || state === "historico" ? state : null;
+    folder = state === "pasta" ? 2 : state === "imagem" ? "historico" : state === "mais-usados" || state === "favoritos" || state === "historico" ? state : null;
     query = state === "busca" ? "resp" : state === "sem-resultados" ? "orçamento" : "";
     $("search").value = query;
-    selected = 0;
+    // No estado da imagem, a linha da imagem (depois da linha de volta e do primeiro texto) já vem selecionada.
+    selected = state === "imagem" ? 2 : 0;
     hideToast();
     syncHash();
     render();
@@ -709,7 +745,7 @@
           ...cSnippets.filter((s) => s.folder === null).map((s) => snip(s)),
         ];
       }
-      if (key === "historico") return history.map((h) => ({ kind: "snippet", key: h.id, title: h.title, content: h.content, meta: h.when, tip: "", thumb: h.image }));
+      if (key === "historico") return history.map((h) => ({ kind: "snippet", key: h.id, title: h.title, content: h.content, meta: h.when, tip: "", thumb: h.image, width: h.width, height: h.height }));
       if (typeof key === "string") return VIRT[key].items().map((s) => snip(s, true));
       return [
         ...cFolders.filter((f) => f.parent === key).map((f) => fold1(f.id, f.name)),
@@ -816,10 +852,49 @@
       if (!typed && active > 0) parts.push(`<span><kbd>←</kbd> voltar</span>`);
       parts.push(`<span class="end"><kbd>Esc</kbd> fechar</span>`);
       $("chints").innerHTML = parts.join("");
+      syncPreview(row?.entry.thumb ? row.entry : null);
+    }
+
+    // Cartão de preview: com uma imagem do Histórico selecionada, abre ao lado da coluna dela pela
+    // mesma regra das subcolunas (a imagem está sempre na última coluna aberta); sem espaço dos
+    // dois lados, não aparece. Esta área simulada de 900 px nunca tem espaço para ele ao lado do
+    // Histórico; o estado "Imagem do Histórico" do modo clique mostra o cartão.
+    const PREVIEW_PAD = 12, PREVIEW_CAPTION_H = 22;
+    let preview = null;
+
+    function removePreview() {
+      preview?.el.remove();
+      preview = null;
+    }
+
+    function syncPreview(entry) {
+      if (preview && preview.key === entry?.key && preview.parent === cols[active]) return;
+      removePreview();
+      if (!entry) { updateWindow(); return; }
+      const parent = cols[active];
+      const imageH = Math.min(entry.height, (SUB_W - 2 * PREVIEW_PAD) * entry.height / entry.width);
+      const g = placeColumn(parent, imageH + PREVIEW_CAPTION_H + 2 * PREVIEW_PAD, cols);
+      if (g.side === "sem espaço") {
+        updateWindow();
+        setStatus(`“${entry.title}”: o preview não cabe à direita nem à esquerda do Histórico, então não aparece.`);
+        return;
+      }
+      const el = document.createElement("div");
+      el.className = "card preview";
+      el.innerHTML = `<div class="image" role="img"></div><span class="size"></span>`;
+      const size = `${entry.width} × ${entry.height}`;
+      el.querySelector(".image").setAttribute("aria-label", `Imagem ${size}`);
+      el.querySelector(".image").style.aspectRatio = `${entry.width} / ${entry.height}`;
+      el.querySelector(".size").textContent = size;
+      Object.assign(el.style, { left: `${g.x}px`, top: `${g.y}px`, width: `${SUB_W}px`, height: `${g.h}px` });
+      desk.appendChild(el);
+      preview = { el, key: entry.key, parent, x: g.x, y: g.y, w: SUB_W, h: g.h };
+      updateWindow();
+      setStatus(`Preview de “${entry.title}”: abriu à ${g.side}, com a regra das subcolunas.`);
     }
 
     function updateWindow() {
-      const vis = cols.filter((c) => !c.hidden);
+      const vis = [...cols.filter((c) => !c.hidden), ...(preview ? [preview] : [])];
       const box = $("cwin");
       box.style.display = isOpen && showWin && vis.length ? "" : "none";
       if (!vis.length) return;
@@ -831,6 +906,7 @@
     function setStatus(text) { $("cstatus").textContent = text; }
 
     function closeFrom(n) {
+      removePreview();
       while (cols.length > n) cols.pop().el.remove();
       for (const c of cols) {
         if (c.hiddenBy !== undefined && c.hiddenBy >= n) { c.hidden = false; c.el.style.display = ""; delete c.hiddenBy; }
@@ -963,6 +1039,7 @@
       isOpen = true;
       query = "";
       desk.querySelectorAll(".card, .toast").forEach((e) => e.remove());
+      preview = null;
       const sc = SCEN[scenario];
       Object.assign($("cmouse").style, { left: `${sc.x - 6}px`, top: `${sc.y + 2}px` });
       buildMain();
@@ -972,6 +1049,7 @@
     function closeMenu(message) {
       isOpen = false;
       desk.querySelectorAll(".card").forEach((e) => e.remove());
+      preview = null;
       cols = [];
       updateWindow();
       const toast = document.createElement("div");

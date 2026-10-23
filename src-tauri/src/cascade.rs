@@ -26,6 +26,10 @@ const SHADOW_BOTTOM: f64 = 24.0;
 pub struct Subcolumn {
     /// Altura que o conteúdo ocupa, sem rolagem.
     pub content_height: f64,
+    /// Só abre se couber à direita ou à esquerda da anterior; sem espaço, fica escondida (é o
+    /// cartão de preview de uma imagem).
+    #[serde(default)]
+    pub optional: bool,
 }
 
 /// Posição de uma coluna, em pixels lógicos relativos ao canto superior esquerdo da janela.
@@ -94,7 +98,10 @@ struct Column {
 /// - com o topo no da coluna principal (mesmo escondida) e altura pelo conteúdo, limitada
 ///   pela borda inferior da área útil (a rolagem cobre o que passar);
 /// - à direita da anterior; sem espaço, à esquerda, desde que não cubra colunas abertas;
-///   senão encostada na borda direita, escondendo as colunas mais antigas que cobrir.
+///   senão encostada na borda direita, escondendo as colunas mais antigas que cobrir;
+/// - se for opcional (`optional`), tenta a direita e a esquerda do mesmo modo, mas sem espaço
+///   não encosta na borda: é devolvida escondida (com a posição da tentativa à direita), fora da
+///   região, e não esconde nenhuma outra coluna.
 pub fn arrange(main: Area, work_area: Area, scale: f64, subs: &[Subcolumn]) -> Arrangement {
     let area = Rect::physical(work_area, scale);
     let mut columns = vec![Column {
@@ -113,13 +120,21 @@ pub fn arrange(main: Area, work_area: Area, scale: f64, subs: &[Subcolumn]) -> A
                 .any(|c| !c.hidden && x < c.rect.right() && x + SUB_WIDTH > c.rect.x)
         };
 
-        let mut x = parent_rect.right() + GAP;
+        let right_x = parent_rect.right() + GAP;
+        let mut x = right_x;
         let mut flush_right = false;
+        let mut skipped = false;
         if x + SUB_WIDTH > area.right() || covers_open_column(x) {
             x = parent_rect.x - SUB_WIDTH - GAP;
             if x < area.x || covers_open_column(x) {
-                x = area.right() - SUB_WIDTH;
-                flush_right = true;
+                if sub.optional {
+                    // Sem espaço dos dois lados: fica escondida, na posição da tentativa à direita.
+                    x = right_x;
+                    skipped = true;
+                } else {
+                    x = area.right() - SUB_WIDTH;
+                    flush_right = true;
+                }
             }
         }
 
@@ -129,6 +144,10 @@ pub fn arrange(main: Area, work_area: Area, scale: f64, subs: &[Subcolumn]) -> A
             width: SUB_WIDTH,
             height,
         };
+        if skipped {
+            columns.push(Column { rect, hidden: true });
+            continue;
+        }
         if flush_right {
             for older in &mut columns[..parent] {
                 if !older.hidden && older.rect.overlaps(rect) {
@@ -202,7 +221,17 @@ mod tests {
     }
 
     fn sub(content_height: f64) -> Subcolumn {
-        Subcolumn { content_height }
+        Subcolumn {
+            content_height,
+            optional: false,
+        }
+    }
+
+    fn optional_sub(content_height: f64) -> Subcolumn {
+        Subcolumn {
+            content_height,
+            optional: true,
+        }
     }
 
     fn placed(x: f64, y: f64, height: f64) -> PlacedColumn {
@@ -411,6 +440,64 @@ mod tests {
         assert_eq!((result.columns[0].x, result.columns[0].y), (0.0, 460.0));
         assert_eq!(result.region[0], area(0, 452, 436, 472));
         assert_eq!(result.region[1], area(406, 452, 412, 492));
+    }
+
+    #[test]
+    fn an_optional_column_that_fits_on_the_right_is_like_a_normal_one() {
+        let normal = arrange(main_at(100, 100), AREA, 1.0, &[sub(200.0)]);
+        let optional = arrange(main_at(100, 100), AREA, 1.0, &[optional_sub(200.0)]);
+
+        assert_eq!(normal, optional);
+        assert!(!optional.columns[1].hidden);
+    }
+
+    #[test]
+    fn an_optional_column_opens_to_the_left_when_only_that_fits() {
+        let normal = arrange(main_at(1560, 100), AREA, 1.0, &[sub(200.0)]);
+        let optional = arrange(main_at(1560, 100), AREA, 1.0, &[optional_sub(200.0)]);
+
+        assert_eq!(normal, optional);
+        assert_eq!(on_screen(&optional, AREA, 1, 1.0), (1178.0, 100.0));
+    }
+
+    #[test]
+    fn an_optional_column_without_room_is_hidden_and_hides_nothing_else() {
+        let narrow = area(0, 0, 700, 1040);
+        // Uma não opcional encostaria na borda direita e esconderia a principal.
+        let normal = arrange(main_at(200, 0), narrow, 1.0, &[sub(200.0), sub(200.0)]);
+        assert!(normal.columns[0].hidden);
+
+        let result = arrange(
+            main_at(200, 0),
+            narrow,
+            1.0,
+            &[sub(200.0), optional_sub(200.0)],
+        );
+        assert_eq!(result.columns.len(), 3);
+        assert!(result.columns[2].hidden);
+        assert!(!result.columns[0].hidden);
+        assert!(!result.columns[1].hidden);
+        // A região é a de uma disposição só com as colunas visíveis.
+        let without = arrange(main_at(200, 0), narrow, 1.0, &[sub(200.0)]);
+        assert_eq!(result.region, without.region);
+        assert_eq!(result.columns[..2], without.columns[..]);
+
+        // Diretamente depois da principal, sem espaço dos dois lados.
+        let result = arrange(main_at(200, 0), narrow, 1.0, &[optional_sub(200.0)]);
+        assert!(result.columns[1].hidden);
+        assert!(!result.columns[0].hidden);
+        assert_eq!(result.region.len(), 1);
+    }
+
+    #[test]
+    fn optional_defaults_to_false_when_deserialized() {
+        let plain: Subcolumn = serde_json::from_str(r#"{"contentHeight": 100}"#).unwrap();
+        assert!(!plain.optional);
+        assert_eq!(plain.content_height, 100.0);
+
+        let optional: Subcolumn =
+            serde_json::from_str(r#"{"contentHeight": 100, "optional": true}"#).unwrap();
+        assert!(optional.optional);
     }
 
     #[test]

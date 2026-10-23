@@ -40,6 +40,11 @@ export type ThemeChoice = "system" | "light" | "dark";
 export interface PickerSubcolumn {
   /** Altura que o conteúdo ocupa, sem rolagem. */
   contentHeight: number;
+  /**
+   * Coluna opcional (o preview de imagem): só abre se couber à direita ou à esquerda da coluna anterior.
+   * Sem espaço, volta com `hidden: true`, fora do recorte, sem esconder as outras colunas.
+   */
+  optional?: boolean;
 }
 
 /** Posição de uma coluna, em pixels lógicos relativos ao canto superior esquerdo da janela. */
