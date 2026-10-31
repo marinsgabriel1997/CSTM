@@ -115,7 +115,7 @@
 
 - Usar `package.json` como referência da versão do produto e manter coerentes as versões declaradas em `src-tauri/Cargo.toml` e `src-tauri/tauri.conf.json`.
 - Respeitar os processos oficiais de atualização de lockfiles e arquivos derivados; não inventar um mecanismo de sincronização inexistente.
-- Antes de cada commit de entrega, atualizar a versão: PATCH para correções, refatoração, documentação ou manutenção; MINOR para funcionalidades compatíveis; MAJOR para quebra externa que exija adaptação.
+- Antes de cada commit de entrega, atualizar a versão: PATCH para correções, refatoração, documentação ou manutenção; MINOR para funcionalidades compatíveis; MAJOR para quebra externa que exija adaptação. Exceção: correções de alertas em dependências só de desenvolvimento (ver Alertas de segurança de dependências).
 - Migrações internas e remoção de legado não exigem MAJOR por si só; usar o menor incremento aplicável.
 - Builds de teste (instaladores para o Marco, em `releases/teste/`) não repetem a versão publicada: usam a próxima versão da entrega com o sufixo `-teste-<plano>`, por exemplo `0.17.0-teste-084`, aplicada só no build com `npm run tauri -- build --config '{"version":"0.17.0-teste-084"}'`, sem alterar os arquivos de versão.
 - Manter mudanças notáveis em `CHANGELOG.md`, sob `## [Unreleased]` durante o trabalho.
@@ -129,7 +129,7 @@
 
 ## Envio ao GitHub
 
-- Não executar `git push` nem `git pull` por iniciativa própria. O envio acontece somente na publicação de uma release, depois de o usuário aprovar aquela publicação; a aprovação vale uma única vez e não autoriza envios seguintes.
+- Não executar `git push` nem `git pull` por iniciativa própria. O envio acontece somente na publicação de uma release, depois de o usuário aprovar aquela publicação; a aprovação vale uma única vez e não autoriza envios seguintes. Exceção: o push da correção de um alerta de segurança (ver Alertas de segurança de dependências).
 - Não perguntar ao usuário se deseja enviar ao GitHub; ele decide quando enviar.
 
 ## Publicação de releases
@@ -142,6 +142,19 @@
 - Título `CSTM X.Y.Z`. Notas: o conteúdo da seção `## [X.Y.Z]` do `CHANGELOG.md`, sem o cabeçalho, seguido de `**Alterações:** https://github.com/marinsgabriel1997/CSTM/compare/vANTERIOR...vX.Y.Z` quando houver tag anterior.
 - Quando a publicação pular versões já fechadas e commitadas que não foram publicadas, as notas reúnem as mudanças de todas as versões entre a última publicada e a que está sendo publicada, agrupadas por categoria, com a indicação das versões incluídas; `vANTERIOR` no link de comparação é a última versão publicada. As versões puladas não ganham release; as tags delas permanecem.
 - Criar a release como rascunho (`gh release create vX.Y.Z <ativos> --draft --verify-tag --title "CSTM X.Y.Z" --notes-file <notas>`), apresentar o link ao usuário e publicar só após aceite, com `gh release edit vX.Y.Z --draft=false --latest`. Versões com sufixo (`-beta.1`, `-rc.1`) saem com `--prerelease`, sem `--latest`.
+
+## Alertas de segurança de dependências
+
+- Ler os alertas abertos com o `gh` (`gh api repos/marinsgabriel1997/CSTM/dependabot/alerts`) e, para cada um, identificar o pacote, a versão corrigida, se a dependência é direta ou transitiva e se entra no aplicativo instalado (crates do `src-tauri/` e pacotes empacotados pelo Vite) ou é só de desenvolvimento (testes, lint, build). Alertas abertos ao mesmo tempo são corrigidos juntos, num só commit.
+- PRs de segurança abertos pelo Dependabot servem só de referência: a correção é feita localmente por este fluxo, e o bot fecha o PR quando o lockfile corrigido chega a `origin/main`.
+- Aplicar a menor correção: atualizar o pacote dentro das faixas já declaradas, alterando só o lockfile (`npm update <pacote>` ou `cargo update -p <crate>`). Se a correção exigir mudar faixa, subir versão MAJOR de dependência ou alterar código, seguir o fluxo normal com plano.
+- Sem versão corrigida, ou com ela fora da faixa aceita por outro pacote, levar o caso ao usuário com as opções de esperar a correção ou dispensar o alerta no GitHub com justificativa; dispensar é decisão do usuário.
+- Executar as validações aplicáveis aos pacotes afetados (`npm run test`, `npm run build`, `npm run lint`, `npm run test:rust`, `npm run lint:rust`) e conferir com `npm ls <pacote>` ou `cargo tree -i <crate>` que só a versão corrigida permanece.
+- Dependência só de desenvolvimento: sem plano; registrar em `## [Unreleased]`, categoria `Security`, sem subir a versão nem fechar release; a mudança sai na próxima versão do aplicativo.
+- Dependência do aplicativo instalado: registrar um plano curto, com o instalador de teste (ver Versionamento) e o Marco para validação do usuário no Windows; após o aceite, subir PATCH e fechar a release no `CHANGELOG.md`.
+- Commit somente com autorização. Como o alerta só fecha com a correção em `origin/main`, o push do commit autorizado pode ser feito com autorização explícita para aquele push, sem tag nem release quando a dependência é só de desenvolvimento.
+- Para dependência do aplicativo instalado, a correção conta como pedido de publicação: após o commit, seguir Publicação de releases até o rascunho e pedir o aceite do usuário para publicar.
+- Depois do push, confirmar com o `gh` que os alertas fecharam; se algum continuar aberto depois que o GitHub atualizar o grafo de dependências, procurar outros caminhos na árvore que ainda usem a versão vulnerável.
 
 ## Referências situacionais
 
