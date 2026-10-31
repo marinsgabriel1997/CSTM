@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-31
+
+### Security
+
+- A biblioteca de rede usada só nos testes automatizados (`undici`, dependência do `jsdom`) foi atualizada para 8.12.3, que corrige uma falha de negação de serviço (GHSA-xjj6-f33q-929c). O aplicativo instalado não é afetado.
+
 ## [1.1.0] - 2026-10-23
 
 ### Added
