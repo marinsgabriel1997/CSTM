@@ -59,6 +59,14 @@
 - Somente após aceite explícito de todas as verificações aplicáveis no Marco, registrar `Concluído em`, marcar `Status: Concluído` e mover o plano para `planos/executados/`, preservando seu ID e nome. Terminar as fases técnicas não conclui o plano.
 - Manter o plano atualizado com o estado técnico real; não registrar histórico de conversa, instruções ao próximo agente ou duplicações destas regras.
 
+## Issues
+
+- Pendências, bugs e ideias ficam em issues do GitHub (`marinsgabriel1997/CSTM`), lidas com `gh issue list` e `gh issue view`; não manter listas de pendências em arquivos do repositório. Uma issue registra o pedido; ela não é um plano nem uma decisão aprovada.
+- Criar, editar, comentar ou fechar issues somente a pedido do usuário. Pendências percebidas durante o trabalho, fora do escopo da tarefa, são sugeridas ao usuário com título e resumo propostos, sem abrir a issue por conta própria.
+- Título com prefixo do tipo, `[Bug]`, `[Feature]` ou `[Melhoria]`, seguido de uma descrição curta no infinitivo. Corpo em português, com descrição, comportamento atual e esperado quando for bug, e critérios de aceite em checklist quando já definidos; ideias ainda não avaliadas dizem isso no corpo e registram os pontos a decidir.
+- Classificar com labels reais, sem escrevê-las no corpo: uma de tipo (`bug`, `feature` ou `melhoria`), as de área aplicáveis (`security`, `ui/ux`, `accessibility`, `documentation`) e, quando o usuário definir, uma de prioridade (`prioridade: crítica`, `alta`, `média` ou `baixa`). Labels novas exigem aprovação.
+- O plano que nasce de uma issue cita `#N` no contexto. O commit de entrega leva `Closes #N` no corpo, uma linha por issue resolvida, e a issue fecha quando o commit chega a `origin/main`; não fechar manualmente issues resolvidas por entrega.
+
 ## Arquitetura e contratos
 
 - Preservar a divisão frontend/backend e a comunicação por comandos Tauri. O frontend não deve executar SQL.
