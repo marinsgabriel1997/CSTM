@@ -10,13 +10,11 @@
 
 ## Ambiente e comandos
 
-- Usar os scripts existentes em `package.json`, preservando `package-lock.json` e `src-tauri/Cargo.lock` conforme as dependências efetivamente alteradas.
 - `npm run dev`: iniciar somente o frontend Vite.
 - `npm run build`: verificar TypeScript e gerar o build do frontend com Vite.
 - `npm run preview`: visualizar o build do frontend.
 - `npm run tauri -- dev`: iniciar o aplicativo desktop em desenvolvimento; a configuração Tauri chama `npm run dev`.
 - `npm run tauri -- build`: construir o aplicativo desktop; a configuração Tauri chama `npm run build`.
-- A configuração Vite usa a porta fixa 1420. Verificar os requisitos locais de Node, Rust e ferramentas Windows antes de executar o fluxo desktop.
 - `npm run lint`: executar o ESLint no frontend.
 - `npm run lint:rust`: executar o clippy no backend com warnings tratados como erro.
 - `npm run format:rust`: formatar o backend com `cargo fmt`; `cargo fmt --check` em `src-tauri/` verifica sem alterar.
@@ -34,7 +32,7 @@
 - Apresentar decisões e dúvidas ao usuário como perguntas interativas com as opções disponíveis (ferramenta de perguntas do cliente), indicando a recomendada, em vez de listá-las só em texto corrido.
 - O plano serve de registro histórico das decisões e de checklist das validações técnicas e do Marco; não é apresentado para aprovação antes da execução.
 - Mudanças relevantes de escopo, arquitetura ou contratos que surjam durante a execução e não tenham sido decididas no planejamento exigem consulta ao usuário antes de executar a parte afetada.
-- Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis; gerar sempre o instalador de teste em `releases/teste/` (ver Versionamento) e apresentar o Marco final com o caminho do instalador, para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.
+- Após implementar e validar tecnicamente a entrega, atualizar a documentação afetada e registrar mudanças notáveis. Quando a entrega alterar o aplicativo distribuído, gerar o instalador de teste em `releases/teste/` (ver [Versionamento](docs/agente/entregas.md#versionamento)) e apresentar o Marco final com o caminho do instalador, para validação exclusiva do usuário, incluindo verificações no Windows quando necessárias. O plano só é concluído após aceite explícito do Marco.
 - Não realizar commit sem autorização explícita específica para a operação. Push e pull seguem a seção Envio ao GitHub.
 
 ## Delegação a subagentes
@@ -47,26 +45,15 @@
 ## Planos
 
 - Manter planos ativos em `planos/` e concluídos em `planos/executados/`. Nomear novos planos no formato `NNN-nome-descritivo.md`, por exemplo `001-autenticacao.md`, com ID numérico sequencial, permanente e não reutilizável; o ID não representa prioridade.
-- Antes de criar um plano, consultar os IDs em `planos/` e `planos/executados/` para escolher o próximo ID livre, sem reaproveitar IDs de planos excluídos conhecidos. Preservar nomes e referências dos planos legados `p10-`, `p67-` e similares; não renomeá-los automaticamente. Migração exige proposta separada.
-- Registrar no início do plano `Status`, `Prioridade` (Crítica, Alta, Média ou Baixa) e `Criado em`; preencher `Concluído em` somente após aceite. Alterar prioridade pelo metadado, sem renomear o arquivo nem criar subpastas por prioridade, módulo ou status por padrão.
-- Cada plano deve ser autocontido e registrar objetivo, contexto, decisões tomadas com o usuário, escopo, estado desejado, riscos, premissas e estratégia de validação.
-- Dividir a execução em fases numeradas, na ordem de execução, com tarefas verificáveis e critério técnico objetivo de conclusão verificável pelo agente; marcar tarefas concluídas somente após confirmar sua execução.
 - Após registrar o plano, executar as fases continuamente, sem pausas de aceite intermediárias; não avançar à fase seguinte antes de atender ao critério técnico da fase atual.
 - Manter uma única seção `Marco — Validação do usuário`, persistente e sempre a última seção do arquivo, abaixo de todas as fases. Conter checklist das verificações funcionais/manuais do usuário, resultados e aceite explícito; somente o usuário pode validar e aprovar essas verificações.
-- Após reprovação ou ajustes, registrar resultados e pendências no mesmo Marco e acrescentar fases corretivas numeradas imediatamente antes dele, preservando fases concluídas e o histórico das validações. Executar as correções e retornar ao mesmo Marco, sem criar outro Marco ou novo plano para a mesma entrega.
-- Correções dentro do escopo do plano não exigem consulta. Nova funcionalidade, decisão arquitetural material, risco novo relevante ou ampliação de escopo exigem consulta ao usuário e atualização do plano antes de executar a parte afetada.
-- Se surgir impedimento real sem solução autorizada ou validação técnica inviável, registrar evidências e solicitar decisão; não fabricar resultados nem avançar como se aprovado.
-- Somente após aceite explícito de todas as verificações aplicáveis no Marco, registrar `Concluído em`, marcar `Status: Concluído` e mover o plano para `planos/executados/`, preservando seu ID e nome. Terminar as fases técnicas não conclui o plano.
-- Manter o plano atualizado com o estado técnico real; não registrar histórico de conversa, instruções ao próximo agente ou duplicações destas regras.
+- Somente após aceite explícito de todas as verificações aplicáveis no Marco, concluir o plano e movê-lo para `planos/executados/`, preservando seu ID e nome.
 
 ## Issues
 
 - Pendências, bugs e ideias ficam em issues do GitHub (`marinsgabriel1997/CSTM`), lidas com `gh issue list` e `gh issue view`; não manter listas de pendências em arquivos do repositório. Uma issue registra o pedido; ela não é um plano nem uma decisão aprovada.
 - Criar, editar, comentar ou fechar issues somente a pedido do usuário. Pendências percebidas durante o trabalho, fora do escopo da tarefa, são sugeridas ao usuário com título e resumo propostos, sem abrir a issue por conta própria.
-- Fluxo de criação, quando o usuário pede uma issue ou relata uma pendência para registrar: (1) conferir com `gh issue list` se já existe issue sobre o assunto; (2) ler o código e os documentos necessários para descrever o comportamento atual; (3) esclarecer com perguntas interativas os pontos que o usuário quiser decidir agora, sem forçar decisões que ele deixar em aberto; (4) criar a issue no formato abaixo e apresentar o link. Registrar a issue encerra a tarefa: plano e implementação só começam com pedido explícito do usuário.
-- Título com prefixo do tipo, `[Bug]`, `[Feature]` ou `[Melhoria]`, seguido de uma descrição curta no infinitivo. Corpo em português, com descrição, comportamento atual e esperado quando for bug, e critérios de aceite em checklist quando já definidos; ideias ainda não avaliadas dizem isso no corpo e registram os pontos a decidir.
-- Classificar com labels reais, sem escrevê-las no corpo: uma de tipo (`bug`, `feature` ou `melhoria`), as de área aplicáveis (`security`, `ui/ux`, `accessibility`, `documentation`) e, quando o usuário definir, uma de prioridade (`prioridade: crítica`, `alta`, `média` ou `baixa`). Labels novas exigem aprovação.
-- O plano que nasce de uma issue cita `#N` no contexto. O commit de entrega leva `Closes #N` no corpo, uma linha por issue resolvida, e a issue fecha quando o commit chega a `origin/main`; não fechar manualmente issues resolvidas por entrega.
+- Registrar a issue encerra a tarefa: plano e implementação só começam com pedido explícito do usuário.
 
 ## Arquitetura e contratos
 
@@ -104,10 +91,7 @@
 
 - Criar ou atualizar testes para toda mudança de comportamento testável; definir no plano a infraestrutura necessária quando ela ainda não existir.
 - Preservar testes como contratos de comportamento; investigar falhas antes de alterá-los, sem ajustar expectativas apenas para obter sucesso.
-- Testar comportamento e contratos, evitando acoplamento desnecessário a detalhes internos.
-- Definir critérios de aceite objetivos durante o planejamento e executar testes e verificações oficiais aplicáveis à mudança.
 - Para alterações de frontend, executar `npm run test` e `npm run build` (tipos e build); isso não substitui validação funcional no aplicativo desktop.
-- Manter `src/test/fakeApi.ts` coerente com os contratos dos comandos usados pela interface.
 - Validar alterações de backend e integração desktop com verificações adequadas ao Rust/Tauri, relatando os comandos efetivamente executados e seus resultados.
 - Atalho global, foco, clipboard, entrada simulada, bandeja e instância única exigem validação funcional no Windows quando afetados.
 - Distinguir verificações automatizadas de testes manuais e registrar o que não pôde ser validado.
@@ -120,50 +104,19 @@
 - Mudanças destrutivas em dados ou contratos exigem decisão explícita antes da execução; não apagar bancos do usuário como solução de migração.
 - Preservar alterações pendentes do usuário, inclusive arquivos ainda não rastreados. Não descartar nem incluir essas alterações em uma entrega sem verificar o escopo autorizado.
 
-## Versionamento, changelog e commits
+## Histórico e permissões de entrega
 
-- Usar `package.json` como referência da versão do produto e manter coerentes as versões declaradas em `src-tauri/Cargo.toml` e `src-tauri/tauri.conf.json`.
-- Respeitar os processos oficiais de atualização de lockfiles e arquivos derivados; não inventar um mecanismo de sincronização inexistente.
-- Antes de cada commit de entrega, atualizar a versão: PATCH para correções, refatoração, documentação ou manutenção; MINOR para funcionalidades compatíveis; MAJOR para quebra externa que exija adaptação. Exceção: correções de alertas em dependências só de desenvolvimento (ver Alertas de segurança de dependências).
-- Migrações internas e remoção de legado não exigem MAJOR por si só; usar o menor incremento aplicável.
-- Builds de teste (instaladores para o Marco, em `releases/teste/`) não repetem a versão publicada: usam a próxima versão da entrega com o sufixo `-teste-<plano>`, por exemplo `0.17.0-teste-084`, aplicada só no build com `npm run tauri -- build --config '{"version":"0.17.0-teste-084"}'`, sem alterar os arquivos de versão.
+- Mudanças exclusivamente em documentação, instruções de agentes ou processos internos, sem alteração do aplicativo distribuído, dispensam incremento de versão, fechamento ou publicação de release e geração de instalador.
 - Manter mudanças notáveis em `CHANGELOG.md`, sob `## [Unreleased]` durante o trabalho.
-- Antes do commit de entrega, fechar a release em `## [versão] - YYYY-MM-DD`, com a versão declarada e data local; ordenar da mais recente para a mais antiga.
-- Descrever o efeito das mudanças para humanos, sem copiar mensagens de commit nem usar descrições vagas.
-- Usar somente categorias aplicáveis: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed` e `Security`; não criar categorias vazias.
-- Usar Conventional Commits em português: `<tipo>(<escopo opcional>): <descrição>`, omitindo os parênteses quando não houver escopo.
-- Tipos usuais: `feat`, `fix`, `docs`, `style`, `refactor`, `test` e `chore`. Usar `!` ou `BREAKING CHANGE:` somente para quebra externa confirmada.
-- Antes de pedir autorização para commit, revisar as alterações da entrega e apresentar a mensagem proposta. Registrar mudanças diferentes em linhas próprias, cada uma com o formato completo.
-- Após a autorização, preparar versão e release, executar as validações finais e realizar apenas o commit autorizado. Autorização de commit não autoriza push.
+- Antes de pedir autorização para commit, revisar as alterações da entrega e apresentar a mensagem proposta. Autorização de commit não autoriza push.
+- Push, tag e publicação exigem autorização para aquela publicação; preservar as exceções do procedimento de alertas de segurança de dependências.
+- Tags publicadas não são movidas, apagadas nem reaproveitadas; um erro numa versão publicada é corrigido numa nova versão.
+- Criar releases como rascunho e publicar somente após aceite do usuário. Dispensar alerta de segurança é decisão do usuário.
 
 ## Envio ao GitHub
 
-- Não executar `git push` nem `git pull` por iniciativa própria. O envio acontece somente na publicação de uma release, depois de o usuário aprovar aquela publicação; a aprovação vale uma única vez e não autoriza envios seguintes. Exceção: o push da correção de um alerta de segurança (ver Alertas de segurança de dependências).
+- Não executar `git push` nem `git pull` por iniciativa própria. O envio acontece somente na publicação de uma release, depois de o usuário aprovar aquela publicação; a aprovação vale uma única vez e não autoriza envios seguintes. Exceção: o push da correção de um alerta de segurança (ver [Alertas de segurança de dependências](docs/agente/seguranca-dependencias.md)).
 - Não perguntar ao usuário se deseja enviar ao GitHub; ele decide quando enviar.
-
-## Publicação de releases
-
-- Publicar no GitHub com o GitHub CLI (`gh`), a partir da 0.16.0; versões anteriores não têm tag nem release. Push, tag e publicação acontecem somente quando o usuário aprova a publicação daquela versão (ver Envio ao GitHub).
-- Publicar somente versões fechadas no `CHANGELOG.md`, a partir do commit de entrega já enviado a `origin/main`.
-- Marcar o commit de entrega com tag anotada `vX.Y.Z` (`git tag -a vX.Y.Z -m "CSTM X.Y.Z"`) e enviá-la com `git push origin vX.Y.Z`. Tags publicadas não são movidas, apagadas nem reaproveitadas; um erro numa versão publicada é corrigido numa nova versão.
-- Gerar o instalador com `npm run tauri -- build` no commit da tag, com a árvore de trabalho limpa, e copiá-lo para `releases/` (ignorado pelo git) com o nome gerado pelo Tauri, `CSTM_X.Y.Z_x64-setup.exe`.
-- Anexar à release o instalador e `SHA256SUMS.txt`, com uma linha `<sha256>  <arquivo>` por ativo (formato do `sha256sum`).
-- Título `CSTM X.Y.Z`. Notas: o conteúdo da seção `## [X.Y.Z]` do `CHANGELOG.md`, sem o cabeçalho, seguido de `**Alterações:** https://github.com/marinsgabriel1997/CSTM/compare/vANTERIOR...vX.Y.Z` quando houver tag anterior.
-- Quando a publicação pular versões já fechadas e commitadas que não foram publicadas, as notas reúnem as mudanças de todas as versões entre a última publicada e a que está sendo publicada, agrupadas por categoria, com a indicação das versões incluídas; `vANTERIOR` no link de comparação é a última versão publicada. As versões puladas não ganham release; as tags delas permanecem.
-- Criar a release como rascunho (`gh release create vX.Y.Z <ativos> --draft --verify-tag --title "CSTM X.Y.Z" --notes-file <notas>`), apresentar o link ao usuário e publicar só após aceite, com `gh release edit vX.Y.Z --draft=false --latest`. Versões com sufixo (`-beta.1`, `-rc.1`) saem com `--prerelease`, sem `--latest`.
-
-## Alertas de segurança de dependências
-
-- Ler os alertas abertos com o `gh` (`gh api repos/marinsgabriel1997/CSTM/dependabot/alerts`) e, para cada um, identificar o pacote, a versão corrigida, se a dependência é direta ou transitiva e se entra no aplicativo instalado (crates do `src-tauri/` e pacotes empacotados pelo Vite) ou é só de desenvolvimento (testes, lint, build). Alertas abertos ao mesmo tempo são corrigidos juntos, num só commit.
-- PRs de segurança abertos pelo Dependabot servem só de referência: a correção é feita localmente por este fluxo, e o bot fecha o PR quando o lockfile corrigido chega a `origin/main`.
-- Aplicar a menor correção: atualizar o pacote dentro das faixas já declaradas, alterando só o lockfile (`npm update <pacote>` ou `cargo update -p <crate>`). Se a correção exigir mudar faixa, subir versão MAJOR de dependência ou alterar código, seguir o fluxo normal com plano.
-- Sem versão corrigida, ou com ela fora da faixa aceita por outro pacote, levar o caso ao usuário com as opções de esperar a correção ou dispensar o alerta no GitHub com justificativa; dispensar é decisão do usuário.
-- Executar as validações aplicáveis aos pacotes afetados (`npm run test`, `npm run build`, `npm run lint`, `npm run test:rust`, `npm run lint:rust`) e conferir com `npm ls <pacote>` ou `cargo tree -i <crate>` que só a versão corrigida permanece.
-- Dependência só de desenvolvimento: sem plano; registrar em `## [Unreleased]`, categoria `Security`, sem subir a versão nem fechar release; a mudança sai na próxima versão do aplicativo.
-- Dependência do aplicativo instalado: registrar um plano curto, com o instalador de teste (ver Versionamento) e o Marco para validação do usuário no Windows; após o aceite, subir PATCH e fechar a release no `CHANGELOG.md`.
-- Commit somente com autorização. Como o alerta só fecha com a correção em `origin/main`, o push do commit autorizado pode ser feito com autorização explícita para aquele push, sem tag nem release quando a dependência é só de desenvolvimento.
-- Para dependência do aplicativo instalado, a correção conta como pedido de publicação: após o commit, seguir Publicação de releases até o rascunho e pedir o aceite do usuário para publicar.
-- Depois do push, confirmar com o `gh` que os alertas fecharam; se algum continuar aberto depois que o GitHub atualizar o grafo de dependências, procurar outros caminhos na árvore que ainda usem a versão vulnerável.
 
 ## Referências situacionais
 
@@ -176,5 +129,11 @@
 | `src-tauri/Cargo.toml` | Antes de alterar dependências, configuração Rust ou versão do backend, ler este manifesto. |
 | `src-tauri/tauri.conf.json` | Antes de alterar janelas, build, identidade, versão ou empacotamento desktop, ler esta configuração. |
 | `src-tauri/capabilities/default.json` | Antes de alterar permissões ou expor recursos Tauri às janelas, ler as capabilities aplicáveis. |
+| `docs/agente/ambiente.md` | Antes de executar scripts, iniciar frontend/desktop ou usar ferramentas de build, lint e formatação, ler os cuidados de ambiente; os comandos oficiais estão neste `AGENTS.md`. |
+| `docs/agente/planos.md` | Antes de criar, atualizar, executar ou concluir um plano, ler o procedimento de IDs, fases e Marco. |
+| `docs/agente/issues.md` | Antes de consultar, registrar ou alterar demandas, vincular plano ou preparar commit que resolva issue, ler o procedimento de issues. |
+| `docs/agente/validacao.md` | Antes de definir a estratégia de validação, escrever testes ou validar uma entrega, ler os procedimentos técnicos e funcionais. |
+| `docs/agente/entregas.md` | Antes de preparar instalador, atualizar versão ou changelog, redigir mensagem ou realizar commit, criar/enviar tag ou operar publicação de release, ler o procedimento de entregas. |
+| `docs/agente/seguranca-dependencias.md` | Antes de analisar, corrigir ou dispensar alertas de dependências, ler o procedimento e suas exceções de plano, versão, commit, push e publicação. |
 
 - Consultar somente as fontes necessárias à tarefa. Ao criar documentação especializada aprovada, adicionar sua referência e um gatilho explícito de leitura.

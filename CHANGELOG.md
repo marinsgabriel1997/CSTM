@@ -6,6 +6,11 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Changed
+
+- Os procedimentos dos agentes foram separados por assunto em `docs/agente/`, mantendo os comandos e as regras essenciais no `AGENTS.md`.
+- Mudanças exclusivamente documentais, de instruções de agentes ou de processos internos, sem alteração do aplicativo distribuído, dispensam incremento de versão, release e instalador.
+
 ## [1.1.1] - 2026-10-31
 
 ### Security
