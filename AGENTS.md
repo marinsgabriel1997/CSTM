@@ -106,7 +106,7 @@
 
 ## Histórico e permissões de entrega
 
-- Mudanças exclusivamente em documentação, instruções de agentes ou processos internos, sem alteração do aplicativo distribuído, dispensam incremento de versão, fechamento ou publicação de release e geração de instalador.
+- Incrementar a versão, fechar uma release e gerar instalador somente em entregas que alterem o software distribuído: código do aplicativo, interface, recursos empacotados, dependências ou configurações que afetem seu funcionamento. Mudanças apenas em documentação do repositório, instruções de agentes, processos internos, testes ou ferramentas de desenvolvimento, sem impacto no software distribuído, não exigem essas etapas. Publicar uma release continua dependendo de autorização específica do usuário.
 - Manter mudanças notáveis em `CHANGELOG.md`, sob `## [Unreleased]` durante o trabalho.
 - Antes de pedir autorização para commit, revisar as alterações da entrega e apresentar a mensagem proposta. Autorização de commit não autoriza push.
 - Push, tag e publicação exigem autorização para aquela publicação; preservar as exceções do procedimento de alertas de segurança de dependências.

@@ -9,7 +9,7 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 ### Changed
 
 - Os procedimentos dos agentes foram separados por assunto em `docs/agente/`, mantendo os comandos e as regras essenciais no `AGENTS.md`.
-- Mudanças exclusivamente documentais, de instruções de agentes ou de processos internos, sem alteração do aplicativo distribuído, dispensam incremento de versão, release e instalador.
+- Incremento de versão, fechamento de release e geração de instalador se aplicam somente a entregas que alterem o software distribuído; documentação do repositório, instruções, processos, testes e ferramentas de desenvolvimento sem impacto no aplicativo não exigem essas etapas. A publicação continua dependendo de autorização específica.
 
 ## [1.1.1] - 2026-10-31
 

@@ -4,7 +4,7 @@ Procedimentos de versionamento, changelog, commits e publicação. As permissõe
 
 ## Versionamento
 
-- Mudanças exclusivamente em documentação, instruções de agentes ou processos internos, sem alteração do aplicativo distribuído, seguem a dispensa de versão, release e instalador definida no [AGENTS.md](../../AGENTS.md#histórico-e-permissões-de-entrega).
+- Aplicar incremento de versão, fechamento de release e geração de instalador somente quando a entrega alterar o software distribuído, conforme os critérios do [AGENTS.md](../../AGENTS.md#histórico-e-permissões-de-entrega). O tipo de arquivo ou a existência de um commit, isoladamente, não justificam essas etapas; considerar o impacto no aplicativo. A publicação exige autorização específica do usuário.
 - Usar `package.json` como referência da versão do produto e manter coerentes as versões declaradas em `src-tauri/Cargo.toml` e `src-tauri/tauri.conf.json`.
 - Respeitar os processos oficiais de atualização de lockfiles e arquivos derivados; não inventar um mecanismo de sincronização inexistente.
 - Antes de cada commit de entrega que altere o aplicativo distribuído, atualizar a versão: PATCH para correções, refatoração ou manutenção; MINOR para funcionalidades compatíveis; MAJOR para quebra externa que exija adaptação. Exceção: correções de alertas em dependências só de desenvolvimento (ver [Alertas de segurança de dependências](seguranca-dependencias.md)).
