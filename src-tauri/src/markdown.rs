@@ -136,7 +136,8 @@ struct Walker {
     in_heading: bool,
     /// Tamanho de `out` logo após cada marcador de ênfase aberto (chat).
     marks: Vec<usize>,
-    /// Destino e posição inicial do texto de cada link ou imagem aberto.
+    /// Destino e posição inicial do texto de exibição de cada link ou imagem aberto
+    /// (o texto é descartado no fechamento quando há destino).
     links: Vec<(String, usize)>,
     cells: Vec<String>,
     cell_start: usize,
@@ -411,11 +412,11 @@ impl Walker {
             TagEnd::Strong if !self.in_heading => self.close("*"),
             TagEnd::Link | TagEnd::Image => {
                 if let Some((url, pos)) = self.links.pop() {
-                    let text = &self.out[pos..];
-                    if text.is_empty() {
-                        self.out.push_str(&url);
-                    } else if !url.is_empty() && text != url && format!("mailto:{text}") != url {
-                        self.out.push_str(&format!(" ({url})"));
+                    // Fica só o destino; sem destino, o texto de exibição permanece.
+                    if !url.is_empty() {
+                        self.out.truncate(pos);
+                        self.out
+                            .push_str(url.strip_prefix("mailto:").unwrap_or(&url));
                     }
                 }
             }
@@ -862,7 +863,7 @@ mod tests {
     #[test]
     fn enfase_vazia_nao_emite_marcadores() {
         assert_eq!(to_google_chat("a **** b"), "a **** b");
-        assert_eq!(to_google_chat("a [**](u) b"), "a ** (u) b");
+        assert_eq!(to_google_chat("a [**](u) b"), "a u b");
     }
 
     #[test]
@@ -909,7 +910,7 @@ mod tests {
             "texto\n\n• a\n• b\n\nfim"
         );
         assert_eq!(to_plain("- a\n\n  b\n- c"), "• a\n\n  b\n• c");
-        assert_eq!(to_plain("- **a** [l](u)"), "• a l (u)");
+        assert_eq!(to_plain("- **a** [l](u)"), "• a u");
     }
 
     #[test]
@@ -924,25 +925,58 @@ mod tests {
 
     #[test]
     fn links_e_imagens() {
-        assert_eq!(to_plain("[texto](https://a.com)"), "texto (https://a.com)");
-        assert_eq!(
-            to_google_chat("[texto](https://a.com)"),
-            "texto (https://a.com)"
-        );
+        assert_eq!(to_plain("[texto](https://a.com)"), "https://a.com");
+        assert_eq!(to_google_chat("[texto](https://a.com)"), "https://a.com");
         assert_eq!(to_plain("<https://a.com>"), "https://a.com");
         assert_eq!(to_google_chat("<https://a.com>"), "https://a.com");
         assert_eq!(to_plain("<a@b.com>"), "a@b.com");
         assert_eq!(to_plain("[https://a.com](https://a.com)"), "https://a.com");
         assert_eq!(
             to_plain("![logo](https://a.com/l.png)"),
-            "logo (https://a.com/l.png)"
+            "https://a.com/l.png"
         );
         assert_eq!(
             to_google_chat("![logo](https://a.com/l.png)"),
-            "logo (https://a.com/l.png)"
+            "https://a.com/l.png"
         );
         assert_eq!(to_plain("![](https://a.com/l.png)"), "https://a.com/l.png");
-        assert_eq!(to_google_chat("veja [**ação**](u)"), "veja *ação* (u)");
+        assert_eq!(to_google_chat("veja [**ação**](u)"), "veja u");
+    }
+
+    #[test]
+    fn link_vira_so_o_endereco() {
+        let casos = [
+            (
+                "[www.exemplo.com.br](https://www.exemplo.com.br)",
+                "https://www.exemplo.com.br",
+            ),
+            (
+                "[Acessar o site](https://www.exemplo.com.br/pagina)",
+                "https://www.exemplo.com.br/pagina",
+            ),
+            (
+                "[x](https://a.com/p?a=1&b=2#frag)",
+                "https://a.com/p?a=1&b=2#frag",
+            ),
+            ("[Fale conosco](mailto:a@b.com)", "a@b.com"),
+            (
+                "![Logo da empresa](https://a.com/l.png)",
+                "https://a.com/l.png",
+            ),
+            (
+                "veja [site](https://a.com) agora",
+                "veja https://a.com agora",
+            ),
+            ("[x]()", "x"),
+            (
+                "acesse https://a.com/x?y=1 agora",
+                "acesse https://a.com/x?y=1 agora",
+            ),
+        ];
+        for (entrada, esperado) in casos {
+            assert_eq!(to_plain(entrada), esperado, "plain: {entrada}");
+            assert_eq!(to_google_chat(entrada), esperado, "chat: {entrada}");
+        }
     }
 
     #[test]

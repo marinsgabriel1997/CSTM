@@ -112,7 +112,7 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
       "Escreva os textos em markdown (`**negrito**`, `_itálico_`, `- listas`, `# títulos`) e escolha como colar: **Markdown** (como está), **Sem formatação** (sem as marcas), **Formatado** (negrito, listas e links de verdade, para Word, Outlook, Gmail e Teams) ou **Google Chat** (`*negrito*`, `_itálico_`, `~tachado~`).",
       "`Enter` e **Copiar** usam o modo padrão, escolhido em **Configurações** › **Modo de colagem padrão**. Os outros três ficam em botões na linha do texto selecionado.",
       "No **Histórico**, `Enter` e **Copiar** colam o item como foi copiado, e os quatro modos ficam em botões. A formatação que veio junto e a sintaxe do Chat são entendidas: dá para colar no Chat um texto em markdown ou colar num e-mail, já formatada, uma mensagem copiada do Chat.",
-      "O Google Chat não tem títulos nem links com texto: os títulos viram negrito e os links aparecem como texto seguido do endereço.",
+      "Em **Sem formatação** e no **Google Chat**, links e imagens viram só o endereço: `[site](https://a.com)` cola `https://a.com`. O Google Chat não tem títulos: eles viram negrito.",
     ],
     image: { src: avancadoModos, alt: "Linha selecionada no menu de colagem com os botões dos outros modos de colagem." },
   },

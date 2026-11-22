@@ -6,6 +6,12 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-11-22
+
+### Fixed
+
+- Nos modos Sem formatação e Google Chat, links e imagens em markdown colam só o endereço de destino (`[Acessar o site](https://exemplo.com.br)` cola `https://exemplo.com.br`), sem o texto de exibição entre parênteses; nos links de e-mail, sem o `mailto:`. O texto de reserva do modo Formatado segue a mesma regra (issue #5).
+
 ### Changed
 
 - Os procedimentos dos agentes foram separados por assunto em `docs/agente/`, mantendo os comandos e as regras essenciais no `AGENTS.md`.
