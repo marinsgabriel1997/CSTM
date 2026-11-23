@@ -21,6 +21,9 @@
 - O projeto não inclui formatador de frontend; não adicionar Prettier ou equivalente sem aprovação.
 - `npm run test`: executar os testes do frontend com Vitest (jsdom e Testing Library). Os testes substituem `src/api.ts` pela implementação em memória de `src/test/fakeApi.ts` e não cobrem a integração real com o Tauri.
 - `npm run test:rust`: executar os testes do backend com `cargo test`.
+- `npm run e2e:build`: gerar o build de teste do aplicativo (`src-tauri/target/debug/cstm.exe`, identificador `com.gabriel.cstm.teste`, dados separados dos do usuário); necessário antes dos testes de interface sempre que o app mudar.
+- `npm run test:app`: testes de interface no aplicativo real (Playwright pela porta de depuração do WebView2), sem teclado, mouse nem clipboard reais; o agente pode rodar quando quiser.
+- `npm run test:windows`: testes de ponta a ponta no Windows com teclado, mouse e clipboard reais; fecha o CSTM instalado e o reabre no fim. Rodar somente depois de avisar o usuário e obter autorização para aquela execução (ver [validação](docs/agente/validacao.md#testes-de-interface)).
 - `npm run ajuda:imagens [captura ...]`: regenerar as imagens da Ajuda (`src/assets/ajuda/`) a partir dos protótipos, com o Edge sem janela; as capturas, com estado, recorte e marcações, ficam em `scripts/ajuda-imagens.mjs`.
 
 ## Modos e fluxo de trabalho
@@ -93,7 +96,7 @@
 - Preservar testes como contratos de comportamento; investigar falhas antes de alterá-los, sem ajustar expectativas apenas para obter sucesso.
 - Para alterações de frontend, executar `npm run test` e `npm run build` (tipos e build); isso não substitui validação funcional no aplicativo desktop.
 - Validar alterações de backend e integração desktop com verificações adequadas ao Rust/Tauri, relatando os comandos efetivamente executados e seus resultados.
-- Atalho global, foco, clipboard, entrada simulada, bandeja e instância única exigem validação funcional no Windows quando afetados.
+- Atalho global, foco, clipboard, entrada simulada, bandeja e instância única exigem validação funcional no Windows quando afetados; `npm run test:windows` cobre a maior parte e só roda após aviso e autorização do usuário a cada execução.
 - Distinguir verificações automatizadas de testes manuais e registrar o que não pôde ser validado.
 - Não considerar a entrega concluída sem atender aos critérios aplicáveis e obter aceite explícito do usuário no Marco final; não seguir para commit após validação reprovada.
 

@@ -1,5 +1,5 @@
-/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
+import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 // @ts-expect-error type error without @types/node package
 import process from "node:process";
@@ -41,5 +41,7 @@ export default defineConfig(() => ({
   test: {
     environment: "jsdom",
     setupFiles: ["src/test/setup.ts"],
+    // Os testes de e2e/ rodam no Playwright (npm run test:app), não no Vitest.
+    exclude: [...configDefaults.exclude, "e2e/**"],
   },
 }));

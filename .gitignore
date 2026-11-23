@@ -25,3 +25,4 @@ dist-ssr
 
 # Instaladores gerados (homologados e de teste)
 releases/
+e2e/.resultados/

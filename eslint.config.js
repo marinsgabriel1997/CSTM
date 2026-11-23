@@ -6,7 +6,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["dist", "src-tauri"]),
+  globalIgnores(["dist", "src-tauri", "e2e/.resultados"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [
@@ -18,5 +18,9 @@ export default defineConfig([
     languageOptions: {
       globals: globals.browser,
     },
+  },
+  {
+    files: ["e2e/**/*.ts"],
+    languageOptions: { globals: globals.node },
   },
 ]);

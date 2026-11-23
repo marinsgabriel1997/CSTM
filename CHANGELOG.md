@@ -6,6 +6,10 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+### Added
+
+- Testes automáticos de interface (ferramenta de desenvolvimento, sem mudança no aplicativo): `npm run test:app` exercita o aplicativo real pelo Playwright, e `npm run test:windows` valida atalho, colagem, clipboard, Histórico, bandeja e importar e exportar com teclado e mouse reais, preservando o clipboard e o CSTM instalado do usuário.
+
 ## [1.1.2] - 2026-11-22
 
 ### Fixed
