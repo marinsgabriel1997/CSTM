@@ -22,6 +22,7 @@ import {
   type MouseEvent,
   type ReactElement,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -715,6 +716,14 @@ function Picker() {
   // Item do preview que a seleção pede agora e subcolunas abertas agora, para respostas tardias.
   const wantedPreview = useRef<number | null>(null);
   const currentSubs = useRef<OpenColumn[]>([]);
+  // Altura natural do conteúdo da coluna principal (px lógicos, arredondada) enviada ao backend
+  // em todo pedido de layout, e as colunas do último pedido (com o preview, se houver), para
+  // repetir o pedido quando só a altura muda. Zero até a primeira medição da abertura.
+  const mainContentHeight = useRef(0);
+  const lastColumns = useRef<PickerSubcolumn[]>([]);
+  const mainRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listContentRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const subInputs = useRef<(HTMLInputElement | null)[]>([]);
   const pending = useAsyncControl();
@@ -729,6 +738,9 @@ function Picker() {
         pending.invalidate();
         fullImages.current.clear();
         windowHasPreview.current = false;
+        // O backend reabre a principal com 440 px: a próxima medição precisa ser enviada.
+        mainContentHeight.current = 0;
+        lastColumns.current = [];
         setPreview(null);
         setFolderId(null);
         setSubs([]);
@@ -877,8 +889,10 @@ function Picker() {
     const request = pending.invalidate();
     pending.start();
     windowHasPreview.current = columns.some((column) => column.optional);
+    lastColumns.current = columns;
     try {
       const placed = await api.layoutPicker(
+        mainContentHeight.current,
         columns.map(({ contentHeight, optional }) => (optional ? { contentHeight, optional } : { contentHeight })),
       );
       return pending.isCurrent(request) ? placed : null;
@@ -890,6 +904,30 @@ function Picker() {
       pending.settle(request);
     }
   }
+
+  // Mede a altura natural da principal com o DOM real e, quando muda, pede o layout de novo. A
+  // medição soma o que não é a lista (busca, voltar, rodapé, bordas: altura do cartão menos a
+  // da lista) ao conteúdo da lista sem rolagem (o wrapper interno); assim não depende da
+  // altura atual do cartão e não entra em laço.
+  useLayoutEffect(() => {
+    const card = mainRef.current;
+    const list = listRef.current;
+    const content = listContentRef.current;
+    if (!card || !list || !content) return;
+    const style = getComputedStyle(list);
+    const padding = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    const height = Math.round(card.offsetHeight - list.clientHeight + padding + content.offsetHeight);
+    if (Math.abs(height - mainContentHeight.current) < 1) return;
+    mainContentHeight.current = height;
+    // Falha (fora do Tauri, por exemplo) não é mostrada: a coluna só fica com a altura que tem.
+    void requestLayout(lastColumns.current, false).then((placed) => {
+      if (!placed) return;
+      setPlacements(placed);
+      // O topo da principal pode ter subido: o cartão do preview acompanha.
+      const previewColumn = placed[currentSubs.current.length + 1];
+      if (previewColumn) setPreview((previous) => previous && { ...previous, column: previewColumn });
+    });
+  });
 
   /** Tira a coluna do preview do recorte da janela, se ela estiver lá. */
   function shrinkWindow() {
@@ -1259,6 +1297,7 @@ function Picker() {
     >
       <div
         id={columnId(0)}
+        ref={mainRef}
         className={mergeClasses(styles.card, styles.main, mainPlacement?.hidden && styles.hidden)}
         style={mainPlacement ? cardStyle(mainPlacement) : { inset: 0 }}
         aria-hidden={mainPlacement?.hidden || undefined}
@@ -1295,8 +1334,11 @@ function Picker() {
         ) : (
           <div />
         )}
-        <div id={listId(0)} className={styles.list} role="listbox" aria-label="Textos">
-          {body ?? renderRows(0)}
+        <div ref={listRef} id={listId(0)} className={styles.list} role="listbox" aria-label="Textos">
+          {/* Wrapper medido: sua altura é a do conteúdo, mesmo com a lista maior que ele. */}
+          <div ref={listContentRef} role="presentation">
+            {body ?? renderRows(0)}
+          </div>
         </div>
         <div className={styles.hints}>
           {(cascade ? !body && !!active : hasOptions) && (

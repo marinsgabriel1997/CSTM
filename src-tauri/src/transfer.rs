@@ -171,7 +171,7 @@ pub fn import_folder(
     let items = read_dir(dir, dir, &mut skipped).map_err(io_error(dir))?;
     let items = if include_root {
         vec![Item::Folder {
-            name: display_name(dir),
+            name: without_stamp(&display_name(dir)),
             items,
         }]
     } else {
@@ -440,11 +440,22 @@ pub fn export_json(conn: &Connection, selection: &[ItemRef], file: &Path) -> Res
     Ok(summary)
 }
 
-/// Cria em `dir` uma pasta nova (`CSTM` ou o nome da pasta exportada sozinha) com um `.txt`
-/// por texto. Nunca sobrescreve: nomes já existentes recebem ` (2)`, ` (3)`…
+/// Cria em `dir` uma pasta nova (`CSTM` ou o nome da pasta exportada sozinha, seguido da data e
+/// hora locais) com um `.txt` por texto. Nunca sobrescreve: nomes já existentes recebem ` (2)`,
+/// ` (3)`…
 pub fn export_txt(conn: &Connection, selection: &[ItemRef], dir: &Path) -> Result<Summary> {
+    export_txt_at(conn, selection, dir, &local_time())
+}
+
+/// `export_txt` com a data e hora do nome da pasta informadas.
+fn export_txt_at(
+    conn: &Connection,
+    selection: &[ItemRef],
+    dir: &Path,
+    now: &LocalTime,
+) -> Result<Summary> {
     let Export { name, contents, .. } = export_of(conn, selection)?;
-    let target = create_new_dir(dir, &file_name(&name))?;
+    let target = create_new_dir(dir, &format!("{}{}", file_name(&name), now.stamp()))?;
     write_items(&target, &contents)?;
 
     let mut summary = Summary {
@@ -455,8 +466,14 @@ pub fn export_txt(conn: &Connection, selection: &[ItemRef], dir: &Path) -> Resul
     Ok(summary)
 }
 
-/// Nome sugerido para o backup JSON: `<pasta>.json` para uma pasta sozinha, senão `CSTM.json`.
+/// Nome sugerido para o backup JSON: `<pasta> <data e hora>.json` para uma pasta sozinha, senão
+/// `CSTM <data e hora>.json`, na hora local de agora.
 pub fn json_file_name(conn: &Connection, selection: &[ItemRef]) -> Result<String> {
+    json_file_name_at(conn, selection, &local_time())
+}
+
+/// `json_file_name` com a data e hora informadas.
+fn json_file_name_at(conn: &Connection, selection: &[ItemRef], now: &LocalTime) -> Result<String> {
     // Recusa antes de o aplicativo abrir o seletor de arquivo.
     if selection.iter().any(|item| item.kind == Kind::Clip) {
         return Err(DbError::HistoryItem.into());
@@ -470,7 +487,116 @@ pub fn json_file_name(conn: &Connection, selection: &[ItemRef]) -> Result<String
         ] => file_name(&folders::get_folder(conn, *id)?.name),
         _ => LIBRARY_DIR.to_string(),
     };
-    Ok(format!("{name}.json"))
+    Ok(format!("{name}{}.json", now.stamp()))
+}
+
+/// Data e hora locais, sem fuso, usadas no nome dos arquivos exportados.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct LocalTime {
+    year: u16,
+    month: u16,
+    day: u16,
+    hour: u16,
+    minute: u16,
+    second: u16,
+}
+
+impl LocalTime {
+    /// Sufixo de nome ` AAAA-MM-DD HH-MM-SS` (sem `:`, inválido em nomes do Windows).
+    fn stamp(&self) -> String {
+        format!(
+            " {:04}-{:02}-{:02} {:02}-{:02}-{:02}",
+            self.year, self.month, self.day, self.hour, self.minute, self.second
+        )
+    }
+}
+
+/// Hora local do Windows.
+#[cfg(windows)]
+fn local_time() -> LocalTime {
+    // SAFETY: `GetLocalTime` não tem pré-condições e apenas devolve a hora do sistema.
+    let time = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+    LocalTime {
+        year: time.wYear,
+        month: time.wMonth,
+        day: time.wDay,
+        hour: time.wHour,
+        minute: time.wMinute,
+        second: time.wSecond,
+    }
+}
+
+/// Fora do Windows (só para compilar): UTC a partir do relógio do sistema.
+#[cfg(not(windows))]
+fn local_time() -> LocalTime {
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_secs());
+    let (days, rest) = (seconds / 86_400, seconds % 86_400);
+    // Data civil a partir de dias desde 1970 (algoritmo de Howard Hinnant).
+    let z = days + 719_468;
+    let era = z / 146_097;
+    let day_of_era = z % 146_097;
+    let year_of_era =
+        (day_of_era - day_of_era / 1_460 + day_of_era / 36_524 - day_of_era / 146_096) / 365;
+    let day_of_year = day_of_era - (365 * year_of_era + year_of_era / 4 - year_of_era / 100);
+    let shifted_month = (5 * day_of_year + 2) / 153;
+    let month = if shifted_month < 10 {
+        shifted_month + 3
+    } else {
+        shifted_month - 9
+    };
+    let year = year_of_era + era * 400 + u64::from(month <= 2);
+    LocalTime {
+        year: year as u16,
+        month: month as u16,
+        day: (day_of_year - (153 * shifted_month + 2) / 5 + 1) as u16,
+        hour: (rest / 3_600) as u16,
+        minute: (rest % 3_600 / 60) as u16,
+        second: (rest % 60) as u16,
+    }
+}
+
+/// `name` sem o sufixo ` AAAA-MM-DD HH-MM-SS` das exportações, com ou sem ` (n)` depois dele.
+/// Se o nome ficaria vazio, devolve o original.
+fn without_stamp(name: &str) -> String {
+    let digits = |text: &str| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit());
+    let base = match name
+        .strip_suffix(')')
+        .and_then(|rest| rest.rsplit_once(" ("))
+    {
+        Some((base, n)) if digits(n) => base,
+        _ => name,
+    };
+    let Some(split) = base
+        .len()
+        .checked_sub(20)
+        .filter(|&i| base.is_char_boundary(i))
+    else {
+        return name.into();
+    };
+    let (stem, stamp) = base.split_at(split);
+    // " AAAA-MM-DD HH-MM-SS": posições dos números e dos separadores.
+    let number = |range: std::ops::Range<usize>| {
+        let part = &stamp[range];
+        digits(part).then(|| part.parse::<u16>().ok()).flatten()
+    };
+    let valid = stamp.is_ascii()
+        && stamp.starts_with(' ')
+        && [(5, '-'), (8, '-'), (11, ' '), (14, '-'), (17, '-')]
+            .iter()
+            .all(|&(at, separator)| stamp.as_bytes()[at] == separator as u8)
+        && number(1..5).is_some()
+        && number(6..8).is_some_and(|month| (1..=12).contains(&month))
+        && number(9..11).is_some_and(|day| (1..=31).contains(&day))
+        && number(12..14).is_some_and(|hour| hour < 24)
+        && number(15..17).is_some_and(|minute| minute < 60)
+        && number(18..20).is_some_and(|second| second < 60);
+    if valid && !stem.trim().is_empty() {
+        stem.trim_end().into()
+    } else {
+        name.into()
+    }
 }
 
 /// Árvore abaixo de `parent`: pastas e depois textos, cada grupo na ordem manual.
@@ -666,6 +792,16 @@ mod tests {
         }
     }
 
+    /// Hora fixa dos testes, para não depender do relógio.
+    const NOW: LocalTime = LocalTime {
+        year: 2026,
+        month: 10,
+        day: 31,
+        hour: 14,
+        minute: 35,
+        second: 8,
+    };
+
     fn folder_ref(id: i64) -> ItemRef {
         ItemRef {
             kind: Kind::Folder,
@@ -717,6 +853,116 @@ mod tests {
             .iter()
             .map(|skipped| (skipped.path.replace('\\', "/"), skipped.reason))
             .collect()
+    }
+
+    #[test]
+    fn json_file_name_has_the_local_time() {
+        let conn = open_in_memory().unwrap();
+        let work = folders::create_folder(&conn, None, "Trabalho").unwrap();
+        assert_eq!(
+            json_file_name_at(&conn, &[], &NOW).unwrap(),
+            "CSTM 2026-10-31 14-35-08.json"
+        );
+        assert_eq!(
+            json_file_name_at(&conn, &[folder_ref(work.id)], &NOW).unwrap(),
+            "Trabalho 2026-10-31 14-35-08.json"
+        );
+        let early = LocalTime {
+            year: 2026,
+            month: 1,
+            day: 2,
+            hour: 3,
+            minute: 4,
+            second: 5,
+        };
+        assert_eq!(early.stamp(), " 2026-01-02 03-04-05");
+    }
+
+    #[test]
+    fn export_txt_folder_name_has_the_time_after_the_name_cut() {
+        let dir = TempDir::new();
+        let conn = open_in_memory().unwrap();
+        let long = folders::create_folder(&conn, None, &"a".repeat(300)).unwrap();
+        snippets::create_snippet(&conn, Some(long.id), "Nota", "n").unwrap();
+
+        export_txt_at(&conn, &[folder_ref(long.id)], &dir.0, &NOW).unwrap();
+
+        let expected = format!("{} 2026-10-31 14-35-08", "a".repeat(MAX_NAME_CHARS));
+        assert!(dir.0.join(expected).join("Nota.txt").exists());
+    }
+
+    #[test]
+    fn exporting_twice_in_the_same_second_numbers_the_folder() {
+        let dir = TempDir::new();
+        let conn = open_in_memory().unwrap();
+        snippets::create_snippet(&conn, None, "Nota", "n").unwrap();
+
+        export_txt_at(&conn, &[], &dir.0, &NOW).unwrap();
+        export_txt_at(&conn, &[], &dir.0, &NOW).unwrap();
+
+        assert!(dir.0.join("CSTM 2026-10-31 14-35-08/Nota.txt").exists());
+        assert!(dir.0.join("CSTM 2026-10-31 14-35-08 (2)/Nota.txt").exists());
+    }
+
+    #[test]
+    fn without_stamp_removes_only_an_exact_export_suffix() {
+        assert_eq!(without_stamp("CSTM 2026-10-31 14-35-08"), "CSTM");
+        assert_eq!(without_stamp("CSTM 2026-10-31 14-35-08 (2)"), "CSTM");
+        assert_eq!(
+            without_stamp("Meu Trabalho 2026-10-31 14-35-08"),
+            "Meu Trabalho"
+        );
+        assert_eq!(without_stamp("Clientes"), "Clientes");
+        assert_eq!(
+            without_stamp("CSTM 2026-13-31 14-35-08"),
+            "CSTM 2026-13-31 14-35-08"
+        );
+        assert_eq!(
+            without_stamp("CSTM 2026-10-31 24-00-00"),
+            "CSTM 2026-10-31 24-00-00"
+        );
+        assert_eq!(
+            without_stamp("CSTM 2026-10-31 14-35-08 (x)"),
+            "CSTM 2026-10-31 14-35-08 (x)"
+        );
+        assert_eq!(
+            without_stamp("CSTM 2026-10-31 14-35-08 extra"),
+            "CSTM 2026-10-31 14-35-08 extra"
+        );
+        // Só o carimbo: sobra nome vazio, então fica o original.
+        assert_eq!(
+            without_stamp(" 2026-10-31 14-35-08"),
+            " 2026-10-31 14-35-08"
+        );
+        assert_eq!(without_stamp("é"), "é");
+    }
+
+    #[test]
+    fn import_folder_with_itself_drops_the_stamp_only_from_the_imported_folder() {
+        let dir = TempDir::new();
+        dir.write(
+            "CSTM 2026-10-31 14-35-08 (2)/Sub 2026-10-31 14-35-08/a.txt",
+            b"A",
+        );
+        let root = dir.0.join("CSTM 2026-10-31 14-35-08 (2)");
+
+        let mut conn = open_in_memory().unwrap();
+        import_folder(&mut conn, None, &root, true).unwrap();
+        assert_eq!(
+            tree(&conn),
+            [
+                "CSTM/",
+                "CSTM/Sub 2026-10-31 14-35-08/",
+                "CSTM/Sub 2026-10-31 14-35-08/a=A"
+            ]
+        );
+
+        let mut contents = open_in_memory().unwrap();
+        import_folder(&mut contents, None, &root, false).unwrap();
+        assert_eq!(
+            tree(&contents),
+            ["Sub 2026-10-31 14-35-08/", "Sub 2026-10-31 14-35-08/a=A"]
+        );
     }
 
     #[test]
@@ -844,11 +1090,11 @@ mod tests {
         snippets::create_snippet(&conn, Some(work.id), "Resposta: padrão", "Olá!\nAtt.").unwrap();
         snippets::create_snippet(&conn, Some(work.id), "resposta: padrão", "Outra").unwrap();
         snippets::create_snippet(&conn, None, "Telefone", "(11) 90000-0000").unwrap();
-        fs::create_dir(dir.0.join("CSTM")).unwrap();
+        fs::create_dir(dir.0.join("CSTM 2026-10-31 14-35-08")).unwrap();
 
-        let summary = export_txt(&conn, &[], &dir.0).unwrap();
+        let summary = export_txt_at(&conn, &[], &dir.0, &NOW).unwrap();
 
-        let target = dir.0.join("CSTM (2)");
+        let target = dir.0.join("CSTM 2026-10-31 14-35-08 (2)");
         assert_eq!(summary.path, Some(target.display().to_string()));
         assert_eq!((summary.folders, summary.snippets), (1, 3));
         assert_eq!(
@@ -881,13 +1127,14 @@ mod tests {
         snippets::create_snippet(&conn, Some(work.id), "Nota", "texto").unwrap();
         snippets::create_snippet(&conn, None, "Fora", "não vai").unwrap();
 
-        export_txt(&conn, &[folder_ref(work.id)], &dir.0).unwrap();
+        export_txt_at(&conn, &[folder_ref(work.id)], &dir.0, &NOW).unwrap();
 
+        let target = dir.0.join("Trabalho 2026-10-31 14-35-08");
         assert_eq!(
-            fs::read_to_string(dir.0.join("Trabalho/Nota.txt")).unwrap(),
+            fs::read_to_string(target.join("Nota.txt")).unwrap(),
             "texto"
         );
-        assert!(!dir.0.join("Trabalho/Fora.txt").exists());
+        assert!(!target.join("Fora.txt").exists());
     }
 
     #[test]
@@ -913,19 +1160,23 @@ mod tests {
         snippets::create_snippet(&conn, None, "Fora", "não vai").unwrap();
         let selection = [snippet_ref(phone.id), folder_ref(work.id)];
 
-        let summary = export_txt(&conn, &selection, &dir.0).unwrap();
+        let summary = export_txt_at(&conn, &selection, &dir.0, &NOW).unwrap();
         assert_eq!((summary.folders, summary.snippets), (1, 2));
+        let target = dir.0.join("CSTM 2026-10-31 14-35-08");
         assert_eq!(
-            fs::read_to_string(dir.0.join("CSTM/Trabalho/Nota.txt")).unwrap(),
+            fs::read_to_string(target.join("Trabalho/Nota.txt")).unwrap(),
             "n"
         );
         assert_eq!(
-            fs::read_to_string(dir.0.join("CSTM/Telefone.txt")).unwrap(),
+            fs::read_to_string(target.join("Telefone.txt")).unwrap(),
             "1234"
         );
-        assert!(!dir.0.join("CSTM/Fora.txt").exists());
+        assert!(!target.join("Fora.txt").exists());
 
-        assert_eq!(json_file_name(&conn, &selection).unwrap(), "CSTM.json");
+        assert_eq!(
+            json_file_name_at(&conn, &selection, &NOW).unwrap(),
+            "CSTM 2026-10-31 14-35-08.json"
+        );
         let file = dir.0.join("selecao.json");
         export_json(&conn, &selection, &file).unwrap();
         let mut imported = open_in_memory().unwrap();

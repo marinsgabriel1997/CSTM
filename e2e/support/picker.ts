@@ -19,6 +19,8 @@ const PROIBIDOS = /^(choose_snippet|copy_snippet|paste_clipboard_item|copy_clipb
 
 export interface Chamada {
   comando: string;
+  /** Argumentos enviados (corpo JSON da chamada), quando a chamada tem corpo textual. */
+  argumentos?: Record<string, unknown>;
 }
 
 /**
@@ -37,7 +39,13 @@ async function instalarEspiao(picker: Page): Promise<void> {
       const url = new URL(String(entrada instanceof Request ? entrada.url : entrada));
       if (url.hostname !== "ipc.localhost") return original(entrada, opcoes);
       const comando = decodeURIComponent(url.pathname.slice(1));
-      janela.__chamadas!.push({ comando });
+      let argumentos: Record<string, unknown> | undefined;
+      try {
+        if (typeof opcoes?.body === "string") argumentos = JSON.parse(opcoes.body);
+      } catch {
+        // Corpo que não é JSON (binário ou outro formato): só o nome do comando é registrado.
+      }
+      janela.__chamadas!.push({ comando, argumentos });
       if (proibido.test(comando)) {
         return new Response(JSON.stringify(`bloqueado pelo teste: ${comando}`), { headers: { "Tauri-Response": "error", "Content-Type": "application/json" } });
       }

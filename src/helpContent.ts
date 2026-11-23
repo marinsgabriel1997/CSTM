@@ -160,7 +160,7 @@ export const ADVANCED_SECTIONS: HelpSection[] = [
       "**Arquivos .txt…**: cada arquivo vira um texto, com o nome do arquivo como título.",
       "**Pasta…**: traz a pasta escolhida com tudo o que há dentro dela: as subpastas viram pastas e cada arquivo .txt vira um texto; os outros arquivos ficam de fora. **Conteúdo de uma pasta…** faz o mesmo sem criar a pasta escolhida: o que está dentro dela entra direto na pasta selecionada.",
       "**Backup JSON…**: traz um backup feito pelo CSTM.",
-      "Em **⋯** › **Exportar tudo**: backup JSON completo ou pastas com arquivos .txt. O menu de uma pasta exporta só ela.",
+      "Em **⋯** › **Exportar tudo**: backup JSON completo ou pastas com arquivos .txt. O menu de uma pasta exporta só ela. O nome do backup e da pasta leva a data e a hora da exportação, como `CSTM 2026-10-31 14-35-08.json`; ao importar a pasta de volta com **Pasta…**, a data sai do nome.",
     ],
     image: { src: avancadoImportar, alt: "Menu do botão Mais opções aberto, com Importar." },
   },

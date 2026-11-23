@@ -27,6 +27,23 @@ test("lista Mais usados, Favoritos, as pastas e os textos da raiz", async ({ app
   await expect(menu.picker.getByRole("combobox", { name: "Buscar" })).toBeFocused();
 });
 
+test("com muitos itens na raiz a coluna principal pede altura maior que 440, dentro da área útil", async ({ app, main }) => {
+  const raiz = Object.fromEntries(Array.from({ length: 40 }, (_, i) => [`Texto ${String(i + 1).padStart(2, "0")}`, `Conteúdo ${i + 1}`]));
+  const menu = await abrirMenu(app, main, { raiz });
+  await expect.poll(() => linhasDoMenu(menu.picker).then((linhas) => linhas.length)).toBe(40);
+
+  // O backend não registrou a abertura (ver support/picker.ts), então o layout é recusado e o cartão fica com os
+  // 440 px da abertura; o que se confere é a altura que a página mediu e enviou ao backend.
+  const alturaPedida = async () => {
+    const chamadas = await menu.chamadas();
+    const layouts = chamadas.filter((c) => c.comando === "layout_picker");
+    return Number(layouts[layouts.length - 1]?.argumentos?.mainContentHeight ?? 0);
+  };
+  await expect.poll(alturaPedida).toBeGreaterThan(440);
+  // 40 linhas de ~32 px passam de 1200 px; o backend limita à área útil.
+  expect(await alturaPedida()).toBeGreaterThan(1000);
+});
+
 test("sem textos cadastrados o menu oferece abrir o cadastro", async ({ app, main }) => {
   const menu = await abrirMenu(app, main, {});
   await expect(menu.picker.getByText("Nenhum texto cadastrado.")).toBeVisible();

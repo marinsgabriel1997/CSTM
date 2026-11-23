@@ -22,8 +22,12 @@
 - `npm run test`: executar os testes do frontend com Vitest (jsdom e Testing Library). Os testes substituem `src/api.ts` pela implementação em memória de `src/test/fakeApi.ts` e não cobrem a integração real com o Tauri.
 - `npm run test:rust`: executar os testes do backend com `cargo test`.
 - `npm run e2e:build`: gerar o build de teste do aplicativo (`src-tauri/target/debug/cstm.exe`, identificador `com.gabriel.cstm.teste`, dados separados dos do usuário); necessário antes dos testes de interface sempre que o app mudar.
-- `npm run test:app`: testes de interface no aplicativo real (Playwright pela porta de depuração do WebView2), sem teclado, mouse nem clipboard reais; o agente pode rodar quando quiser.
-- `npm run test:windows`: testes de ponta a ponta no Windows com teclado, mouse e clipboard reais; fecha o CSTM instalado e o reabre no fim. Rodar somente depois de avisar o usuário e obter autorização para aquela execução (ver [validação](docs/agente/validacao.md#testes-de-interface)).
+- `npm run test:app`: testes de interface no aplicativo real (Playwright pela porta de depuração do WebView2), sem teclado, mouse nem clipboard reais.
+- `npm run test:windows`: testes de ponta a ponta no Windows com teclado, mouse e clipboard reais; fecha o CSTM instalado e o reabre no fim.
+- Quem pode rodar o quê:
+  - Livres, sem pedir: `npm run test`, `npm run test:rust`, `npm run lint`, `npm run lint:rust`, `npm run build` e `npm run e2e:build`. Nenhum deles abre o programa.
+  - Só com autorização do usuário, pedida a cada execução: `npm run test:app` e `npm run test:windows`. Os dois abrem o programa na tela (ver [validação](docs/agente/validacao.md#testes-de-interface)).
+  - Subagentes nunca rodam `test:app` nem `test:windows`; a tarefa delegada proíbe os dois por escrito.
 - `npm run ajuda:imagens [captura ...]`: regenerar as imagens da Ajuda (`src/assets/ajuda/`) a partir dos protótipos, com o Edge sem janela; as capturas, com estado, recorte e marcações, ficam em `scripts/ajuda-imagens.mjs`.
 
 ## Modos e fluxo de trabalho

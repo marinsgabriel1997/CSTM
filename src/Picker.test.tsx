@@ -621,6 +621,29 @@ describe("abertura", () => {
     expect(document.getElementById("picker-column-0")).toHaveStyle({ left: "40px", top: "600px" });
     await waitFor(() => expect(fake.picker.readies).toBe(2));
   });
+
+  it("a coluna principal pede a altura do conteúdo e usa a altura devolvida", async () => {
+    // jsdom não faz layout: simula uma lista de 700 px dentro de um cartão com 140 px de busca e rodapé.
+    const offsetHeight = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockImplementation(function (this: HTMLElement) {
+      if (this.id === "picker-column-0") return 440;
+      return this.getAttribute("role") === "presentation" ? 700 : 0;
+    });
+    const clientHeight = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.getAttribute("role") === "listbox" ? 300 : 0;
+    });
+    try {
+      await seed();
+      renderPicker();
+      await list().findByRole("option", { name: "Pessoal" });
+
+      // 440 (cartão) - 300 (lista) + 700 (conteúdo)
+      await waitFor(() => expect(fake.mainContentHeights).toContain(840));
+      await waitFor(() => expect(document.getElementById("picker-column-0")).toHaveStyle({ height: "840px" }));
+    } finally {
+      offsetHeight.mockRestore();
+      clientHeight.mockRestore();
+    }
+  });
 });
 
 describe("modo clique", () => {

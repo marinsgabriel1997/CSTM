@@ -80,6 +80,31 @@ pub struct Area {
     pub height: i32,
 }
 
+/// Retângulo da coluna principal para a altura que o conteúdo pede (pixels lógicos).
+/// A altura fica entre o mínimo (`HEIGHT`) e a área útil. O topo é fixo: só sobe, e só o
+/// necessário, quando a base passaria da área útil; nunca desce de volta, porque parte do
+/// retângulo já guardado (encolher não move a coluna).
+fn fit_main_height(current: Area, work_area: Area, scale: f64, content_height: f64) -> Area {
+    let max = (f64::from(work_area.height) / scale).max(1.0);
+    let logical = if content_height.is_finite() {
+        content_height.max(HEIGHT).min(max)
+    } else {
+        HEIGHT.min(max)
+    };
+    let height = ((logical * scale).round() as i32).min(work_area.height);
+    let bottom = work_area.y + work_area.height;
+    let y = if current.y + height > bottom {
+        (bottom - height).max(work_area.y)
+    } else {
+        current.y
+    };
+    Area {
+        height,
+        y,
+        ..current
+    }
+}
+
 /// Canto superior esquerdo do menu: junto ao cursor, abrindo para a esquerda ou para
 /// cima quando não cabe, e sempre dentro da área útil.
 pub fn place(cursor: (i32, i32), size: (i32, i32), area: Area) -> (i32, i32) {
@@ -352,7 +377,11 @@ fn reveal(app: &AppHandle, count: Option<u64>) {
 
 /// Recorta a janela do menu nas colunas visíveis e devolve a posição de cada coluna,
 /// relativa à janela. A janela em si não muda de tamanho nem de lugar.
-pub fn layout(app: &AppHandle, subs: &[Subcolumn]) -> Result<Vec<PlacedColumn>, String> {
+pub fn layout(
+    app: &AppHandle,
+    main_content_height: f64,
+    subs: &[Subcolumn],
+) -> Result<Vec<PlacedColumn>, String> {
     let window = app
         .get_webview_window(PICKER_WINDOW)
         .ok_or("o menu de colagem não existe")?;
@@ -360,6 +389,11 @@ pub fn layout(app: &AppHandle, subs: &[Subcolumn]) -> Result<Vec<PlacedColumn>, 
         let mut opening = lock_opening(app);
         // A região passa a ser a destas colunas; o aviso de pronto não a substitui mais.
         opening.waiting = false;
+        // A altura pedida e o topo ajustado ficam guardados na abertura: as próximas
+        // chamadas, o tempo limite de `reveal` e a cascata partem deste retângulo.
+        if let Some(main) = opening.main.as_mut() {
+            main.rect = fit_main_height(main.rect, main.work_area, main.scale, main_content_height);
+        }
         opening.main
     }
     .ok_or("o menu de colagem ainda não foi aberto")?;
@@ -443,6 +477,75 @@ mod tests {
         height: 1040,
     };
     const SIZE: (i32, i32) = (420, 440);
+
+    fn main_at(y: i32) -> Area {
+        Area {
+            x: 100,
+            y,
+            width: 420,
+            height: 440,
+        }
+    }
+
+    #[test]
+    fn content_shorter_than_the_minimum_keeps_440() {
+        assert_eq!(
+            fit_main_height(main_at(100), AREA, 1.0, 120.0),
+            main_at(100)
+        );
+    }
+
+    #[test]
+    fn content_taller_grows_the_column() {
+        let fitted = fit_main_height(main_at(100), AREA, 1.0, 600.0);
+        assert_eq!((fitted.y, fitted.height), (100, 600));
+    }
+
+    #[test]
+    fn content_taller_than_the_area_is_limited_to_it() {
+        let fitted = fit_main_height(main_at(100), AREA, 1.0, 5000.0);
+        assert_eq!((fitted.y, fitted.height), (0, 1040));
+    }
+
+    #[test]
+    fn rises_only_as_much_as_needed_past_the_bottom_edge() {
+        let fitted = fit_main_height(main_at(800), AREA, 1.0, 600.0);
+        assert_eq!((fitted.y, fitted.height), (440, 600));
+    }
+
+    #[test]
+    fn shrinking_after_rising_does_not_move_the_top() {
+        let risen = fit_main_height(main_at(800), AREA, 1.0, 600.0);
+        let shrunk = fit_main_height(risen, AREA, 1.0, 440.0);
+        assert_eq!((shrunk.y, shrunk.height), (440, 440));
+    }
+
+    #[test]
+    fn scales_the_logical_height() {
+        // Área de 1040 px físicos = 693 px lógicos a 1,5; 500 lógicos = 750 físicos.
+        let current = Area {
+            height: 660,
+            ..main_at(100)
+        };
+        let fitted = fit_main_height(current, AREA, 1.5, 500.0);
+        assert_eq!((fitted.y, fitted.height), (100, 750));
+        let limited = fit_main_height(current, AREA, 1.5, 5000.0);
+        assert_eq!((limited.y, limited.height), (0, 1040));
+    }
+
+    #[test]
+    fn works_in_an_area_with_a_non_zero_origin() {
+        let area = Area {
+            x: -1920,
+            y: -200,
+            width: 1920,
+            height: 1000,
+        };
+        let fitted = fit_main_height(main_at(500), area, 1.0, 700.0);
+        assert_eq!((fitted.y, fitted.height), (100, 700));
+        let limited = fit_main_height(main_at(500), area, 1.0, 5000.0);
+        assert_eq!((limited.y, limited.height), (-200, 1000));
+    }
 
     #[test]
     fn opens_at_the_cursor_when_it_fits() {

@@ -1,8 +1,9 @@
 # 096 — Testes automáticos de interface no aplicativo real
 
-- Status: Em execução
+- Status: Concluído
 - Prioridade: Média
 - Criado em: 2026-11-22
+- Concluído em: 2026-11-22
 
 ## Objetivo
 

@@ -6,9 +6,17 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-11-23
+
 ### Added
 
 - Testes automáticos de interface (ferramenta de desenvolvimento, sem mudança no aplicativo): `npm run test:app` exercita o aplicativo real pelo Playwright, e `npm run test:windows` valida atalho, colagem, clipboard, Histórico, bandeja e importar e exportar com teclado e mouse reais, preservando o clipboard e o CSTM instalado do usuário.
+
+### Changed
+
+- O backup JSON é sugerido com a data e a hora locais no nome (`CSTM 2026-10-31 14-35-08.json` ou `Trabalho 2026-10-31 14-35-08.json`), e a exportação em .txt cria a pasta com o mesmo carimbo, para exportações feitas em momentos diferentes não se confundirem. Ao importar de volta uma pasta assim com **Pasta…**, a data sai do nome (issue #8).
+- No menu de colagem, a coluna principal cresce conforme o conteúdo, de 440 até a altura da área útil da tela, em vez de ficar fixa em 440 e rolar com espaço sobrando; com o menu aberto, ela acompanha a busca e a pasta aberta no modo clique, com o topo fixo, e sobe só o necessário para não passar da barra de tarefas (issue #4).
+- Os testes de interface que abrem o programa (`npm run test:app` e `npm run test:windows`) passam a rodar só com autorização do usuário a cada execução, e nunca por subagentes.
 
 ## [1.1.2] - 2026-11-22
 

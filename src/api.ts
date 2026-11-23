@@ -262,10 +262,12 @@ export const api = {
     invoke<PickerNavigation>("set_picker_navigation", { navigation }),
   /**
    * Posiciona as subcolunas abertas e recorta a janela do menu em volta das colunas
-   * visíveis. Devolve a posição de cada coluna, a principal primeiro; a principal não
-   * muda de lugar na tela.
+   * visíveis. `mainContentHeight` é a altura natural do conteúdo da coluna principal (px
+   * lógicos): ela fica entre 440 e a área útil, e o topo só sobe se a base não couber.
+   * Devolve a posição de cada coluna, a principal primeiro.
    */
-  layoutPicker: (columns: PickerSubcolumn[]) => invoke<PickerColumn[]>("layout_picker", { columns }),
+  layoutPicker: (mainContentHeight: number, columns: PickerSubcolumn[]) =>
+    invoke<PickerColumn[]>("layout_picker", { mainContentHeight, columns }),
   /** Modo de colagem padrão; `markdown` enquanto nada foi escolhido. Vale na próxima abertura do menu. */
   getPasteFormat: () => invoke<PasteFormat>("get_paste_format"),
   setPasteFormat: (format: PasteFormat) => invoke<PasteFormat>("set_paste_format", { format }),

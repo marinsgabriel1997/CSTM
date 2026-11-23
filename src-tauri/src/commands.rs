@@ -243,8 +243,12 @@ pub fn set_picker_navigation(state: Db, navigation: String) -> CommandResult<Str
 }
 
 #[tauri::command]
-pub fn layout_picker(app: AppHandle, columns: Vec<Subcolumn>) -> CommandResult<Vec<PlacedColumn>> {
-    picker::layout(&app, &columns)
+pub fn layout_picker(
+    app: AppHandle,
+    main_content_height: f64,
+    columns: Vec<Subcolumn>,
+) -> CommandResult<Vec<PlacedColumn>> {
+    picker::layout(&app, main_content_height, &columns)
 }
 
 /// O menu desenhou a raiz depois de abrir: a coluna principal pode aparecer.

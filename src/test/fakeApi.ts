@@ -107,6 +107,8 @@ export function createFakeApi() {
   const updateListeners = new Set<(update: AvailableUpdate) => void>();
   /** Pedidos de layout do menu de colagem, na ordem. */
   const layouts: PickerSubcolumn[][] = [];
+  // Altura pedida da principal em cada layout, na mesma ordem de `layouts`.
+  const mainContentHeights: number[] = [];
   /** Coluna principal da última abertura do menu e quantas vezes o menu avisou que desenhou. */
   let main: PickerColumn = { ...DEFAULT_MAIN };
   /** `optionalFits` falso simula a falta de espaço ao lado: as colunas opcionais voltam com `hidden: true`. */
@@ -515,8 +517,12 @@ export function createFakeApi() {
     },
     // Layout determinístico e simples: a principal onde a abertura a colocou e cada subcoluna
     // à direita da anterior, com o topo no da principal; não imita a falta de espaço lateral.
-    layoutPicker: async (columns) => {
+    layoutPicker: async (mainContentHeight, columns) => {
       layouts.push(columns);
+      mainContentHeights.push(mainContentHeight);
+      // Mesma regra do backend: entre 440 e a área útil; o topo só sobe, e só o necessário.
+      const height = Math.min(Math.max(mainContentHeight, DEFAULT_MAIN.height), WORK_AREA_HEIGHT);
+      main = { ...main, height, y: Math.max(Math.min(main.y, WORK_AREA_HEIGHT - height), 0) };
       const placed: PickerColumn[] = [{ ...main }];
       for (const [index, column] of columns.entries()) {
         const parent = placed[index];
@@ -756,6 +762,7 @@ export function createFakeApi() {
     historyCopied,
     copyElsewhere,
     layouts,
+    mainContentHeights,
     picker,
     /** Define a navegação nas pastas como se tivesse sido escolhida nas Configurações. */
     setNavigation: (value: PickerNavigation) => {

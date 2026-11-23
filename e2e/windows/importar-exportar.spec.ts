@@ -168,6 +168,13 @@ test("importar uma pasta (com ela e só o conteúdo) lista os arquivos ignorados
   });
 });
 
+/** Pasta criada pela exportação .txt: "CSTM AAAA-MM-DD HH-MM-SS" (hora local, na criação). */
+const PASTA_EXPORTADA = /^CSTM \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}$/;
+/** A segunda exportação no mesmo segundo ganha " (2)". */
+const PASTA_DA_SEGUNDA = /^CSTM \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}( \(2\))?$/;
+/** Exportar só a pasta Trabalho: "Trabalho AAAA-MM-DD HH-MM-SS". */
+const PASTA_TRABALHO = /^Trabalho \d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2}$/;
+
 test("exportar tudo como pastas .txt nunca sobrescreve e exportar uma pasta cria só ela", async ({ ctx, main }) => {
   const saida = join(raiz, "saida");
   mkdirSync(saida);
@@ -177,19 +184,26 @@ test("exportar tudo como pastas .txt nunca sobrescreve e exportar uma pasta cria
     await menuDeTransferencia(main, "Exportar tudo", "Pastas e arquivos .txt…");
     await escolherPasta(ctx, saida);
   };
-  await passo("primeira exportação: pasta CSTM com as pastas e os .txt", async () => {
+  let primeira = "";
+  await passo("primeira exportação: pasta CSTM com data e hora, com as pastas e os .txt", async () => {
     await exportarTxt();
     await esperarAviso(main, "4 textos e 3 pastas exportados.");
-    expect(readdirSync(saida)).toEqual(["CSTM"]);
-    expect(readFileSync(join(saida, "CSTM", "Trabalho", "Assinatura.txt"), "utf8")).toBe("Att., Gabriel");
-    expect(readFileSync(join(saida, "CSTM", "Pessoal", "Endereço.txt"), "utf8")).toBe("Rua A, 10");
-    expect(readFileSync(join(saida, "CSTM", "Telefone.txt"), "utf8")).toBe("1234");
+    const entradas = readdirSync(saida);
+    expect(entradas).toEqual([expect.stringMatching(PASTA_EXPORTADA)]);
+    primeira = entradas[0];
+    expect(readFileSync(join(saida, primeira, "Trabalho", "Assinatura.txt"), "utf8")).toBe("Att., Gabriel");
+    expect(readFileSync(join(saida, primeira, "Pessoal", "Endereço.txt"), "utf8")).toBe("Rua A, 10");
+    expect(readFileSync(join(saida, primeira, "Telefone.txt"), "utf8")).toBe("1234");
   });
-  await passo("segunda exportação: CSTM (2), a primeira intacta", async () => {
+  await passo("segunda exportação: outra pasta CSTM com data e hora (ou \" (2)\"), a primeira intacta", async () => {
     await exportarTxt();
-    await expect.poll(() => readdirSync(saida).sort()).toEqual(["CSTM", "CSTM (2)"]);
-    expect(readFileSync(join(saida, "CSTM", "Telefone.txt"), "utf8")).toBe("1234");
-    expect(existsSync(join(saida, "CSTM (2)", "Trabalho", "Resposta.txt"))).toBe(true);
+    await expect.poll(() => readdirSync(saida).length).toBe(2);
+    const entradas = readdirSync(saida);
+    for (const nome of entradas) expect(nome).toMatch(PASTA_DA_SEGUNDA);
+    expect(entradas).toContain(primeira);
+    const segunda = entradas.find((nome) => nome !== primeira)!;
+    expect(readFileSync(join(saida, primeira, "Telefone.txt"), "utf8")).toBe("1234");
+    expect(existsSync(join(saida, segunda, "Trabalho", "Resposta.txt"))).toBe(true);
   });
   await passo("exportar só a pasta Trabalho (menu de contexto)", async () => {
     const so = join(raiz, "so-trabalho");
@@ -198,8 +212,9 @@ test("exportar tudo como pastas .txt nunca sobrescreve e exportar uma pasta cria
     await menu.getByRole("menuitem", { name: "Exportar", exact: true }).click();
     await main.getByRole("menuitem", { name: "Pastas e arquivos .txt…", exact: true }).click();
     await escolherPasta(ctx, so);
-    await expect.poll(() => readdirSync(so)).toEqual(["Trabalho"]);
-    expect(readdirSync(join(so, "Trabalho")).sort()).toEqual(["Assinatura.txt", "Resposta.txt"]);
+    await expect.poll(() => readdirSync(so)).toEqual([expect.stringMatching(PASTA_TRABALHO)]);
+    const [pasta] = readdirSync(so);
+    expect(readdirSync(join(so, pasta)).sort()).toEqual(["Assinatura.txt", "Resposta.txt"]);
   });
 });
 
